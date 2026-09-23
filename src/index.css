@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/literata';
+
+/* Editor's desk: Claude writes in graphite blue, the human marks with a highlighter,
+   Conflicts come back in red pencil, Clean Changes in proof green.
+   Every colour is light-dark(<light>, <dark>); `color-scheme` on <html> picks the theme
+   (data-theme="light" | "dark", otherwise the OS setting) — see the Theme setting. */
+@theme {
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Literata Variable', ui-serif, Georgia, serif;
+
+  --color-fog: light-dark(#edeff2, #14181f);
+  --color-fog-deep: light-dark(#e2e5ea, #0e1116);
+  --color-sheet: light-dark(#ffffff, #1b212b);
+  --color-ink: light-dark(#1d2533, #e3e7ed);
+  --color-ink-soft: light-dark(#4a5466, #b3bac6);
+  --color-ink-faint: light-dark(#626b7c, #8b93a1);
+  --color-line: light-dark(#d5d9e0, #353d4a);
+  --color-line-soft: light-dark(#e7eaee, #272e39);
+
+  --color-claude: light-dark(#2f5d8a, #86acd4);
+  --color-claude-strong: light-dark(#264d73, #a3c1e2);
+  --color-claude-wash: light-dark(#e8eff6, #1e2b3b);
+  --color-mark: light-dark(#f3d35b, #e3bf45);
+  --color-mark-ink: light-dark(#7a6214, #ecd07a);
+  --color-mark-wash: light-dark(#fdf6d8, #3a3218);
+  --color-redpencil: light-dark(#b53a25, #e8826c);
+  --color-redpencil-strong: light-dark(#9a2f1e, #f09a86);
+  --color-redpencil-wash: light-dark(#fbece8, #3b221d);
+  --color-proof: light-dark(#2a7353, #62bd91);
+  --color-proof-strong: light-dark(#215d42, #7dcea6);
+  --color-proof-wash: light-dark(#e6f3ec, #183129);
+
+  /* Text on a filled ink or accent surface (primary buttons, your chat bubbles). */
+  --color-on-ink: light-dark(#ffffff, #14181f);
+  --color-on-accent: light-dark(#ffffff, #10141a);
+  --color-shadow: light-dark(rgba(29, 37, 51, 0.4), rgba(0, 0, 0, 0.65));
+  --color-backdrop: light-dark(rgba(29, 37, 51, 0.35), rgba(5, 7, 10, 0.65));
+}
+
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-fog font-sans text-ink antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-claude);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-mark);
+    color: #1d2533;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

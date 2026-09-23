@@ -1,0 +1,85 @@
+{
+  "id": "default-pbi",
+  "workItemType": "PBI",
+  "name": "Default PBI Template",
+  "version": 1,
+  "isDefault": true,
+  "iterationLogHeading": "PBI Iteration Log",
+  "updatedAt": "2026-09-22T00:00:00.000Z",
+  "sections": [
+    {
+      "key": "userStory",
+      "heading": "User Story",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "As a [role], I want to [action], so that [outcome] — narrowed to what this PBI delivers.",
+      "target": "System.Description"
+    },
+    {
+      "key": "roles",
+      "heading": "Roles",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "List of roles, or a permission matrix (markdown table) when actions are gated differently per role.",
+      "target": "System.Description"
+    },
+    {
+      "key": "scope",
+      "heading": "Scope",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per item, titled \"In scope\" or \"Out of scope\"; out-of-scope items give the reason.",
+      "target": "System.Description"
+    },
+    {
+      "key": "reusedPatterns",
+      "heading": "Reused Patterns / Standards Applied",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per pattern: title = pattern name, body = wiki link and deviation (or \"None\").",
+      "target": "System.Description"
+    },
+    {
+      "key": "openQuestions",
+      "heading": "Open Questions / Risks",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per question: title = \"N. Question\"; body = Why it matters / Proposed default / Tagged to / Status lines.",
+      "target": "System.Description"
+    },
+    {
+      "key": "dependencies",
+      "heading": "Dependencies & Blockers",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Known facts only: backend endpoints that must exist, blocking tickets.",
+      "target": "System.Description"
+    },
+    {
+      "key": "technicalNotes",
+      "heading": "Technical Notes / Implementation Details",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Dev-owned implementation guidance, not business-facing.",
+      "target": "System.Description"
+    },
+    {
+      "key": "design",
+      "heading": "Design",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Figma link(s).",
+      "target": "System.Description"
+    },
+    {
+      "key": "acceptanceCriteria",
+      "heading": "Acceptance Criteria",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "One Entry per scenario: title = \"ACnn - Name (ref: Feature BRnn)\", body = Given / When / Then lines.",
+      "target": "Microsoft.VSTS.Common.AcceptanceCriteria",
+      "entryFormat": "gherkin"
+    }
+  ],
+  "method": "# Frontend PBI Guide\n\nA PBI written with this skill implements a feature (or a slice of one) already defined by BA in a Feature document. The PBI scopes the implementation slice, references the relevant BRs, surfaces real gaps, and defines testable Acceptance Criteria.\n\n## Guiding principle\n\n- If BA already decided something and documented it → **reference it**.\n- If BA didn't decide it and it's a well-established, already-built pattern → **absorb it** and note it under Open Questions / Risks (as Resolved – Absorbed).\n- If BA didn't decide it and it's a new or ambiguous behavioral call → **flag it and push back**. Don't quietly decide it yourself.\n\n## Required sections (in this order)\n\n### 1. User Story\n\nFormat: `As a [role], I want to [action], so that [outcome].`\n\nKeep it aligned with the Feature's user story, narrowed to what this specific PBI delivers (if the Feature has been split across multiple PBIs).\n\n### 2. Roles\n\nList the roles that can use this feature. If permissions diverge by action (some roles can do X but not Y within the same feature), use a permission matrix instead of a list.\n\nJudgment call: if every role does the same things, a list is enough. If actions are gated differently per role, a matrix avoids ambiguity.\n\nList example:\n\n- Admin\n- Manager\n\nMatrix example:\n\n| Action | Admin | Manager | Technician |\n|---|---|---|---|\n| View object | ✅ | ✅ | ✅ |\n| Archive object | ✅ | ✅ | ❌ |\n| Restore object | ✅ | ❌ | ❌ |\n\n### 3. Scope\n\nThis is this PBI's slice of the Feature's overall scope — **not** a restatement of the Feature's scope as a whole. Make explicit what's being built now versus deferred, and why.\n\nScope splits are usually driven by technical constraints or dependencies (e.g. backend infra not ready), agreed with business during refinement — not handed down from the Feature doc verbatim.\n\n**In Scope**\n\n- ...\n\n**Out of Scope**\n\n- [Item] — [reason: separate PBI / dependency not ready / descoped during refinement]\n\nExample (edit profile form): \"Image upload — descoped to a separate PBI; image storage infra not yet available.\"\n\n### 4. Reused Patterns / Standards Applied\n\nReference existing wiki documentation for established system patterns (forms, pagination, filtering, etc.) instead of re-specifying behaviour. If this PBI uses a standard pattern with a deviation, state the deviation explicitly.\n\n| Pattern | Wiki link | Deviation (if any) |\n|---|---|---|\n| Standard pagination | [link] | Page sizes reduced to 10/20/50 |\n| Standard form validation | [link] | None |\n\nNote: the FE wiki is in early stages. If the wiki doesn't yet have a pattern doc for something reused repeatedly across PBIs, raise that as its own task — do **not** let this section become the place new patterns get defined for the first time.\n\n### 5. Open Questions / Risks\n\nThis is the pushback mechanism. Use it for genuine gaps, inconsistencies, contradictions, or edge cases the Feature doesn't address — things that are new behavioral decisions, not established patterns.\n\nRule of thumb: if this is how the system already works elsewhere and it's a documented pattern, absorb it (see Reused Patterns, or mark Resolved – Absorbed here). If it's a new decision, an edge case with real consequences, or contradicts something else in the brief, flag it.\n\nEach item follows this structure:\n\n```\nN. [Question]\n\n- Why it matters: [impact]\n- Proposed default: [dev's suggested answer]\n- Tagged to: @BA-name        (when Open)\n- Status: Open | Resolved - Absorbed | Resolved - Confirmed by BA\n```\n\nStatuses:\n- **Open** — waiting for BA\n- **Resolved - Absorbed** — dev made the call, documented why (established pattern)\n- **Resolved - Confirmed by BA**\n\nNote 1: An absorbed assumption that's behaviorally significant enough to need a test can still also appear as an AC below — logging it here doesn't replace that.\n\nNote 2: Discussion and back-and-forth with BA happens in the work item's **comments**, not in the description. Tag the relevant BA person there. Once a thread resolves, update this table's Status/Decision to match, so the table reflects current state without anyone needing to re-read the comments.\n\n### 6. Dependencies & Blockers\n\nDistinct from Open Questions: these are **known facts**, not things waiting on a decision. Usually backend/infra work that must exist before implementation can start.\n\n- Backend API must provide: [endpoint]\n- Blocked by: [other PBI / infra ticket]\n\n### 7. Technical Notes / Implementation Details\n\nDev-owned implementation guidance, not business-facing. Things like code structure decisions, feature flags, what to retain for future use, what must be hidden vs. removed.\n\nExample: \"Map functionality is out of scope this iteration but underlying code must be retained for future use. Coordinate input fields must be hidden in the UI, not removed.\"\n\n### 8. Design\n\nFigma link(s).\n\n### 9. Acceptance Criteria\n\nFormat: Given / When / Then.\n\n- **Given**: the starting context or precondition\n- **When**: the action taken\n- **Then**: the expected outcome\n\nThink of one Given/When/Then as a single test case in plain English — one scenario a tester can run and check pass/fail on.\n\nRules:\n\n- No 1:1 mapping between BRs and ACs is required. A single vague or wide-reaching BR may need several ACs to cover its edge cases properly — write as many as the BR actually requires.\n- Don't compress multiple scenarios into one AC just to keep the count low; don't pad with trivial restatements either.\n- Reference the BR(s) each AC verifies inline (e.g. `AC03 - Save Button State (ref: Feature BR05)`). This keeps traceability without a separate table.\n- **ACs verify, they don't invent.** Never smuggle a new business/UX decision into an AC. If a behavior isn't sourced from a BR, an established reuse pattern, the Figma design, or applied standards, it must first go through Open Questions / Risks (flagged or absorbed), and only then be reflected in an AC.\n\nGood example (verifies a behavior BA already defined):\n\n```\nAC03 - Save Button State (ref: Feature BR05)\nGiven the create or edit modal is open\nWhen one or more mandatory fields are empty\nThen the Save button is disabled\n\nGiven all mandatory fields are populated\nThen the Save button becomes active\n```\n\nBad example (smuggles in a new decision):\n\n```\nAC03 – Save Button State\nGiven the create or edit modal is open\nWhen one or more mandatory fields are empty\nThen the Save button is disabled and a tooltip appears explaining which fields are missing\n```\n\nThe tooltip behavior isn't sourced from any BR, reuse pattern, Figma design, or applied standard — it's a new UX decision invented at AC-writing time. If genuinely needed, it belongs in Open Questions / Risks first.\n\n## Working process when drafting a PBI\n\n1. Read the Feature document / BRs provided. If none are provided, ask for them — the PBI references BA decisions; it doesn't replace them.\n2. Draft the sections above in order.\n3. While drafting, apply the guiding principle continuously: reference documented BA decisions, absorb established patterns (log them), flag new behavioral decisions in Open Questions / Risks with a proposed default — never decide them silently.\n4. Keep ACs traceable to BRs, established patterns, Figma, or applied standards. Anything else goes through Open Questions / Risks first.\n5. If information needed for a section is missing (roles, Figma links, wiki pattern links, BR references), ask the user rather than inventing it.\n"
+}

@@ -1,0 +1,85 @@
+{
+  "id": "default-feature",
+  "workItemType": "Feature",
+  "name": "Default Feature Template",
+  "version": 1,
+  "isDefault": true,
+  "iterationLogHeading": "Feature Iteration Log",
+  "updatedAt": "2026-09-22T00:00:00.000Z",
+  "sections": [
+    {
+      "key": "userStory",
+      "heading": "User Story",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "As a [role], I want to [action], so that [outcome].",
+      "target": "System.Description"
+    },
+    {
+      "key": "description",
+      "heading": "Description",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Context and the problem being solved.",
+      "target": "System.Description"
+    },
+    {
+      "key": "roles",
+      "heading": "Roles",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Roles list, or a permission matrix when actions are gated per role.",
+      "target": "System.Description"
+    },
+    {
+      "key": "businessRules",
+      "heading": "Business Rules",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "One Entry per rule: \"BRnn - Short name\" and the precise rule.",
+      "target": "System.Description"
+    },
+    {
+      "key": "scope",
+      "heading": "Scope",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Entries titled \"In scope\" / \"Out of scope\" with reasons.",
+      "target": "System.Description"
+    },
+    {
+      "key": "openQuestions",
+      "heading": "Open Questions / Risks",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Title \"N. Question\"; body: Why it matters / Proposed default / Tagged to / Status.",
+      "target": "System.Description"
+    },
+    {
+      "key": "dependencies",
+      "heading": "Dependencies",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Known facts that must exist before delivery.",
+      "target": "System.Description"
+    },
+    {
+      "key": "design",
+      "heading": "Design",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Figma link(s).",
+      "target": "System.Description"
+    },
+    {
+      "key": "acceptanceCriteria",
+      "heading": "Acceptance Criteria",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "\"ACnn - Name (ref: BRnn)\" with Given / When / Then.",
+      "target": "Microsoft.VSTS.Common.AcceptanceCriteria",
+      "entryFormat": "gherkin"
+    }
+  ],
+  "method": "# Feature Guide\n\nA Feature describes one coherent capability that a BA hands to the team for breakdown into PBIs. It defines business rules (BRs) that PBIs reference and Acceptance Criteria verify.\n\n## Guiding principle\n\n- The Feature decides behaviour; PBIs implement slices of it. Anything a developer would otherwise have to guess must be decided here or flagged.\n- Number every business rule (BR01, BR02 …) so PBIs and ACs can reference it.\n- Never invent a behavioural decision silently — flag it in Open Questions / Risks with a proposed default.\n\n## Sections\n\n1. **User Story** — As a [role], I want to [action], so that [outcome].\n2. **Description** — context and the problem being solved, in a short paragraph or two.\n3. **Roles** — list the roles, or a permission matrix (markdown table) when actions are gated differently per role.\n4. **Business Rules** — one Entry per rule: title = \"BRnn - Short name\", body = the rule stated precisely, including edge cases.\n5. **Scope** — Entries titled \"In scope\" or \"Out of scope\"; give the reason for out-of-scope items.\n6. **Open Questions / Risks** — one Entry per question: title = \"N. Question\"; body lines \"Why it matters:\", \"Proposed default:\", \"Tagged to:\", \"Status:\".\n7. **Dependencies** — known facts that must exist before delivery (APIs, other Features, external parties).\n8. **Design** — Figma link(s), or N/A with a reason.\n9. **Acceptance Criteria** — one Entry per scenario: title = \"ACnn - Name (ref: BRnn)\", body in Given / When / Then. ACs verify BRs; they never introduce new decisions.\n\n## Working process\n\n1. Grill the requirement until each rule is precise enough to test.\n2. Use Glossary terms exactly; propose new terms when language is fuzzy.\n3. Unresolved branches go to Open Questions / Risks with a proposed default.\n"
+}

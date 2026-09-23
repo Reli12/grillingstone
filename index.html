@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='3' width='22' height='26' rx='2' fill='%23ffffff' stroke='%231D2533' stroke-width='2'/><rect x='5' y='3' width='5' height='26' fill='%23F3D35B'/><path d='M14 11h9M14 16h9M14 21h6' stroke='%232F5D8A' stroke-width='2'/></svg>" />
+    <title>Whetstone</title>
+    <script>
+      // Paint the saved theme before React loads (the setting itself lives in data/settings.json).
+      try {
+        const t = localStorage.getItem('pbi.theme')
+        if (t === 'light' || t === 'dark' || t === 'system') document.documentElement.dataset.theme = t
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
