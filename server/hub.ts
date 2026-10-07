@@ -22,6 +22,7 @@ export class Hub {
       this.wss.handleUpgrade(req, socket, head, (ws) => {
         this.clients.add(ws)
         ws.on('close', () => this.clients.delete(ws))
+        // A socket that errored can no longer receive events, so it is dropped like a closed one.
         ws.on('error', () => this.clients.delete(ws))
       })
     })

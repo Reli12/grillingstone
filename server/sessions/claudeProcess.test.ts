@@ -1,3 +1,4 @@
+// Tests for the `claude -p` launch arguments and the stdout JSON-lines reader.
 import { describe, expect, it } from 'vitest'
 
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
@@ -29,7 +30,7 @@ describe('claudeArgs', () => {
 describe('jsonLines', () => {
   it('parses complete JSON lines across chunks and skips the rest', () => {
     const events: unknown[] = []
-    const feed = jsonLines((e) => events.push(e))
+    const feed = jsonLines((event) => events.push(event))
     feed('{"a":1}\n{"b"')
     feed(':2}\n\nnot json\n{"c":3')
     expect(events).toEqual([{ a: 1 }, { b: 2 }])

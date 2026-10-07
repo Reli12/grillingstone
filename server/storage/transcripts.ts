@@ -13,17 +13,20 @@ import {
   transcriptsDir,
 } from './paths.ts'
 
-export const saveTranscript = (t: Transcript) => writeJson(transcriptFile(t.projectId, t.id), t)
+export const saveTranscript = (transcript: Transcript) =>
+  writeJson(transcriptFile(transcript.projectId, transcript.id), transcript)
 
 export async function getTranscript(projectId: string, sessionId: string): Promise<Transcript> {
-  const t = await readJson<Transcript>(transcriptFile(projectId, sessionId))
-  if (!t) throw new NotFound(`No Transcript ${sessionId}`)
-  return t
+  const transcript = await readJson<Transcript>(transcriptFile(projectId, sessionId))
+  if (!transcript) throw new NotFound(`No Transcript ${sessionId}`)
+  return transcript
 }
 
+/** A Project's Transcripts, oldest first; only one Draft's when `draftId` is given. */
 export async function listTranscripts(projectId: string, draftId?: string): Promise<Transcript[]> {
   const all = await listJson<Transcript>(transcriptsDir(projectId))
-  return all.filter((t) => !draftId || t.draftId === draftId).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+  const wanted = all.filter((transcript) => !draftId || transcript.draftId === draftId)
+  return wanted.sort((first, second) => first.startedAt.localeCompare(second.startedAt))
 }
 
 /** Creates the Template Session's empty working folder. */
@@ -33,12 +36,13 @@ export async function makeTemplateSessionDir(sessionId: string) {
   return dir
 }
 
-export const saveTemplateTranscript = (t: TemplateTranscript) => writeJson(templateTranscriptFile(t.id), t)
+export const saveTemplateTranscript = (transcript: TemplateTranscript) =>
+  writeJson(templateTranscriptFile(transcript.id), transcript)
 
 export async function getTemplateTranscript(sessionId: string): Promise<TemplateTranscript> {
-  const t = await readJson<TemplateTranscript>(templateTranscriptFile(sessionId))
-  if (!t) throw new NotFound(`No Template Session ${sessionId}`)
-  return t
+  const transcript = await readJson<TemplateTranscript>(templateTranscriptFile(sessionId))
+  if (!transcript) throw new NotFound(`No Template Session ${sessionId}`)
+  return transcript
 }
 
 export const listTemplateTranscripts = () => listJson<TemplateTranscript>(templateSessionsDir)

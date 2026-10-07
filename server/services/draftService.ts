@@ -43,29 +43,31 @@ export class DraftService {
   }
 
   async setReferences(projectId: string, draftId: string, references: string[]) {
-    const refs = (await this.existingReferences(projectId, references)).filter((r) => r !== draftId)
-    return this.update(projectId, draftId, (d) => ({ ...d, references: refs }))
+    const existing = await this.existingReferences(projectId, references)
+    // A Draft cannot be its own Reference.
+    const refs = existing.filter((referenceId) => referenceId !== draftId)
+    return this.update(projectId, draftId, (draft) => ({ ...draft, references: refs }))
   }
 
   edit = (projectId: string, draftId: string, op: HumanOp) =>
-    this.update(projectId, draftId, (d) => applyHumanEdit(d, op))
+    this.update(projectId, draftId, (draft) => applyHumanEdit(draft, op))
 
   async decide(projectId: string, draftId: string, changeId: string, accept: boolean) {
     const meta = await iterationMeta()
-    return this.update(projectId, draftId, (d) => decide(d, changeId, accept, meta))
+    return this.update(projectId, draftId, (draft) => decide(draft, changeId, accept, meta))
   }
 
   async acceptAllClean(projectId: string, draftId: string) {
     const meta = await iterationMeta()
-    return this.update(projectId, draftId, (d) => acceptAllClean(d, meta))
+    return this.update(projectId, draftId, (draft) => acceptAllClean(draft, meta))
   }
 
   /** Saves `fn`'s result under the Draft's lock and announces it; returning null (or the same Draft) changes nothing. */
-  async update(projectId: string, draftId: string, fn: (d: Draft) => Draft | null): Promise<Draft> {
+  async update(projectId: string, draftId: string, fn: (draft: Draft) => Draft | null): Promise<Draft> {
     let changed = false
-    const draft = await drafts.updateDraft(projectId, draftId, (d) => {
-      const next = fn(d)
-      changed = next !== null && next !== d
+    const draft = await drafts.updateDraft(projectId, draftId, (current) => {
+      const next = fn(current)
+      changed = next !== null && next !== current
       return next
     })
     if (changed) {
@@ -82,7 +84,7 @@ export class DraftService {
 
   /** Only Drafts that exist in the Project can be References. */
   private async existingReferences(projectId: string, ids: string[]) {
-    const existing = new Set((await drafts.listDrafts(projectId)).map((d) => d.id))
+    const existing = new Set((await drafts.listDrafts(projectId)).map((draft) => draft.id))
     return ids.filter((id) => existing.has(id))
   }
 }

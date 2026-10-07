@@ -10,7 +10,9 @@ import { glossaryFile } from './paths.ts'
 import { getProject } from './projects.ts'
 
 const lock = new KeyedLock()
-const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 16)
+/** Enough hex characters of the SHA-256 to tell Glossary versions apart. */
+const VERSION_HASH_LENGTH = 16
+const hash = (markdown: string) => createHash('sha256').update(markdown).digest('hex').slice(0, VERSION_HASH_LENGTH)
 
 export async function getGlossary(projectId: string): Promise<GlossaryDoc> {
   await getProject(projectId)

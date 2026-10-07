@@ -1,9 +1,12 @@
+// Reading request bodies: a size-capped JSON read, and validation against a zod schema with a 400 that
+// names the first wrong field.
 import type { IncomingMessage } from 'node:http'
 
 import type { z } from 'zod'
 
 import { HttpError } from './errors.ts'
 
+/** Largest request body accepted, in bytes; anything bigger is refused before it is parsed. */
 const MAX_BODY = 5_000_000
 
 export async function readBody(req: IncomingMessage): Promise<unknown> {

@@ -1,3 +1,4 @@
+// Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup.
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'
@@ -35,7 +36,8 @@ describe('storage', () => {
 
   it('serialises Draft updates and skips writes that change nothing', async () => {
     const draft = await draftIn()
-    const bump = () => updateDraft(draft.projectId, draft.id, (d) => ({ ...d, references: [...d.references, 'r'] }))
+    const bump = () =>
+      updateDraft(draft.projectId, draft.id, (current) => ({ ...current, references: [...current.references, 'r'] }))
     await Promise.all([bump(), bump(), bump()])
     expect((await getDraft(draft.projectId, draft.id)).references).toEqual(['r', 'r', 'r'])
     const unchanged = await updateDraft(draft.projectId, draft.id, () => null)

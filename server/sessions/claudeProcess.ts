@@ -73,15 +73,16 @@ export function jsonLines(onEvent: (event: Record<string, unknown>) => void) {
   let buffer = ''
   return (chunk: string) => {
     buffer += chunk
-    let nl: number
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl).trim()
-      buffer = buffer.slice(nl + 1)
+    let newlineAt: number
+    while ((newlineAt = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, newlineAt).trim()
+      buffer = buffer.slice(newlineAt + 1)
       if (!line) continue
       let event: Record<string, unknown>
       try {
         event = JSON.parse(line) as Record<string, unknown>
       } catch {
+        // Claude Code may print a non-JSON line (a warning, say); it carries no event, so it is skipped.
         continue
       }
       onEvent(event)

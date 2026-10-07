@@ -1,3 +1,4 @@
+// Tests for reading Claude Code's stream-json events into chat messages and tool outcomes.
 import { describe, expect, it } from 'vitest'
 
 import { SUBMIT_SCRIPT } from '../config.ts'
@@ -7,20 +8,20 @@ const ctx = (tools = new Map<string, KnownTool>()) => ({ cwd: '/p', submitLabel:
 
 describe('describeTool', () => {
   it('summarises each tool call relative to the working folder', () => {
-    const d = (name: string, input: Record<string, unknown>) => describeTool(name, input, ctx())
-    expect(d('Read', { file_path: '/p/drafts/a.md' })).toBe('Read drafts/a.md')
-    expect(d('Grep', { pattern: 'archive' })).toBe('Searched the Project for "archive"')
-    expect(d('Glob', { pattern: '**/*' })).toBe('Looked for files matching **/*')
-    expect(d('Edit', { file_path: '/p/CONTEXT.md' })).toBe('Updated the Glossary')
-    expect(d('Write', { file_path: '/p/plan/adr/1.md' })).toBe('Wrote plan/adr/1.md')
-    expect(d('WebSearch', { query: 'ADO' })).toBe('Searched the web for "ADO"')
-    expect(d('WebFetch', { url: 'https://x' })).toBe('Read https://x')
-    expect(d('Bash', { command: `node "${SUBMIT_SCRIPT}" <<'WHETSTONE_JSON'` })).toBe('Submitted the Draft')
-    expect(d('Bash', { command: 'ls -la\nrm x' })).toBe('Tried to run `ls -la`')
-    expect(d('Skill', { skill: 'grill-with-docs' })).toBe('Loaded the grill-with-docs skill')
-    expect(d('TodoWrite', {})).toBeNull()
-    expect(d('Task', {})).toBe('Tried to use Task')
-    expect(d('Read', {})).toBe('Read ?')
+    const summary = (name: string, input: Record<string, unknown>) => describeTool(name, input, ctx())
+    expect(summary('Read', { file_path: '/p/drafts/a.md' })).toBe('Read drafts/a.md')
+    expect(summary('Grep', { pattern: 'archive' })).toBe('Searched the Project for "archive"')
+    expect(summary('Glob', { pattern: '**/*' })).toBe('Looked for files matching **/*')
+    expect(summary('Edit', { file_path: '/p/CONTEXT.md' })).toBe('Updated the Glossary')
+    expect(summary('Write', { file_path: '/p/plan/adr/1.md' })).toBe('Wrote plan/adr/1.md')
+    expect(summary('WebSearch', { query: 'ADO' })).toBe('Searched the web for "ADO"')
+    expect(summary('WebFetch', { url: 'https://x' })).toBe('Read https://x')
+    expect(summary('Bash', { command: `node "${SUBMIT_SCRIPT}" <<'WHETSTONE_JSON'` })).toBe('Submitted the Draft')
+    expect(summary('Bash', { command: 'ls -la\nrm x' })).toBe('Tried to run `ls -la`')
+    expect(summary('Skill', { skill: 'grill-with-docs' })).toBe('Loaded the grill-with-docs skill')
+    expect(summary('TodoWrite', {})).toBeNull()
+    expect(summary('Task', {})).toBe('Tried to use Task')
+    expect(summary('Read', {})).toBe('Read ?')
   })
 })
 

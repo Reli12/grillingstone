@@ -6,6 +6,9 @@ import { SERVER_PORT } from './config.ts'
 import { Hub } from './hub.ts'
 import { createServices } from './services/createServices.ts'
 
+/** How long running sessions get to end and save their Transcripts before the process exits. */
+const SHUTDOWN_GRACE_MS = 500
+
 const hub = new Hub()
 const deps = createServices(hub)
 await deps.supervisor.markInterrupted()
@@ -17,7 +20,7 @@ server.listen(SERVER_PORT, '127.0.0.1', () => console.log(`[whetstone] backend o
 const shutdown = () => {
   deps.supervisor.stopAll()
   server.close()
-  setTimeout(() => process.exit(0), 500).unref()
+  setTimeout(() => process.exit(0), SHUTDOWN_GRACE_MS).unref()
 }
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)

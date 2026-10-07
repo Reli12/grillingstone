@@ -1,3 +1,5 @@
+// A minimal route table: each route is a method plus a path with `:param` segments, matched in the order
+// the routes were added. app.ts owns the request handling around it.
 import type { IncomingMessage } from 'node:http'
 
 export interface RequestContext {
@@ -16,15 +18,22 @@ interface Route {
   handler: Handler
 }
 
+/** A `:name` path segment; captures the name. */
+const PARAM_SEGMENT = /:(\w+)/g
+/** What a `:name` segment matches in a request path: one segment, captured. */
+const PARAM_VALUE = '([^/]+)'
+
 /** A route table with `:param` path segments. */
 export class Router {
   private routes: Route[] = []
 
   add(method: string, path: string, handler: Handler) {
     const keys: string[] = []
-    const pattern = new RegExp(
-      `^${path.replace(/:(\w+)/g, (_match: string, key: string) => (keys.push(key), '([^/]+)'))}$`,
-    )
+    const source = path.replace(PARAM_SEGMENT, (_match: string, key: string) => {
+      keys.push(key)
+      return PARAM_VALUE
+    })
+    const pattern = new RegExp(`^${source}$`)
     this.routes.push({ method, pattern, keys, handler })
   }
 
@@ -35,14 +44,13 @@ export class Router {
   delete = (path: string, handler: Handler) => this.add('DELETE', path, handler)
 
   match(method: string, pathname: string): { handler: Handler; params: Record<string, string> } | null {
-    for (const r of this.routes) {
-      if (r.method !== method) continue
-      const m = r.pattern.exec(pathname)
-      if (m)
-        return {
-          handler: r.handler,
-          params: Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])])),
-        }
+    for (const route of this.routes) {
+      if (route.method !== method) continue
+      const found = route.pattern.exec(pathname)
+      if (!found) continue
+      // Capture group i + 1 holds the value of the i-th `:param`.
+      const params = Object.fromEntries(route.keys.map((key, i) => [key, decodeURIComponent(found[i + 1])]))
+      return { handler: route.handler, params }
     }
     return null
   }

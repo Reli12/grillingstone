@@ -1,3 +1,4 @@
+// Tests for the HTTP plumbing: route matching, request body parsing, and error-to-status mapping.
 import { describe, expect, it } from 'vitest'
 
 import { DraftOpError } from '#core/draft/humanOps.ts'
@@ -10,15 +11,15 @@ import { humanOpBody, templateSessionBody } from './schemas.ts'
 
 describe('Router', () => {
   it('matches method and path, decoding :params', () => {
-    const r = new Router()
+    const router = new Router()
     const handler = () => 'draft'
-    r.get('/api/projects/:projectId/drafts/:draftId', handler)
-    expect(r.match('GET', '/api/projects/a%20b/drafts/d1')).toEqual({
+    router.get('/api/projects/:projectId/drafts/:draftId', handler)
+    expect(router.match('GET', '/api/projects/a%20b/drafts/d1')).toEqual({
       handler,
       params: { projectId: 'a b', draftId: 'd1' },
     })
-    expect(r.match('POST', '/api/projects/a/drafts/d1')).toBeNull()
-    expect(r.match('GET', '/api/projects/a/drafts/d1/extra')).toBeNull()
+    expect(router.match('POST', '/api/projects/a/drafts/d1')).toBeNull()
+    expect(router.match('GET', '/api/projects/a/drafts/d1/extra')).toBeNull()
   })
 })
 

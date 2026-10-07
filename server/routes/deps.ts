@@ -1,3 +1,4 @@
+// The dependencies every route module receives from createServices.
 import type { DraftService } from '../services/draftService.ts'
 import type { GlossaryService } from '../services/glossaryService.ts'
 import type { TemplateService } from '../services/templateService.ts'

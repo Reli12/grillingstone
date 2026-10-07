@@ -24,8 +24,8 @@ const STATUS: [new (...args: never[]) => Error, number][] = [
 ]
 
 /** The status and body to answer with, or null for an unexpected error. */
-export function knownError(e: unknown): { status: number; body: { error: string } } | null {
-  if (e instanceof HttpError) return { status: e.status, body: { error: e.message } }
-  const match = STATUS.find(([type]) => e instanceof type)
-  return match ? { status: match[1], body: { error: (e as Error).message } } : null
+export function knownError(error: unknown): { status: number; body: { error: string } } | null {
+  if (error instanceof HttpError) return { status: error.status, body: { error: error.message } }
+  const match = STATUS.find(([type]) => error instanceof type)
+  return match ? { status: match[1], body: { error: (error as Error).message } } : null
 }

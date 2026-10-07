@@ -38,11 +38,11 @@ export function createApp(deps: AppDeps) {
       if (!route) throw new HttpError(404, `No route ${method} ${url.pathname}`)
       const body = method === 'GET' ? {} : await readBody(req)
       send(200, await route.handler({ params: route.params, body, req }))
-    } catch (e) {
-      const known = knownError(e)
+    } catch (error) {
+      const known = knownError(error)
       if (known) return send(known.status, known.body)
-      console.error('[api]', e)
-      send(500, { error: e instanceof Error ? e.message : 'Unexpected error' })
+      console.error('[api]', error)
+      send(500, { error: error instanceof Error ? error.message : 'Unexpected error' })
     }
   }
 

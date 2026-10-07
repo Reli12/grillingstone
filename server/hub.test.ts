@@ -1,3 +1,4 @@
+// Tests for the Hub: events reach every open tab, and sockets from other paths or origins are refused.
 import http from 'node:http'
 
 import { afterEach, describe, expect, it } from 'vitest'

@@ -35,7 +35,7 @@ import { jsonLines, sendMessage, spawnClaude } from './claudeProcess.ts'
 import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
 import { SessionError } from './sessionError.ts'
 import { type AnyTranscript, type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
-import { type KnownTool, readStreamEvent } from './streamEvents.ts'
+import { type KnownTool, readStreamEvent, type StreamStep } from './streamEvents.ts'
 import { prepareTemplateSession, type TemplateSessionDeps } from './templateSession.ts'
 
 interface Live {
@@ -52,6 +52,19 @@ interface Live {
   queue: Promise<void>
 }
 
+/** How much of Claude Code's stderr is kept, so a crash can be explained without holding all of it. */
+const STDERR_TAIL_CHARS = 4000
+/** How many of the last stderr lines go into a crashed session's error. */
+const STDERR_LINES_IN_ERROR = 5
+/** How long a stopped session gets to exit on SIGTERM before it is killed. */
+const STOP_GRACE_MS = 3000
+
+const ALREADY_RUNNING_ON_DRAFT = 'A session is already running on this Draft — finish or stop it first.'
+const INTERRUPTED_BY_RESTART =
+  'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.'
+/** While Claude is in one of these, the human waits for its turn to finish. */
+const REPLYING_STATUSES: SessionStatus[] = ['thinking', 'writing', 'starting']
+
 const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage => ({
   id: newId('m'),
   at: now(),
@@ -59,6 +72,30 @@ const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage =>
   ...(tone ? { tone } : {}),
   text,
 })
+
+const humanMessage = (kind: 'answer' | 'message' | 'write', text: string): ChatMessage => ({
+  id: newId('m'),
+  at: now(),
+  role: 'human',
+  kind,
+  text,
+})
+
+/** Marks a Transcript that was still running when the backend went down as interrupted, and saves it. */
+async function markInterruptedIfLive<T extends AnyTranscript>(transcript: T, save: (transcript: T) => Promise<void>) {
+  if (!LIVE_STATUSES.includes(transcript.status)) return
+  Object.assign(transcript, { status: 'interrupted', endedAt: now() })
+  transcript.messages.push(systemMessage(INTERRUPTED_BY_RESTART, 'error'))
+  await save(transcript)
+}
+
+/** The error a session that exited on its own ends with: how it exited, then the end of its stderr. */
+function crashError(stderrTail: string, code: number | null, signal: NodeJS.Signals | null) {
+  const tail = stderrTail.trim().split('\n').slice(-STDERR_LINES_IN_ERROR).join('\n')
+  const how = signal ?? `code ${code}`
+  const detail = tail ? `: ${tail}` : '.'
+  return `Claude Code exited (${how})${detail}`
+}
 
 export class Supervisor {
   private live = new Map<string, Live>()
@@ -70,45 +107,34 @@ export class Supervisor {
 
   /** Sessions cannot survive a backend restart; mark the ones that were running. */
   async markInterrupted() {
-    const interrupt = async <T extends AnyTranscript>(t: T, save: (t: T) => Promise<void>) => {
-      if (!LIVE_STATUSES.includes(t.status)) return
-      Object.assign(t, { status: 'interrupted', endedAt: now() })
-      t.messages.push(
-        systemMessage(
-          'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.',
-          'error',
-        ),
-      )
-      await save(t)
-    }
     for (const projectId of await allProjectIds())
-      for (const t of await listTranscripts(projectId)) await interrupt(t, saveTranscript)
-    for (const t of await listTemplateTranscripts()) await interrupt(t, saveTemplateTranscript)
+      for (const transcript of await listTranscripts(projectId)) await markInterruptedIfLive(transcript, saveTranscript)
+    for (const transcript of await listTemplateTranscripts())
+      await markInterruptedIfLive(transcript, saveTemplateTranscript)
   }
 
   liveForDraft(draftId: string): SessionSummary | undefined {
-    for (const l of this.live.values())
-      if (l.transcript.kind !== 'template' && l.transcript.draftId === draftId) return summaryOf(l.transcript)
+    for (const { transcript } of this.live.values())
+      if (transcript.kind !== 'template' && transcript.draftId === draftId) return summaryOf(transcript)
     return undefined
   }
 
   liveTemplateSession(): TemplateSessionSummary | undefined {
-    for (const l of this.live.values()) if (l.transcript.kind === 'template') return summaryOf(l.transcript)
+    for (const { transcript } of this.live.values()) if (transcript.kind === 'template') return summaryOf(transcript)
     return undefined
   }
 
   stopAll() {
-    for (const l of this.live.values()) {
-      l.stopping = true
-      l.child.kill('SIGTERM')
+    for (const live of this.live.values()) {
+      live.stopping = true
+      live.child.kill('SIGTERM')
     }
   }
 
   // ── Starting ────────────────────────────────────────────────────────────
 
   async start(args: StartArgs): Promise<SessionSummary> {
-    if (this.liveForDraft(args.draftId))
-      throw new SessionError('A session is already running on this Draft — finish or stop it first.')
+    if (this.liveForDraft(args.draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
     return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
   }
 
@@ -116,9 +142,9 @@ export class Supervisor {
   async continue(projectId: string, draftId: string, sessionId: string, humanNote?: string): Promise<SessionSummary> {
     const earlier = await getTranscript(projectId, sessionId)
     if (earlier.draftId !== draftId) throw new SessionError('This session belongs to another Draft.')
-    if (this.liveForDraft(draftId))
-      throw new SessionError('A session is already running on this Draft — finish or stop it first.')
+    if (this.liveForDraft(draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
     const draft = await getDraft(projectId, draftId)
+    // A deleted Template has no latest version; continuation() then decides without one.
     const latest = await getTemplate(draft.template.id).catch(() => undefined)
     const next = continuation(summaryOf(earlier), draft, latest?.version)
     if (!next.ok) throw new SessionError(next.reason)
@@ -167,165 +193,187 @@ export class Supervisor {
       queue: Promise.resolve(),
     }
     this.live.set(transcript.id, live)
-
-    child.stdout!.setEncoding('utf8')
-    child.stdout!.on(
-      'data',
-      jsonLines((event) => {
-        live.queue = live.queue
-          .then(() => this.onEvent(live, event))
-          .catch((e) => console.error('[supervisor] event handling failed', e))
-      }),
-    )
-    child.stderr!.setEncoding('utf8')
-    child.stderr!.on('data', (chunk: string) => {
-      live.stderrTail = (live.stderrTail + chunk).slice(-4000)
-    })
-    child.on('error', (e) => void this.end(live, 'failed', `Could not start Claude Code (${CLAUDE_BIN}): ${e.message}`))
-    child.on('exit', (code, signal) => void this.onExit(live, code, signal))
+    this.watch(live)
 
     await this.push(live, systemMessage(intro))
-    if (transcript.humanNote)
-      await this.push(live, { id: newId('m'), at: now(), role: 'human', kind: 'message', text: transcript.humanNote })
+    if (transcript.humanNote) await this.push(live, humanMessage('message', transcript.humanNote))
     sendMessage(child, seed.firstMessage)
     await this.setStatus(live, 'thinking')
     return transcript
   }
 
+  /** Follows the child process: its stream events, its stderr, and how it ends. */
+  private watch(live: Live) {
+    const { child } = live
+    child.stdout!.setEncoding('utf8')
+    child.stdout!.on(
+      'data',
+      jsonLines((event) => {
+        // A failed event is logged and the queue carries on, so one bad event does not stall the session.
+        live.queue = live.queue
+          .then(() => this.onEvent(live, event))
+          .catch((error) => console.error('[supervisor] event handling failed', error))
+      }),
+    )
+    child.stderr!.setEncoding('utf8')
+    child.stderr!.on('data', (chunk: string) => {
+      live.stderrTail = (live.stderrTail + chunk).slice(-STDERR_TAIL_CHARS)
+    })
+    child.on('error', (error) => {
+      void this.end(live, 'failed', `Could not start Claude Code (${CLAUDE_BIN}): ${error.message}`)
+    })
+    child.on('exit', (code, signal) => void this.onExit(live, code, signal))
+  }
+
   // ── Human input ─────────────────────────────────────────────────────────
 
   private get(sessionId: string): Live {
-    const l = this.live.get(sessionId)
-    if (!l) throw new SessionError('This session is no longer running.')
-    return l
+    const live = this.live.get(sessionId)
+    if (!live) throw new SessionError('This session is no longer running.')
+    return live
   }
 
   async say(sessionId: string, text: string, kind: 'answer' | 'message') {
-    const l = this.get(sessionId)
-    if (!text.trim()) throw new SessionError('Say something first.')
-    if (l.transcript.status === 'thinking' || l.transcript.status === 'writing' || l.transcript.status === 'starting')
+    const live = this.get(sessionId)
+    const said = text.trim()
+    if (!said) throw new SessionError('Say something first.')
+    if (REPLYING_STATUSES.includes(live.transcript.status))
       throw new SessionError('Claude is still replying — wait for its turn to finish.')
-    await this.push(l, { id: newId('m'), at: now(), role: 'human', kind, text: text.trim() })
-    sendMessage(l.child, text.trim())
-    await this.setStatus(l, 'thinking')
+    await this.push(live, humanMessage(kind, said))
+    sendMessage(live.child, said)
+    await this.setStatus(live, 'thinking')
   }
 
   /** The human confirms the Ready Check, or says "enough — write it" at any moment. */
   async writeNow(sessionId: string) {
-    const l = this.get(sessionId)
-    if (l.transcript.status === 'writing') return
-    if (l.transcript.status !== 'waiting')
+    const live = this.get(sessionId)
+    if (live.transcript.status === 'writing') return
+    if (live.transcript.status !== 'waiting')
       throw new SessionError('Claude is still replying — wait for its turn to finish, then press write.')
-    l.transcript.writeConfirmed = true
-    await this.push(l, { id: newId('m'), at: now(), role: 'human', kind: 'write', text: WRITE_NOW_MESSAGE })
-    sendMessage(l.child, WRITE_NOW_MESSAGE)
-    await this.setStatus(l, 'writing')
+    live.transcript.writeConfirmed = true
+    await this.push(live, humanMessage('write', WRITE_NOW_MESSAGE))
+    sendMessage(live.child, WRITE_NOW_MESSAGE)
+    await this.setStatus(live, 'writing')
   }
 
   stop(sessionId: string) {
-    const l = this.get(sessionId)
-    l.stopping = true
-    l.child.kill('SIGTERM')
-    setTimeout(() => l.child.exitCode === null && l.child.kill('SIGKILL'), 3000).unref()
+    const live = this.get(sessionId)
+    live.stopping = true
+    live.child.kill('SIGTERM')
+    const killIfStillRunning = () => live.child.exitCode === null && live.child.kill('SIGKILL')
+    setTimeout(killIfStillRunning, STOP_GRACE_MS).unref()
   }
 
   // ── Claude's output ─────────────────────────────────────────────────────
 
-  private async onEvent(l: Live, event: Record<string, unknown>) {
-    for (const step of readStreamEvent(event, { cwd: l.scope.cwd, submitLabel: l.scope.submitLabel, tools: l.tools })) {
-      if (step.type === 'message') {
-        if (step.toolUseId && step.tool) l.tools.set(step.toolUseId, step.tool)
-        await this.push(l, step.message)
-      } else if (step.type === 'claudeSession') {
-        if (l.transcript.claudeSessionId === step.id) continue
-        l.transcript.claudeSessionId = step.id
-        await l.scope.save(l.transcript)
-      } else if (step.type === 'toolResult') {
-        await this.updateTool(l, step.messageId, step.outcome)
-        if (step.glossaryEdited) l.scope.onGlossaryEdit?.()
-      } else if (l.accepted) {
-        l.child.stdin?.end()
-        await this.end(l, 'finished')
-      } else await this.setStatus(l, 'waiting')
+  private async onEvent(live: Live, event: Record<string, unknown>) {
+    const context = { cwd: live.scope.cwd, submitLabel: live.scope.submitLabel, tools: live.tools }
+    for (const step of readStreamEvent(event, context)) await this.onStep(live, step)
+  }
+
+  private async onStep(live: Live, step: StreamStep) {
+    switch (step.type) {
+      case 'message':
+        if (step.toolUseId && step.tool) live.tools.set(step.toolUseId, step.tool)
+        await this.push(live, step.message)
+        return
+      case 'claudeSession':
+        if (live.transcript.claudeSessionId === step.id) return
+        live.transcript.claudeSessionId = step.id
+        await live.scope.save(live.transcript)
+        return
+      case 'toolResult':
+        await this.updateTool(live, step.messageId, step.outcome)
+        if (step.glossaryEdited) live.scope.onGlossaryEdit?.()
+        return
+      case 'turnEnded':
+        await this.onTurnEnded(live)
     }
+  }
+
+  /** After an accepted submission the session is done; otherwise it is the human's turn. */
+  private async onTurnEnded(live: Live) {
+    if (!live.accepted) return this.setStatus(live, 'waiting')
+    live.child.stdin?.end()
+    await this.end(live, 'finished')
   }
 
   // ── Submissions (from scripts/writeDraft.mjs) ───────────────────────────
 
   async submit(sessionId: string, token: string, payload: unknown): Promise<SubmitResult> {
-    const l = this.live.get(sessionId)
-    if (!l || l.token !== token)
+    const live = this.live.get(sessionId)
+    if (!live || live.token !== token)
       return { ok: false, reasons: [{ code: 'unknown-session', message: 'This session is not running.' }] }
     const refuse = async (reasons: Reason[]) => {
-      await this.push(l, systemMessage(`Submission refused — ${reasons.map((r) => r.message).join(' · ')}`, 'error'))
+      const listed = reasons.map((reason) => reason.message).join(' · ')
+      await this.push(live, systemMessage(`Submission refused — ${listed}`, 'error'))
       return { ok: false as const, reasons }
     }
-    if (!l.transcript.writeConfirmed)
+    if (!live.transcript.writeConfirmed)
       return refuse([
         {
           code: 'not-confirmed',
           message: `The human has not confirmed yet. Run the Ready Check and wait for "${WRITE_NOW_MESSAGE}".`,
         },
       ])
-    if (l.accepted)
+    if (live.accepted)
       return refuse([{ code: 'already-submitted', message: 'This session already submitted successfully. Stop here.' }])
 
-    const result = await l.scope.submit(payload)
+    const result = await live.scope.submit(payload)
     if (!result.ok) return refuse(result.reasons)
-    l.accepted = true
-    await this.push(l, systemMessage(result.message, 'success'))
+    live.accepted = true
+    await this.push(live, systemMessage(result.message, 'success'))
     return result
   }
 
   // ── Transcript bookkeeping ──────────────────────────────────────────────
 
-  private async push(l: Live, message: ChatMessage) {
-    l.transcript.messages.push(message)
-    await l.scope.save(l.transcript)
-    l.scope.emitMessage(l.transcript, message)
+  private async push(live: Live, message: ChatMessage) {
+    live.transcript.messages.push(message)
+    await live.scope.save(live.transcript)
+    live.scope.emitMessage(live.transcript, message)
   }
 
-  private async updateTool(l: Live, messageId: string, outcome: 'ok' | 'denied' | 'error') {
-    const msg = l.transcript.messages.find((m) => m.id === messageId)
-    if (!msg || msg.role !== 'tool') return
-    msg.outcome = outcome
-    await l.scope.save(l.transcript)
-    l.scope.emitMessage(l.transcript, msg)
+  private async updateTool(live: Live, messageId: string, outcome: 'ok' | 'denied' | 'error') {
+    const message = live.transcript.messages.find((candidate) => candidate.id === messageId)
+    if (!message || message.role !== 'tool') return
+    message.outcome = outcome
+    await live.scope.save(live.transcript)
+    live.scope.emitMessage(live.transcript, message)
   }
 
-  private async setStatus(l: Live, status: SessionStatus) {
-    if (l.transcript.status === status) return
-    l.transcript.status = status
-    await l.scope.save(l.transcript)
-    l.scope.emitSession(l.transcript)
+  private async setStatus(live: Live, status: SessionStatus) {
+    if (live.transcript.status === status) return
+    live.transcript.status = status
+    await live.scope.save(live.transcript)
+    live.scope.emitSession(live.transcript)
   }
 
-  private async onExit(l: Live, code: number | null, signal: NodeJS.Signals | null) {
-    await l.queue
-    if (!this.live.has(l.transcript.id)) return
-    if (l.accepted) return this.end(l, 'finished')
-    if (l.stopping) return this.end(l, 'stopped')
-    const tail = l.stderrTail.trim().split('\n').slice(-5).join('\n')
-    await this.end(l, 'failed', `Claude Code exited (${signal ?? `code ${code}`})${tail ? `: ${tail}` : '.'}`)
+  private async onExit(live: Live, code: number | null, signal: NodeJS.Signals | null) {
+    await live.queue
+    if (!this.live.has(live.transcript.id)) return
+    if (live.accepted) return this.end(live, 'finished')
+    if (live.stopping) return this.end(live, 'stopped')
+    await this.end(live, 'failed', crashError(live.stderrTail, code, signal))
   }
 
-  private async end(l: Live, status: SessionStatus, error?: string) {
-    if (!this.live.has(l.transcript.id)) return
-    this.live.delete(l.transcript.id)
-    if (l.child.exitCode === null) l.child.kill('SIGTERM')
-    const t = l.transcript
-    t.endedAt = now()
+  private async end(live: Live, status: SessionStatus, error?: string) {
+    if (!this.live.has(live.transcript.id)) return
+    this.live.delete(live.transcript.id)
+    if (live.child.exitCode === null) live.child.kill('SIGTERM')
+    const transcript = live.transcript
+    transcript.endedAt = now()
     let last: ChatMessage | undefined
     if (error) {
-      t.error = error
+      transcript.error = error
       last = systemMessage(error, 'error')
     } else if (status === 'stopped') {
       last = systemMessage('Session stopped. Nothing was written.')
     }
-    if (last) t.messages.push(last)
-    t.status = status
-    await l.scope.save(t)
-    if (last) l.scope.emitMessage(t, last)
-    l.scope.emitSession(t)
+    if (last) transcript.messages.push(last)
+    transcript.status = status
+    await live.scope.save(transcript)
+    if (last) live.scope.emitMessage(transcript, last)
+    live.scope.emitSession(transcript)
   }
 }

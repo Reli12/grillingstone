@@ -1,3 +1,4 @@
+// Tests for DraftService: input checks on create, and announcing a Draft only when it actually changed.
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { ServerEvent } from '#core/session/sessionTypes.ts'
@@ -14,7 +15,7 @@ let service: DraftService
 beforeEach(async () => {
   await resetTestData()
   events = []
-  service = new DraftService({ broadcast: (e: ServerEvent) => void events.push(e) } as Hub)
+  service = new DraftService({ broadcast: (event: ServerEvent) => void events.push(event) } as Hub)
 })
 
 describe('DraftService', () => {
@@ -59,11 +60,11 @@ describe('DraftService', () => {
     events.length = 0
     await service.update(projectId, draft.id, () => null)
     expect(events).toEqual([])
-    await service.update(projectId, draft.id, (d) => d)
+    await service.update(projectId, draft.id, (draft) => draft)
     expect(events).toEqual([])
     expect((await service.setReferences(projectId, draft.id, [draft.id])).references).toEqual([])
     events.length = 0
-    await service.update(projectId, draft.id, (d) => ({ ...d, requirement: 'y' }))
-    expect(events.map((e) => e.type)).toEqual(['draft', 'drafts'])
+    await service.update(projectId, draft.id, (current) => ({ ...current, requirement: 'y' }))
+    expect(events.map((event) => event.type)).toEqual(['draft', 'drafts'])
   })
 })
