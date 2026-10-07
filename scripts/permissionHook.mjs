@@ -6,23 +6,28 @@ import path from 'node:path'
 
 import { decide } from '#core/session/permissionGuard.ts'
 
+const ALLOWED_REASON = 'Allowed by the Whetstone session allowlist.'
+const STDIN = 0
+
 /** realpath for paths that may not exist yet: resolve the longest existing ancestor, keep the rest. */
-function realpath(p) {
-  let head = p
+function realpath(targetPath) {
+  let head = targetPath
   const tail = []
   while (true) {
     try {
       return path.join(fs.realpathSync(head), ...tail)
     } catch {
+      // `head` does not exist (yet): step up one level and retry; the walk stops at the filesystem root.
       const parent = path.dirname(head)
-      if (parent === head) return p
+      if (parent === head) return targetPath
       tail.unshift(path.basename(head))
       head = parent
     }
   }
 }
 
-const out = (permissionDecision, permissionDecisionReason) => {
+/** Prints the hook decision in Claude Code's PreToolUse format and exits; the decision itself carries allow/deny. */
+const respondAndExit = (permissionDecision, permissionDecisionReason) => {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision, permissionDecisionReason },
@@ -32,19 +37,23 @@ const out = (permissionDecision, permissionDecisionReason) => {
 }
 
 try {
-  const input = JSON.parse(fs.readFileSync(0, 'utf8'))
+  const input = JSON.parse(fs.readFileSync(STDIN, 'utf8'))
   const projectDir = process.env.WHETSTONE_PROJECT_DIR
   const submitScript = process.env.WHETSTONE_SUBMIT_SCRIPT
   if (!projectDir || !submitScript)
-    out('deny', 'Session environment is missing WHETSTONE_PROJECT_DIR / WHETSTONE_SUBMIT_SCRIPT.')
+    respondAndExit('deny', 'Session environment is missing WHETSTONE_PROJECT_DIR / WHETSTONE_SUBMIT_SCRIPT.')
   const mode = process.env.WHETSTONE_GUARD_MODE === 'template' ? 'template' : 'grilling'
-  const d = decide(input.tool_name, input.tool_input ?? {}, {
+  const decision = decide(input.tool_name, input.tool_input ?? {}, {
     projectDir: realpath(projectDir),
     submitScript,
     realpath,
     mode,
   })
-  out(d.allow ? 'allow' : 'deny', d.allow ? 'Allowed by the Whetstone session allowlist.' : d.reason)
-} catch (e) {
-  out('deny', `Permission hook failed: ${e instanceof Error ? e.message : String(e)}`)
+  const permission = decision.allow ? 'allow' : 'deny'
+  const reason = decision.allow ? ALLOWED_REASON : decision.reason
+  respondAndExit(permission, reason)
+} catch (error) {
+  // Any failure (bad payload, guard crash) denies the tool call rather than letting it through.
+  const message = error instanceof Error ? error.message : String(error)
+  respondAndExit('deny', `Permission hook failed: ${message}`)
 }
