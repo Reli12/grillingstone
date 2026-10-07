@@ -22,27 +22,29 @@ export interface ImportItem {
   selected: boolean
 }
 
-const pickSection = (s: TemplateSection): TemplateSection => ({
-  key: s.key,
-  heading: s.heading,
-  shape: s.shape,
-  locked: s.locked,
-  guidance: s.guidance,
-  target: s.target,
-  ...(s.entryFormat ? { entryFormat: s.entryFormat } : {}),
+/** Only a Template Section's own fields, so nothing else travels in a bundle. */
+const pickSection = (section: TemplateSection): TemplateSection => ({
+  key: section.key,
+  heading: section.heading,
+  shape: section.shape,
+  locked: section.locked,
+  guidance: section.guidance,
+  target: section.target,
+  ...(section.entryFormat ? { entryFormat: section.entryFormat } : {}),
 })
 
-const pickTemplate = (t: Template): Template => ({
-  id: t.id,
-  workItemType: t.workItemType,
-  name: t.name,
-  version: t.version,
-  isDefault: t.isDefault,
-  sections: t.sections.map(pickSection),
-  method: t.method,
-  iterationLogHeading: t.iterationLogHeading,
-  ...(t.iterationLogTarget ? { iterationLogTarget: t.iterationLogTarget } : {}),
-  updatedAt: t.updatedAt,
+/** Only a Template's own fields, so nothing else travels in a bundle. */
+const pickTemplate = (template: Template): Template => ({
+  id: template.id,
+  workItemType: template.workItemType,
+  name: template.name,
+  version: template.version,
+  isDefault: template.isDefault,
+  sections: template.sections.map(pickSection),
+  method: template.method,
+  iterationLogHeading: template.iterationLogHeading,
+  ...(template.iterationLogTarget ? { iterationLogTarget: template.iterationLogTarget } : {}),
+  updatedAt: template.updatedAt,
 })
 
 export const exportBundle = (templates: Template[], now: string): Bundle => ({
@@ -52,51 +54,74 @@ export const exportBundle = (templates: Template[], now: string): Bundle => ({
   templates: templates.map(pickTemplate),
 })
 
-const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
+// Any run of whitespace, collapsed to one space when comparing by meaning.
+const WHITESPACE_RUN = /\s+/g
+
+const norm = (text: string) => text.replace(WHITESPACE_RUN, ' ').trim()
 
 /** What a Template means: structure, method and names — not its id, version, timestamps or whitespace. */
-const meaning = (t: Template) =>
+const meaning = (template: Template) =>
   JSON.stringify({
-    type: t.workItemType,
-    name: norm(t.name),
-    log: norm(t.iterationLogHeading),
-    logTarget: t.iterationLogTarget ?? defaultIterationLogTarget(t.workItemType),
-    method: norm(t.method),
-    sections: t.sections.map((s) => ({ ...pickSection(s), heading: norm(s.heading), guidance: norm(s.guidance) })),
+    type: template.workItemType,
+    name: norm(template.name),
+    log: norm(template.iterationLogHeading),
+    logTarget: template.iterationLogTarget ?? defaultIterationLogTarget(template.workItemType),
+    method: norm(template.method),
+    sections: template.sections.map((section) => ({
+      ...pickSection(section),
+      heading: norm(section.heading),
+      guidance: norm(section.guidance),
+    })),
   })
 
-const isSection = (s: unknown): s is TemplateSection => {
-  const r = s as Record<string, unknown>
-  return !!r && typeof r.key === 'string' && typeof r.heading === 'string' && (r.shape === 'prose' || r.shape === 'entries') && typeof r.locked === 'boolean' && typeof r.target === 'string'
-}
-
-const isTemplate = (t: unknown): t is Template => {
-  const r = t as Record<string, unknown>
+const isSection = (section: unknown): section is TemplateSection => {
+  const fields = section as Record<string, unknown>
   return (
-    !!r &&
-    typeof r.id === 'string' &&
-    typeof r.name === 'string' &&
-    isWorkItemType(r.workItemType) &&
-    typeof r.method === 'string' &&
-    Array.isArray(r.sections) &&
-    r.sections.length > 0 &&
-    r.sections.every(isSection)
+    !!fields &&
+    typeof fields.key === 'string' &&
+    typeof fields.heading === 'string' &&
+    (fields.shape === 'prose' || fields.shape === 'entries') &&
+    typeof fields.locked === 'boolean' &&
+    typeof fields.target === 'string'
   )
 }
 
-export function previewImport(bundle: unknown, existing: Template[]): { ok: true; items: ImportItem[] } | { ok: false; reason: string } {
-  const b = bundle as Partial<Bundle> | null
-  if (!b || b.format !== BUNDLE_FORMAT || !Array.isArray(b.templates)) return { ok: false, reason: 'This file is not a Whetstone Template bundle.' }
-  if (!b.templates.every(isTemplate)) return { ok: false, reason: 'The bundle contains a Template that is incomplete or malformed.' }
+const isTemplate = (template: unknown): template is Template => {
+  const fields = template as Record<string, unknown>
+  return (
+    !!fields &&
+    typeof fields.id === 'string' &&
+    typeof fields.name === 'string' &&
+    isWorkItemType(fields.workItemType) &&
+    typeof fields.method === 'string' &&
+    Array.isArray(fields.sections) &&
+    fields.sections.length > 0 &&
+    fields.sections.every(isSection)
+  )
+}
 
-  const items = b.templates.map((raw): ImportItem => {
+/** The local Template an imported one matches: the same id, or else the same type and name. */
+const findMatch = (existing: Template[], template: Template) =>
+  existing.find((local) => local.id === template.id) ??
+  existing.find((local) => local.workItemType === template.workItemType && norm(local.name) === norm(template.name))
+
+export function previewImport(
+  bundle: unknown,
+  existing: Template[],
+): { ok: true; items: ImportItem[] } | { ok: false; reason: string } {
+  const candidate = bundle as Partial<Bundle> | null
+  if (!candidate || candidate.format !== BUNDLE_FORMAT || !Array.isArray(candidate.templates))
+    return { ok: false, reason: 'This file is not a Whetstone Template bundle.' }
+  if (!candidate.templates.every(isTemplate))
+    return { ok: false, reason: 'The bundle contains a Template that is incomplete or malformed.' }
+
+  const items = candidate.templates.map((raw): ImportItem => {
     const template = pickTemplate({
       ...raw,
       iterationLogHeading: raw.iterationLogHeading ?? `${raw.workItemType} Iteration Log`,
-      sections: raw.sections.map((s) => ({ ...s, guidance: s.guidance ?? '' })),
+      sections: raw.sections.map((section) => ({ ...section, guidance: section.guidance ?? '' })),
     })
-    const match =
-      existing.find((e) => e.id === template.id) ?? existing.find((e) => e.workItemType === template.workItemType && norm(e.name) === norm(template.name))
+    const match = findMatch(existing, template)
     if (!match) return { template, status: 'new', selected: true }
     const status = meaning(match) === meaning(template) ? 'identical' : 'changed'
     return { template, status, matchId: match.id, selected: false }
@@ -106,18 +131,19 @@ export function previewImport(bundle: unknown, existing: Template[]): { ok: true
 
 /** The Templates to write for the selected items. Nothing is ever deleted; Defaults are never overwritten. */
 export function applyImport(existing: Template[], items: ImportItem[], now: string): Template[] {
-  const ids = new Set(existing.map((t) => t.id))
-  const names = new Set(existing.map((t) => `${t.workItemType}/${norm(t.name)}`))
+  const nameKey = (template: Template, name: string) => `${template.workItemType}/${norm(name)}`
+  const ids = new Set(existing.map((template) => template.id))
+  const names = new Set(existing.map((template) => nameKey(template, template.name)))
   const writes: Template[] = []
   for (const item of items) {
     if (!item.selected || item.status === 'identical') continue
-    const match = existing.find((t) => t.id === item.matchId)
+    const match = existing.find((template) => template.id === item.matchId)
     if (item.status === 'changed' && match && !match.isDefault) {
       writes.push({ ...item.template, id: match.id, isDefault: false, version: match.version + 1, updatedAt: now })
       continue
     }
     let name = item.template.name
-    if (match?.isDefault || names.has(`${item.template.workItemType}/${norm(name)}`)) name = `${name} (imported)`
+    if (match?.isDefault || names.has(nameKey(item.template, name))) name = `${name} (imported)`
     const id = ids.has(item.template.id) ? newId('t') : item.template.id
     ids.add(id)
     writes.push({ ...item.template, id, name, isDefault: false, version: 1, updatedAt: now })

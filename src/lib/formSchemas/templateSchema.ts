@@ -1,15 +1,16 @@
+// Validation for the Template editor, including the per-type rules on which ADO fields Sections may use.
 import { z } from 'zod'
+
 import { SECTION_TARGETS } from '#core/shared/adoFields.ts'
 import { allowedTargets, WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
+
+const SECTION_KEY = /^[A-Za-z]\w*$/ // a letter, then letters, digits or underscores
 
 /** Every field a Section of some type may target; which ones a Template may use depends on its type. */
 const target = z.enum(SECTION_TARGETS)
 
 export const templateSectionSchema = z.object({
-  key: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z][A-Za-z0-9_]*$/, 'Letters and digits, starting with a letter'),
+  key: z.string().trim().regex(SECTION_KEY, 'Letters and digits, starting with a letter'),
   heading: z.string().trim().min(1, 'Give the Section a heading'),
   shape: z.enum(['prose', 'entries']),
   locked: z.boolean(),
@@ -27,15 +28,18 @@ export const templateSchema = z
     method: z.string().trim().min(1, 'Describe how Claude should write'),
     sections: z.array(templateSectionSchema).min(1, 'A Template needs at least one Section'),
   })
-  .superRefine((t, ctx) => {
-    const allowed: string[] = allowedTargets(t.workItemType)
-    const notAllowed = `A ${t.workItemType} can't be Published into this field`
-    if (!allowed.includes(t.iterationLogTarget)) ctx.addIssue({ code: 'custom', path: ['iterationLogTarget'], message: notAllowed })
+  .superRefine((template, ctx) => {
+    const allowed: string[] = allowedTargets(template.workItemType)
+    const notAllowed = `A ${template.workItemType} can't be Published into this field`
+    if (!allowed.includes(template.iterationLogTarget))
+      ctx.addIssue({ code: 'custom', path: ['iterationLogTarget'], message: notAllowed })
     const seen = new Set<string>()
-    t.sections.forEach((s, i) => {
-      if (seen.has(s.key)) ctx.addIssue({ code: 'custom', path: ['sections', i, 'key'], message: 'Each key must be unique' })
-      seen.add(s.key)
-      if (!allowed.includes(s.target)) ctx.addIssue({ code: 'custom', path: ['sections', i, 'target'], message: notAllowed })
+    template.sections.forEach((section, i) => {
+      if (seen.has(section.key))
+        ctx.addIssue({ code: 'custom', path: ['sections', i, 'key'], message: 'Each key must be unique' })
+      seen.add(section.key)
+      if (!allowed.includes(section.target))
+        ctx.addIssue({ code: 'custom', path: ['sections', i, 'target'], message: notAllowed })
     })
   })
 

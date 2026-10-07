@@ -1,8 +1,11 @@
 // Pushes ServerEvents to every open browser tab. Single-user and local: every tab gets every event
 // and filters by Project / Draft itself.
 import type { IncomingMessage, Server } from 'node:http'
-import { WebSocketServer, type WebSocket } from 'ws'
+
+import { type WebSocket, WebSocketServer } from 'ws'
+
 import type { ServerEvent } from '#core/session/sessionTypes.ts'
+
 import { ALLOWED_ORIGINS } from './config.ts'
 
 export class Hub {
@@ -19,6 +22,7 @@ export class Hub {
       this.wss.handleUpgrade(req, socket, head, (ws) => {
         this.clients.add(ws)
         ws.on('close', () => this.clients.delete(ws))
+        // A socket that errored can no longer receive events, so it is dropped like a closed one.
         ws.on('error', () => this.clients.delete(ws))
       })
     })

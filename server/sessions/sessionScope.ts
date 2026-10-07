@@ -1,3 +1,5 @@
+// The shared shape of a session, whichever kind it is: the Scope that says where it runs and what its
+// submission means, and the PreparedSession the Supervisor launches.
 import type { Seed } from '#core/session/cardProtocol.ts'
 import type { ChatMessage, TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
 import type { Reason } from '#core/shared/validation.ts'
@@ -13,9 +15,9 @@ export interface Scope {
   /** The session's working directory — the only folder it may read. */
   cwd: string
   guardMode: 'grilling' | 'template'
-  save: (t: AnyTranscript) => Promise<void>
-  emitMessage: (t: AnyTranscript, m: ChatMessage) => void
-  emitSession: (t: AnyTranscript) => void
+  save: (transcript: AnyTranscript) => Promise<void>
+  emitMessage: (transcript: AnyTranscript, message: ChatMessage) => void
+  emitSession: (transcript: AnyTranscript) => void
   /** Validates and stores what the session submitted. */
   submit: (payload: unknown) => Promise<SubmitResult>
   /** How the submit command shows up in the chat. */
@@ -37,4 +39,5 @@ export interface PreparedSession<T extends AnyTranscript> {
   resume?: string
 }
 
-export const summaryOf = <T extends AnyTranscript>({ messages: _m, ...s }: T) => s as Omit<T, 'messages'>
+/** The Transcript without its messages: what lists and live-session lookups send to the browser. */
+export const summaryOf = <T extends AnyTranscript>({ messages: _messages, ...summary }: T) => summary

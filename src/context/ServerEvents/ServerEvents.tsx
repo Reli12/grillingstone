@@ -1,7 +1,9 @@
 // One websocket to the backend. Server events are folded into the React Query cache, so a reload
 // (or a second tab) always shows the live session and the current Draft.
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react'
+
 import { useQueryClient } from '@tanstack/react-query'
+
 import { applyServerEvent } from '@/api/serverEvents'
 import { connectServerSocket } from '@/api/serverSocket'
 
@@ -14,7 +16,7 @@ interface ServerEventsProviderProps {
   children: ReactNode
 }
 
-export function ServerEventsProvider({ children }: ServerEventsProviderProps) {
+export function ServerEventsProvider({ children }: Readonly<ServerEventsProviderProps>) {
   const qc = useQueryClient()
   const [connection, setConnection] = useState<Connection>('connecting')
 
@@ -23,10 +25,10 @@ export function ServerEventsProvider({ children }: ServerEventsProviderProps) {
       connectServerSocket({
         onOpen: (reconnected) => {
           // Anything could have happened while we were away; refetch what is on screen.
-          if (reconnected) qc.invalidateQueries()
+          if (reconnected) void qc.invalidateQueries()
           setConnection('open')
         },
-        onEvent: (e) => applyServerEvent(qc, e),
+        onEvent: (event) => applyServerEvent(qc, event),
         onClose: () => setConnection('closed'),
       }),
     [qc],

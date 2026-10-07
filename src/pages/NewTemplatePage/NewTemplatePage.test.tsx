@@ -1,8 +1,11 @@
+// Tests for NewTemplatePage: grilling a Template with Claude or building one by hand, from a base or blank.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import type { Template } from '#core/template/templateTypes.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import NewTemplatePage from '@/pages/NewTemplatePage/NewTemplatePage'
 import { server } from '@test/mocks/server'
@@ -55,7 +58,10 @@ describe('NewTemplatePage', () => {
 
   it('builds a blank Template seeded with the purpose', async () => {
     const { user } = renderPage()
-    await user.type(await screen.findByRole('textbox', { name: 'What the Template is for' }), 'Spike PBIs for investigations')
+    await user.type(
+      await screen.findByRole('textbox', { name: 'What the Template is for' }),
+      'Spike PBIs for investigations',
+    )
     await user.click(screen.getByRole('button', { name: 'Build it myself' }))
 
     await screen.findByTestId('navigated')
@@ -75,6 +81,9 @@ describe('NewTemplatePage', () => {
   it('points to a running Template Session instead of starting another', async () => {
     server.use(http.get(`*${endpoints.liveTemplateSession}`, () => HttpResponse.json({ session: { id: 'live-1' } })))
     renderPage()
-    expect(await screen.findByRole('link', { name: 'Continue it' })).toHaveAttribute('href', '/templates/session/live-1')
+    expect(await screen.findByRole('link', { name: 'Continue it' })).toHaveAttribute(
+      'href',
+      '/templates/session/live-1',
+    )
   })
 })

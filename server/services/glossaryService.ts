@@ -1,3 +1,4 @@
+// Glossary changes, each announced to the browser so open Glossary views reload.
 import type { Hub } from '../hub.ts'
 import { saveGlossary } from '../storage/glossary.ts'
 

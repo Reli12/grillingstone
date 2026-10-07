@@ -1,8 +1,11 @@
+// Tests for ImportDialog: the bundle preview, refused bundles, failed previews and importing.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import type { ImportItem } from '#core/template/templateBundle.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import type { ImportPreview } from '@/api/templatesApi'
 import { ImportDialog } from '@/components/features/templates/importDialog/importDialog'
@@ -15,7 +18,8 @@ const items: ImportItem[] = [
   { template: { ...defaultPbiTemplate, id: 'c', name: 'Same PBI' }, status: 'identical', selected: false },
 ]
 
-const previewWith = (body: ImportPreview) => server.use(http.post(`*${endpoints.templatesImportPreview}`, () => HttpResponse.json(body)))
+const previewWith = (body: ImportPreview) =>
+  server.use(http.post(`*${endpoints.templatesImportPreview}`, () => HttpResponse.json(body)))
 
 describe('ImportDialog', () => {
   it('previews the bundle with only new Templates selected', async () => {
@@ -37,7 +41,11 @@ describe('ImportDialog', () => {
   })
 
   it('shows the error when the preview request fails', async () => {
-    server.use(http.post(`*${endpoints.templatesImportPreview}`, () => HttpResponse.json({ error: 'Backend down' }, { status: 500 })))
+    server.use(
+      http.post(`*${endpoints.templatesImportPreview}`, () =>
+        HttpResponse.json({ error: 'Backend down' }, { status: 500 }),
+      ),
+    )
     render(<ImportDialog bundle={{}} onClose={() => {}} />)
 
     expect(await screen.findByText('Backend down')).toBeInTheDocument()

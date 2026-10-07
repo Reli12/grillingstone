@@ -1,3 +1,4 @@
+// Validation for an Entry added by hand.
 import { z } from 'zod'
 
 /** A new Entry added by hand to an entries Section. */

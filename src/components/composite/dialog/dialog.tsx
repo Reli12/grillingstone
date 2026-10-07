@@ -1,5 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+// The app's modal dialog: a title bar with a close button, a scrolling body and an optional footer.
+import { type ReactNode, useEffect, useRef } from 'react'
+
 import { X } from 'lucide-react'
+
 import { cn } from '@/lib/cn'
 
 interface DialogProps {
@@ -12,26 +15,34 @@ interface DialogProps {
 }
 
 /** Native <dialog>: focus trapping, Escape and the backdrop come from the browser. */
-export function Dialog({ open, onClose, title, children, footer, className }: DialogProps) {
+export function Dialog({ open, onClose, title, children, footer, className }: Readonly<DialogProps>) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
-    const d = ref.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
+    const dialog = ref.current
+    if (!dialog) return
+    if (open && !dialog.open) dialog.showModal()
+    if (!open && dialog.open) dialog.close()
   }, [open])
   return (
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
-      className={cn('m-auto w-[min(640px,calc(100vw-32px))] rounded-lg bg-sheet p-0 text-ink shadow-[0_20px_60px_-20px_var(--color-shadow)] backdrop:bg-backdrop', className)}
+      // A click on the <dialog> itself, not on its content, is a click on the backdrop.
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+      className={cn(
+        'm-auto w-[min(640px,calc(100vw-32px))] rounded-lg bg-sheet p-0 text-ink shadow-[0_20px_60px_-20px_var(--color-shadow)] backdrop:bg-backdrop',
+        className,
+      )}
     >
       {open && (
         <div className="flex max-h-[85vh] flex-col">
           <header className="flex items-center justify-between border-b border-line-soft px-5 py-3.5">
             <h2 className="text-base font-semibold">{title}</h2>
-            <button onClick={onClose} className="rounded p-1 text-ink-faint hover:bg-fog hover:text-ink" aria-label="Close">
+            <button
+              onClick={onClose}
+              className="rounded p-1 text-ink-faint hover:bg-fog hover:text-ink"
+              aria-label="Close"
+            >
               <X size={18} />
             </button>
           </header>

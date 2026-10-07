@@ -37,4 +37,5 @@ Never write ${writeWhat} before the human confirms. Their confirmation arrives a
 }
 
 /** The heredoc form of the one Bash command a session may run. */
-export const submitUsage = (submitCommand: string, firstLine: string) => `${submitCommand} <<'${SUBMIT_HEREDOC}'\n${firstLine}\n${SUBMIT_HEREDOC}`
+export const submitUsage = (submitCommand: string, firstLine: string) =>
+  `${submitCommand} <<'${SUBMIT_HEREDOC}'\n${firstLine}\n${SUBMIT_HEREDOC}`

@@ -45,8 +45,13 @@ export const newEntry = (title: string, body: string): Entry => ({
 })
 
 /** Builds a Section for a Template Section key from submitted content (content must already be validated). */
-export function sectionFromContent(template: Template, key: string, body = '', entries: { title: string; body: string }[] = []): Section {
-  const def = template.sections.find((d) => d.key === key)
+export function sectionFromContent(
+  template: Template,
+  key: string,
+  body = '',
+  entries: { title: string; body: string }[] = [],
+): Section {
+  const def = template.sections.find((sectionDef) => sectionDef.key === key)
   if (!def) throw new Error(`Unknown Section key ${key}`)
   return {
     id: newId('s'),
@@ -58,7 +63,7 @@ export function sectionFromContent(template: Template, key: string, body = '', e
     guidance: def.guidance,
     ...(def.entryFormat ? { entryFormat: def.entryFormat } : {}),
     body: body.trim(),
-    entries: def.shape === 'entries' ? entries.map((e) => newEntry(e.title, e.body)) : [],
+    entries: def.shape === 'entries' ? entries.map((entry) => newEntry(entry.title, entry.body)) : [],
     discarded: false,
     humanEdited: false,
     humanMoved: false,
@@ -72,7 +77,9 @@ export function writeV1(draft: Draft, content: DraftContent, meta: IterationMeta
     ...draft,
     title: content.title.trim(),
     version: 1,
-    sections: content.sections.map((s) => sectionFromContent(draft.template, s.key, s.body, s.entries)),
+    sections: content.sections.map((section) =>
+      sectionFromContent(draft.template, section.key, section.body, section.entries),
+    ),
     iterationLog: [{ version: 1, date: meta.date, author: meta.author, note: 'First Draft written' }],
     updatedAt: meta.date,
   }
@@ -82,10 +89,10 @@ export function writeV1(draft: Draft, content: DraftContent, meta: IterationMeta
 export function toContent(draft: Draft): DraftContent {
   return {
     title: draft.title,
-    sections: draft.sections.map((s) =>
-      s.shape === 'entries'
-        ? { key: s.key, body: s.body, entries: s.entries.map((e) => ({ title: e.title, body: e.body })) }
-        : { key: s.key, body: s.body },
-    ),
+    sections: draft.sections.map((section) => {
+      if (section.shape !== 'entries') return { key: section.key, body: section.body }
+      const entries = section.entries.map((entry) => ({ title: entry.title, body: entry.body }))
+      return { key: section.key, body: section.body, entries }
+    }),
   }
 }

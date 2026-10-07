@@ -1,7 +1,10 @@
+// Tests for SettingsPage: the theme applies at once; author and model save, and author is required.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import type { Settings } from '#core/contract/apiTypes.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import SettingsPage from '@/pages/SettingsPage/SettingsPage'
 import { server } from '@test/mocks/server'

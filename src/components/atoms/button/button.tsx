@@ -1,4 +1,6 @@
+// The app's one button: a colour variant for what the action means and a size, on a native <button>.
 import type { ButtonHTMLAttributes } from 'react'
+
 import { cn } from '@/lib/cn'
 
 type Variant = 'ink' | 'claude' | 'proof' | 'destructive' | 'outline' | 'quiet' | 'danger'
@@ -25,7 +27,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size
 }
 
-export function Button({ variant = 'outline', size = 'md', className, type = 'button', ...rest }: ButtonProps) {
+export function Button({
+  variant = 'outline',
+  size = 'md',
+  className,
+  type = 'button',
+  ...rest
+}: Readonly<ButtonProps>) {
   return (
     <button
       type={type}

@@ -1,3 +1,5 @@
+// Builds the backend's object graph once: each service announces its changes through the same Hub, and the
+// Supervisor gets the services a session's submission writes through.
 import type { Hub } from '../hub.ts'
 import type { AppDeps } from '../routes/deps.ts'
 import { Supervisor } from '../sessions/supervisor.ts'

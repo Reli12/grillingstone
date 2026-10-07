@@ -1,3 +1,4 @@
+// Display names for each kind of session, and what each one writes.
 import type { SessionBase } from '#core/session/sessionTypes.ts'
 
 export const SESSION_TITLES = {
@@ -9,4 +10,9 @@ export const SESSION_TITLES = {
 } as const
 
 /** What the Ready Check offers to write. */
-export const writeTarget = (kind: SessionBase['kind']) => (kind === 'first' ? 'the Draft' : kind === 'template' ? 'the Template' : 'the Proposal')
+export const writeTarget = (kind: SessionBase['kind']) => {
+  if (kind === 'first') return 'the Draft'
+  if (kind === 'template') return 'the Template'
+  // Every later session proposes changes instead of overwriting the Draft.
+  return 'the Proposal'
+}

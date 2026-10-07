@@ -1,7 +1,10 @@
+// Tests for GlossaryPanel: listing, adding, editing and removing terms, and editing the raw CONTEXT.md.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { addTerm } from '#core/glossary/glossary.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
 import { server } from '@test/mocks/server'
@@ -14,8 +17,12 @@ describe('GlossaryPanel', () => {
   beforeEach(() => {
     saved = undefined
     server.use(
-      http.get(`*${endpoints.project('customer-portal')}`, () => HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '' })),
-      http.get(`*${endpoints.glossary('customer-portal')}`, () => HttpResponse.json({ markdown: withDevice, version: 'v1' })),
+      http.get(`*${endpoints.project('customer-portal')}`, () =>
+        HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '' }),
+      ),
+      http.get(`*${endpoints.glossary('customer-portal')}`, () =>
+        HttpResponse.json({ markdown: withDevice, version: 'v1' }),
+      ),
       http.put(`*${endpoints.glossary('customer-portal')}`, async ({ request }) => {
         saved = (await request.json()) as typeof saved
         return HttpResponse.json({ markdown: saved!.markdown, version: 'v2' })

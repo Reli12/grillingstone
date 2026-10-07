@@ -1,4 +1,6 @@
+// Tests for human edits to a Draft and the human-edit markers each edit sets.
 import { describe, expect, it } from 'vitest'
+
 import { applyHumanOp, DraftOpError } from '#core/draft/humanOps.ts'
 import { classify } from '#core/proposal/classify.ts'
 import { sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
@@ -18,7 +20,10 @@ describe('Human edits to a Draft', () => {
     const draft = v1Draft()
     const tech = sectionByKey(draft, 'technicalNotes')
     const moved = applyHumanOp(draft, { op: 'moveSection', sectionId: tech.id, toIndex: 0 })
-    expect(classify(moved, [{ kind: 'replaceSection', sectionId: tech.id, body: 'New notes' }])[0]).toMatchObject({ conflict: true, conflictReason: 'You moved this' })
+    expect(classify(moved, [{ kind: 'replaceSection', sectionId: tech.id, body: 'New notes' }])[0]).toMatchObject({
+      conflict: true,
+      conflictReason: 'You moved this',
+    })
   })
 
   it('keeps Discarded content in the Draft so it can be restored', () => {
@@ -26,6 +31,8 @@ describe('Human edits to a Draft', () => {
     const design = sectionByKey(draft, 'design')
     const discarded = applyHumanOp(draft, { op: 'discardSection', sectionId: design.id })
     expect(sectionByKey(discarded, 'design')).toMatchObject({ discarded: true, body: design.body })
-    expect(sectionByKey(applyHumanOp(discarded, { op: 'restoreSection', sectionId: design.id }), 'design').discarded).toBe(false)
+    expect(
+      sectionByKey(applyHumanOp(discarded, { op: 'restoreSection', sectionId: design.id }), 'design').discarded,
+    ).toBe(false)
   })
 })

@@ -23,7 +23,7 @@ services:
     depends_on: [sonarqube]
     environment:
       SONAR_HOST_URL: http://sonarqube:9000
-      SONAR_TOKEN: ${SONAR_TOKEN:-}  # a token from http://localhost:9000/account/security
+      SONAR_TOKEN: ${SONAR_TOKEN:-} # a token from http://localhost:9000/account/security
     volumes:
       - .:/usr/src
 

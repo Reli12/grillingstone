@@ -1,3 +1,5 @@
+// Where the backend finds and keeps things, and which ports and binaries it uses — read once from the
+// environment (WHETSTONE_*) at startup.
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,8 +24,11 @@ export const DEFAULT_TEMPLATES_DIR = path.join(TOOL_DIR, 'defaults', 'templates'
 export const SUBMIT_SCRIPT = path.join(TOOL_DIR, 'scripts', 'writeDraft.mjs')
 export const HOOK_SCRIPT = path.join(TOOL_DIR, 'scripts', 'permissionHook.mjs')
 
-export const SERVER_PORT = Number(process.env.WHETSTONE_SERVER_PORT ?? 5311)
-export const WEB_PORT = Number(process.env.WHETSTONE_WEB_PORT ?? 5310)
+const DEFAULT_SERVER_PORT = 5311
+const DEFAULT_WEB_PORT = 5310
+
+export const SERVER_PORT = Number(process.env.WHETSTONE_SERVER_PORT ?? DEFAULT_SERVER_PORT)
+export const WEB_PORT = Number(process.env.WHETSTONE_WEB_PORT ?? DEFAULT_WEB_PORT)
 export const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`
 /** Browser origins allowed to call the API (the Vite dev server). */
 export const ALLOWED_ORIGINS = new Set([`http://127.0.0.1:${WEB_PORT}`, `http://localhost:${WEB_PORT}`])

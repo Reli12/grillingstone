@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest'
+
 import { cleanup } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll } from 'vitest'
+
 import { server } from '@test/mocks/server'
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
@@ -23,4 +25,13 @@ HTMLDialogElement.prototype.close = function () {
 
 // jsdom has no matchMedia; Sonner reads it to follow the system theme.
 window.matchMedia ??= (query: string) =>
-  ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false }) as MediaQueryList
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList

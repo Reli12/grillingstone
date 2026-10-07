@@ -1,3 +1,4 @@
+// Validation for editing Draft text in place.
 import { z } from 'zod'
 
 /** In-place edit of Draft text: the body, plus the title for an Entry. */

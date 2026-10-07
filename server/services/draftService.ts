@@ -6,6 +6,7 @@ import type { HumanOp } from '#core/draft/humanOps.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acceptAllClean, decide } from '#core/proposal/triage.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
+
 import type { Hub } from '../hub.ts'
 import * as drafts from '../storage/drafts.ts'
 import { getTemplate } from '../storage/templates.ts'
@@ -29,38 +30,44 @@ export class DraftService {
 
   async create(projectId: string, input: NewDraftInput): Promise<Draft> {
     const template = await getTemplate(input.templateId)
-    if (template.workItemType !== input.workItemType) throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
+    if (template.workItemType !== input.workItemType)
+      throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
     const requirement = input.requirement.trim()
     if (!requirement) throw new DraftInputError('Describe the requirement so Claude has something to grill.')
     const references = await this.existingReferences(projectId, input.references)
-    const draft = await drafts.createDraft(newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }))
+    const draft = await drafts.createDraft(
+      newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }),
+    )
     this.hub.broadcast({ type: 'drafts', projectId })
     return draft
   }
 
   async setReferences(projectId: string, draftId: string, references: string[]) {
-    const refs = (await this.existingReferences(projectId, references)).filter((r) => r !== draftId)
-    return this.update(projectId, draftId, (d) => ({ ...d, references: refs }))
+    const existing = await this.existingReferences(projectId, references)
+    // A Draft cannot be its own Reference.
+    const refs = existing.filter((referenceId) => referenceId !== draftId)
+    return this.update(projectId, draftId, (draft) => ({ ...draft, references: refs }))
   }
 
-  edit = (projectId: string, draftId: string, op: HumanOp) => this.update(projectId, draftId, (d) => applyHumanEdit(d, op))
+  edit = (projectId: string, draftId: string, op: HumanOp) =>
+    this.update(projectId, draftId, (draft) => applyHumanEdit(draft, op))
 
   async decide(projectId: string, draftId: string, changeId: string, accept: boolean) {
     const meta = await iterationMeta()
-    return this.update(projectId, draftId, (d) => decide(d, changeId, accept, meta))
+    return this.update(projectId, draftId, (draft) => decide(draft, changeId, accept, meta))
   }
 
   async acceptAllClean(projectId: string, draftId: string) {
     const meta = await iterationMeta()
-    return this.update(projectId, draftId, (d) => acceptAllClean(d, meta))
+    return this.update(projectId, draftId, (draft) => acceptAllClean(draft, meta))
   }
 
   /** Saves `fn`'s result under the Draft's lock and announces it; returning null (or the same Draft) changes nothing. */
-  async update(projectId: string, draftId: string, fn: (d: Draft) => Draft | null): Promise<Draft> {
+  async update(projectId: string, draftId: string, fn: (draft: Draft) => Draft | null): Promise<Draft> {
     let changed = false
-    const draft = await drafts.updateDraft(projectId, draftId, (d) => {
-      const next = fn(d)
-      changed = next !== null && next !== d
+    const draft = await drafts.updateDraft(projectId, draftId, (current) => {
+      const next = fn(current)
+      changed = next !== null && next !== current
       return next
     })
     if (changed) {
@@ -77,7 +84,7 @@ export class DraftService {
 
   /** Only Drafts that exist in the Project can be References. */
   private async existingReferences(projectId: string, ids: string[]) {
-    const existing = new Set((await drafts.listDrafts(projectId)).map((d) => d.id))
+    const existing = new Set((await drafts.listDrafts(projectId)).map((draft) => draft.id))
     return ids.filter((id) => existing.has(id))
   }
 }

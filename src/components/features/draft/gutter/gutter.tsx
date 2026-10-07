@@ -2,7 +2,9 @@
 // edits are a highlighter stroke; a Section or Entry you moved carries an arrow. These are exactly the
 // marks that turn a later change into a Conflict.
 import type { HTMLAttributes } from 'react'
+
 import { ArrowUpDown, GripVertical } from 'lucide-react'
+
 import { cn } from '@/lib/cn'
 
 interface GutterProps {
@@ -14,7 +16,14 @@ interface GutterProps {
   group?: 'section' | 'entry'
 }
 
-export function Gutter({ edited, moved, pending, handleProps, size = 'section', group = 'section' }: GutterProps) {
+export function Gutter({
+  edited,
+  moved,
+  pending,
+  handleProps,
+  size = 'section',
+  group = 'section',
+}: Readonly<GutterProps>) {
   return (
     <div className={cn('relative flex shrink-0 justify-center', size === 'section' ? 'w-7' : 'w-5')}>
       <span

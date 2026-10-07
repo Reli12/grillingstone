@@ -1,3 +1,4 @@
+// Validation for a Project's name, and for the New Project dialog.
 import { z } from 'zod'
 
 export const projectNameSchema = z.object({

@@ -1,3 +1,5 @@
+// The error every failed backend call throws: the backend's human-readable message, the HTTP
+// status, and the per-field reasons a validation failure carries.
 import type { Reason } from '#core/shared/validation.ts'
 
 export class ApiError extends Error {

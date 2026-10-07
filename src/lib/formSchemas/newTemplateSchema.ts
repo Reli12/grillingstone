@@ -1,4 +1,6 @@
+// Validation for the New Template start step, and the stricter rule for grilling a Template.
 import { z } from 'zod'
+
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
 export const newTemplateSchema = z.object({

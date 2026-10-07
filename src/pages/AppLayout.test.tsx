@@ -1,6 +1,8 @@
+// Tests for AppLayout: the header's Project switcher, New Project link and home link.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import { rememberProject } from '@/lib/lastProject'
 import AppLayout from '@/pages/AppLayout'

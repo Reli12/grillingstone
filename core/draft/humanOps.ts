@@ -16,8 +16,9 @@ export type HumanOp =
 
 export class DraftOpError extends Error {}
 
-const moveTo = <T extends { id: string }>(list: T[], id: string, toIndex: number, mark: (x: T) => T): T[] => {
-  const from = list.findIndex((x) => x.id === id)
+/** Moves the item with `id` to `toIndex` (clamped to the list), marking it with `mark` when it moves. */
+const moveTo = <T extends { id: string }>(list: T[], id: string, toIndex: number, mark: (item: T) => T): T[] => {
+  const from = list.findIndex((item) => item.id === id)
   if (from < 0) throw new DraftOpError(`Nothing with id ${id} to move`)
   const to = Math.max(0, Math.min(list.length - 1, toIndex))
   if (from === to) return list
@@ -27,57 +28,72 @@ const moveTo = <T extends { id: string }>(list: T[], id: string, toIndex: number
   return next
 }
 
+/** The Draft with one Section replaced by `edit(section)`. */
+const withSection = (draft: Draft, section: Section, edit: (section: Section) => Section): Draft => ({
+  ...draft,
+  sections: draft.sections.map((candidate) => (candidate.id === section.id ? edit(candidate) : candidate)),
+})
+
+/** The Draft with one Entry of `section` replaced by `edit(entry)`. */
+const withEntry = (draft: Draft, section: Section, entryId: string, edit: (entry: Entry) => Entry): Draft => {
+  if (!section.entries.some((entry) => entry.id === entryId)) throw new DraftOpError(`No Entry ${entryId}`)
+  return withSection(draft, section, (current) => ({
+    ...current,
+    entries: current.entries.map((entry) => (entry.id === entryId ? edit(entry) : entry)),
+  }))
+}
+
+/** The ops that act on one Section or its Entries; `section` is the one named by op.sectionId. */
+function applySectionOp(draft: Draft, section: Section, op: Exclude<HumanOp, { op: 'retitle' }>): Draft {
+  switch (op.op) {
+    case 'editSection':
+      return withSection(draft, section, (current) => ({ ...current, body: op.body, humanEdited: true }))
+    case 'editEntry':
+      return withEntry(draft, section, op.entryId, (entry) => ({
+        ...entry,
+        title: op.title ?? entry.title,
+        body: op.body ?? entry.body,
+        humanEdited: true,
+      }))
+    case 'addEntry':
+      if (section.shape !== 'entries') throw new DraftOpError(`"${section.heading}" holds prose, not Entries`)
+      return withSection(draft, section, (current) => ({
+        ...current,
+        entries: [...current.entries, { ...newEntry(op.title, op.body), humanEdited: true }],
+      }))
+    case 'moveSection': {
+      const markMoved = (moved: Section) => ({ ...moved, humanMoved: true })
+      return { ...draft, sections: moveTo(draft.sections, op.sectionId, op.toIndex, markMoved) }
+    }
+    case 'moveEntry':
+      return withSection(draft, section, (current) => ({
+        ...current,
+        entries: moveTo(current.entries, op.entryId, op.toIndex, (entry) => ({ ...entry, humanMoved: true })),
+      }))
+    case 'discardSection':
+      if (section.locked)
+        throw new DraftOpError(`"${section.heading}" is a Locked Section — it can be edited and moved, never Discarded`)
+      return withSection(draft, section, (current) => ({ ...current, discarded: true }))
+    case 'restoreSection':
+      return withSection(draft, section, (current) => ({ ...current, discarded: false }))
+    case 'discardEntry':
+      return withEntry(draft, section, op.entryId, (entry) => ({ ...entry, discarded: true }))
+    case 'restoreEntry':
+      return withEntry(draft, section, op.entryId, (entry) => ({ ...entry, discarded: false }))
+    default:
+      throw new DraftOpError(`Unknown edit ${String((op as { op?: unknown }).op)}`)
+  }
+}
+
 export function applyHumanOp(draft: Draft, op: HumanOp): Draft {
   if (draft.version === 0) throw new DraftOpError('There is no Draft to edit before v1 is written')
-  const section = 'sectionId' in op ? draft.sections.find((s) => s.id === op.sectionId) : undefined
+  const section = 'sectionId' in op ? draft.sections.find((candidate) => candidate.id === op.sectionId) : undefined
   if ('sectionId' in op && !section) throw new DraftOpError(`No Section ${op.sectionId}`)
-
-  const withSection = (f: (s: Section) => Section): Draft => ({
-    ...draft,
-    sections: draft.sections.map((s) => (s.id === section!.id ? f(s) : s)),
-  })
-  const withEntry = (entryId: string, f: (e: Entry) => Entry): Draft => {
-    if (!section!.entries.some((e) => e.id === entryId)) throw new DraftOpError(`No Entry ${entryId}`)
-    return withSection((s) => ({ ...s, entries: s.entries.map((e) => (e.id === entryId ? f(e) : e)) }))
+  if (op.op === 'retitle') {
+    if (!op.title.trim()) throw new DraftOpError('A Draft needs a Title')
+    return { ...draft, title: op.title.trim(), titleHumanEdited: true }
   }
-
-  let next: Draft
-  switch (op.op) {
-    case 'retitle':
-      if (!op.title.trim()) throw new DraftOpError('A Draft needs a Title')
-      next = { ...draft, title: op.title.trim(), titleHumanEdited: true }
-      break
-    case 'editSection':
-      next = withSection((s) => ({ ...s, body: op.body, humanEdited: true }))
-      break
-    case 'editEntry':
-      next = withEntry(op.entryId, (e) => ({ ...e, title: op.title ?? e.title, body: op.body ?? e.body, humanEdited: true }))
-      break
-    case 'addEntry':
-      if (section!.shape !== 'entries') throw new DraftOpError(`"${section!.heading}" holds prose, not Entries`)
-      next = withSection((s) => ({ ...s, entries: [...s.entries, { ...newEntry(op.title, op.body), humanEdited: true }] }))
-      break
-    case 'moveSection':
-      next = { ...draft, sections: moveTo(draft.sections, op.sectionId, op.toIndex, (s) => ({ ...s, humanMoved: true })) }
-      break
-    case 'moveEntry':
-      next = withSection((s) => ({ ...s, entries: moveTo(s.entries, op.entryId, op.toIndex, (e) => ({ ...e, humanMoved: true })) }))
-      break
-    case 'discardSection':
-      if (section!.locked) throw new DraftOpError(`"${section!.heading}" is a Locked Section — it can be edited and moved, never Discarded`)
-      next = withSection((s) => ({ ...s, discarded: true }))
-      break
-    case 'restoreSection':
-      next = withSection((s) => ({ ...s, discarded: false }))
-      break
-    case 'discardEntry':
-      next = withEntry(op.entryId, (e) => ({ ...e, discarded: true }))
-      break
-    case 'restoreEntry':
-      next = withEntry(op.entryId, (e) => ({ ...e, discarded: false }))
-      break
-    default:
-      throw new DraftOpError(`Unknown edit ${(op as { op?: unknown }).op}`)
-  }
-  return next
+  // Every op other than retitle names a Section; one that does not is not an edit we know.
+  if (!section) throw new DraftOpError(`Unknown edit ${String((op as { op?: unknown }).op)}`)
+  return applySectionOp(draft, section, op)
 }

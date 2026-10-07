@@ -1,4 +1,6 @@
+// Template Session API: the live Template Session, its Transcript, and starting a new one.
 import type { TemplateRequest, TemplateSessionSummary, TemplateTranscript } from '#core/session/sessionTypes.ts'
+
 import { api } from '@/api/apiMethods'
 import { endpoints } from '@/api/endpoints/endpoints'
 

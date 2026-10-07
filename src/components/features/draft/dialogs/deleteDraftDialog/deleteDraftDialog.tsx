@@ -1,3 +1,4 @@
+// Asks before a Draft is deleted, and says what goes and what stays.
 import { Button } from '@/components/atoms/button/button'
 import { Dialog } from '@/components/composite/dialog/dialog'
 
@@ -7,7 +8,7 @@ interface DeleteDraftDialogProps {
   onDelete: () => void
 }
 
-export function DeleteDraftDialog({ open, onClose, onDelete }: DeleteDraftDialogProps) {
+export function DeleteDraftDialog({ open, onClose, onDelete }: Readonly<DeleteDraftDialogProps>) {
   return (
     <Dialog
       open={open}
@@ -24,7 +25,9 @@ export function DeleteDraftDialog({ open, onClose, onDelete }: DeleteDraftDialog
         </>
       }
     >
-      <p className="text-sm text-ink-soft">The Draft and its markdown are removed from the Project. Transcripts and the Glossary stay.</p>
+      <p className="text-sm text-ink-soft">
+        The Draft and its markdown are removed from the Project. Transcripts and the Glossary stay.
+      </p>
     </Dialog>
   )
 }

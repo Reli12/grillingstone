@@ -1,5 +1,8 @@
+// Tests for the `claude -p` launch arguments and the stdout JSON-lines reader.
 import { describe, expect, it } from 'vitest'
+
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
+
 import { claudeArgs, jsonLines } from './claudeProcess.ts'
 
 describe('claudeArgs', () => {
@@ -9,7 +12,9 @@ describe('claudeArgs', () => {
     expect(args[args.indexOf('--append-system-prompt') + 1]).toBe('RULES')
     expect(args[args.indexOf('--tools') + 1]).toBe(SESSION_TOOLS.join(','))
     expect(args).toContain('--no-session-persistence')
-    expect(JSON.parse(args[args.indexOf('--settings') + 1]).hooks.PreToolUse[0].hooks[0].command).toContain('permissionHook.mjs')
+    expect(JSON.parse(args[args.indexOf('--settings') + 1]).hooks.PreToolUse[0].hooks[0].command).toContain(
+      'permissionHook.mjs',
+    )
     expect(args).not.toContain('--model')
     expect(claudeArgs('RULES', 'opus', { persist: false }).slice(-2)).toEqual(['--model', 'opus'])
   })
@@ -25,7 +30,7 @@ describe('claudeArgs', () => {
 describe('jsonLines', () => {
   it('parses complete JSON lines across chunks and skips the rest', () => {
     const events: unknown[] = []
-    const feed = jsonLines((e) => events.push(e))
+    const feed = jsonLines((event) => events.push(event))
     feed('{"a":1}\n{"b"')
     feed(':2}\n\nnot json\n{"c":3')
     expect(events).toEqual([{ a: 1 }, { b: 2 }])

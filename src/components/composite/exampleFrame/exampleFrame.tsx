@@ -1,3 +1,4 @@
+// A captioned frame around a live UI sample, used by the guide page.
 import type { ReactNode } from 'react'
 
 interface ExampleFrameProps {
@@ -6,7 +7,7 @@ interface ExampleFrameProps {
 }
 
 /** A dashed frame around a live sample of UI, with a caption. */
-export function ExampleFrame({ children, caption }: ExampleFrameProps) {
+export function ExampleFrame({ children, caption }: Readonly<ExampleFrameProps>) {
   return (
     <figure className="my-5 rounded-lg border border-dashed border-line bg-fog/50 p-4">
       {children}

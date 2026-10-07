@@ -1,4 +1,6 @@
+// Validation for the New Draft form.
 import { z } from 'zod'
+
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
 export const newDraftSchema = z.object({

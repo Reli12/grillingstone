@@ -1,11 +1,17 @@
+// Tests for the Draft Validator: which submitted Draft content passes its Template, and why the rest is refused.
 import { describe, expect, it } from 'vitest'
+
 import type { DraftContent } from '#core/draft/draftTypes.ts'
 import { validate } from '#core/draft/draftValidator.ts'
 import { defaultPbiTemplate, validPbiContent } from '#core/testing/fixtures.ts'
 
 const reasonCodes = (content: DraftContent) => {
   const result = validate(defaultPbiTemplate, content)
-  return result.ok ? [] : result.reasons.map((r) => `${r.code}${r.sectionKey ? `:${r.sectionKey}` : ''}`)
+  if (result.ok) return []
+  return result.reasons.map((reason) => {
+    const where = reason.sectionKey ? `:${reason.sectionKey}` : ''
+    return `${reason.code}${where}`
+  })
 }
 
 describe('Draft Validator', () => {
@@ -15,7 +21,7 @@ describe('Draft Validator', () => {
 
   it('refuses a Draft that omits a Template Section, naming it', () => {
     const content = validPbiContent()
-    content.sections = content.sections.filter((s) => s.key !== 'design')
+    content.sections = content.sections.filter((section) => section.key !== 'design')
     expect(reasonCodes(content)).toEqual(['missing-section:design'])
   })
 
@@ -48,7 +54,11 @@ describe('Draft Validator', () => {
     content.sections[1].body = ''
     content.sections[5] = { key: 'dependencies', entries: [] }
     content.sections[7].body = 'N/A'
-    expect(reasonCodes(content)).toEqual(['empty-without-reason:roles', 'empty-without-reason:dependencies', 'empty-without-reason:design'])
+    expect(reasonCodes(content)).toEqual([
+      'empty-without-reason:roles',
+      'empty-without-reason:dependencies',
+      'empty-without-reason:design',
+    ])
   })
 
   it('accepts an empty entries Section that gives its reason in the body', () => {
@@ -66,18 +76,24 @@ describe('Draft Validator', () => {
 
   it('refuses Entries without a title or body', () => {
     const content = validPbiContent()
-    content.sections[5].entries = [{ title: '', body: 'PATCH /devices/{id}/archive' }, { title: 'Blocked by', body: ' ' }]
+    content.sections[5].entries = [
+      { title: '', body: 'PATCH /devices/{id}/archive' },
+      { title: 'Blocked by', body: ' ' },
+    ]
     const result = validate(defaultPbiTemplate, content)
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.reasons.map((r) => r.code)).toEqual(['malformed-entry', 'malformed-entry'])
+      expect(result.reasons.map((reason) => reason.code)).toEqual(['malformed-entry', 'malformed-entry'])
       expect(result.reasons[1].message).toContain('Blocked by')
     }
   })
 
   it('refuses an Acceptance Criterion that is not Given / When / Then', () => {
     const content = validPbiContent()
-    content.sections[8].entries![1] = { title: 'AC02 - Billing', body: 'Archived devices are billed until the archive timestamp.' }
+    content.sections[8].entries![1] = {
+      title: 'AC02 - Billing',
+      body: 'Archived devices are billed until the archive timestamp.',
+    }
     const result = validate(defaultPbiTemplate, content)
     expect(result.ok).toBe(false)
     if (!result.ok) {

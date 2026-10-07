@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+plan
+/data*/
+.playwright-mcp
+package-lock.json

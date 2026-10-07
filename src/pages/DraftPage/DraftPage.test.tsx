@@ -1,19 +1,23 @@
+// Tests for DraftPage: the full-screen chat before v1, and editing, triaging and session control from v1 on.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import { newDraft } from '#core/draft/draft.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
 import { openProposal } from '#core/proposal/classify.ts'
 import type { ChatMessage, Transcript } from '#core/session/sessionTypes.ts'
 import { defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import DraftPage from '@/pages/DraftPage/DraftPage'
 import { draftBackend, liveSession } from '@test/mocks/draftBackend'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
-const renderPage = (draft: Draft) => render(<DraftPage />, { route: `/p/${draft.projectId}/d/${draft.id}`, path: '/p/:projectId/d/:draftId' })
+const renderPage = (draft: Draft) =>
+  render(<DraftPage />, { route: `/p/${draft.projectId}/d/${draft.id}`, path: '/p/:projectId/d/:draftId' })
 
 const transcript = (draft: Draft, messages: ChatMessage[], patch: Partial<Transcript> = {}): Transcript => ({
   ...liveSession(draft, { kind: 'first', status: 'finished' }),
@@ -46,24 +50,43 @@ const grillingMessages: ChatMessage[] = [
 function withProposal() {
   let draft = v1Draft()
   const ac = sectionByKey(draft, 'acceptanceCriteria')
-  draft = applyHumanOp(draft, { op: 'editEntry', sectionId: ac.id, entryId: ac.entries[1].id, body: 'Given my wording\nThen mine' })
+  draft = applyHumanOp(draft, {
+    op: 'editEntry',
+    sectionId: ac.id,
+    entryId: ac.entries[1].id,
+    body: 'Given my wording\nThen mine',
+  })
   const deps = sectionByKey(draft, 'dependencies')
   return openProposal(
     draft,
     [
       { kind: 'addEntry', sectionId: deps.id, title: 'Backend API must provide', body: 'POST /devices/archive (bulk)' },
-      { kind: 'replaceEntry', sectionId: ac.id, entryId: ac.entries[1].id, body: 'Given Claude’s wording\nThen Claude’s' },
+      {
+        kind: 'replaceEntry',
+        sectionId: ac.id,
+        entryId: ac.entries[1].id,
+        body: 'Given Claude’s wording\nThen Claude’s',
+      },
     ],
     { sessionId: 'sess-1', kind: 'focused', now: meta.date },
   )
 }
 
 describe('DraftPage before v1', () => {
-  const draft = newDraft({ projectId: 'customer-portal', workItemType: 'PBI', template: defaultPbiTemplate, requirement: 'Managers need to archive devices.', now: meta.date })
+  const draft = newDraft({
+    projectId: 'customer-portal',
+    workItemType: 'PBI',
+    template: defaultPbiTemplate,
+    requirement: 'Managers need to archive devices.',
+    now: meta.date,
+  })
 
   it('is a full-screen grilling chat where questions are answered', async () => {
     const live = liveSession(draft, { id: 'sess-1', kind: 'first' })
-    const api = draftBackend(draft, { liveSession: live, transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', status: 'waiting' })] })
+    const api = draftBackend(draft, {
+      liveSession: live,
+      transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', status: 'waiting' })],
+    })
     const { user } = renderPage(draft)
 
     expect(await screen.findByText('Keep telemetry?')).toBeInTheDocument()
@@ -71,7 +94,13 @@ describe('DraftPage before v1', () => {
     expect(screen.getByText('(refused)')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Recommended/ }))
 
-    await vi.waitFor(() => expect(api.requests).toContainEqual({ method: 'POST', path: '/api/sessions/sess-1/messages', body: { text: 'Yes, alerts muted', kind: 'answer' } }))
+    await vi.waitFor(() =>
+      expect(api.requests).toContainEqual({
+        method: 'POST',
+        path: '/api/sessions/sess-1/messages',
+        body: { text: 'Yes, alerts muted', kind: 'answer' },
+      }),
+    )
   })
 
   it('opens the Glossary beside the chat', async () => {
@@ -85,7 +114,14 @@ describe('DraftPage before v1', () => {
     const api = draftBackend(draft, { transcripts: [transcript(draft, grillingMessages)] })
     const { user } = renderPage(draft)
     await user.type(await screen.findByRole('textbox', { name: 'Message Claude' }), 'Also bulk archive{Enter}')
-    await vi.waitFor(() => expect(api.requests).toContainEqual(expect.objectContaining({ path: endpoints.draftSessions(draft.projectId, draft.id), body: { kind: 'first', humanNote: 'Also bulk archive' } })))
+    await vi.waitFor(() =>
+      expect(api.requests).toContainEqual(
+        expect.objectContaining({
+          path: endpoints.draftSessions(draft.projectId, draft.id),
+          body: { kind: 'first', humanNote: 'Also bulk archive' },
+        }),
+      ),
+    )
   })
 
   it('deletes the Draft and returns to the Project', async () => {
@@ -94,7 +130,7 @@ describe('DraftPage before v1', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete Draft' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Draft' }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
-    expect(api.requests.map((r) => r.method)).toContain('DELETE')
+    expect(api.requests.map((request) => request.method)).toContain('DELETE')
   })
 })
 
@@ -111,7 +147,9 @@ describe('DraftPage from v1', () => {
     await user.type(box, 'As a Manager, I archive devices.')
     await user.click(within(story).getByRole('button', { name: 'Save' }))
 
-    await vi.waitFor(() => expect(api.requests.at(-1)?.body).toMatchObject({ op: 'editSection', body: 'As a Manager, I archive devices.' }))
+    await vi.waitFor(() =>
+      expect(api.requests.at(-1)?.body).toMatchObject({ op: 'editSection', body: 'As a Manager, I archive devices.' }),
+    )
     expect(await within(story).findByText('As a Manager, I archive devices.')).toBeInTheDocument()
   })
 
@@ -123,7 +161,12 @@ describe('DraftPage from v1', () => {
     const scope = await screen.findByRole('region', { name: 'Scope' })
     await user.click(within(scope).getAllByRole('button', { name: /Discard/ })[1]) // [0] is the Section's own
     await user.click(await within(scope).findByRole('button', { name: /Restore/ }))
-    await vi.waitFor(() => expect(api.requests.map((r) => (r.body as { op: string }).op)).toEqual(['discardEntry', 'restoreEntry']))
+    await vi.waitFor(() =>
+      expect(api.requests.map((request) => (request.body as { op: string }).op)).toEqual([
+        'discardEntry',
+        'restoreEntry',
+      ]),
+    )
 
     await user.click(within(scope).getByRole('button', { name: /Add Entry/ }))
     await user.type(within(scope).getByRole('textbox', { name: 'Entry title' }), 'Later')
@@ -141,7 +184,9 @@ describe('DraftPage from v1', () => {
     await user.click(within(design).getByRole('button', { name: /Discard/ }))
     await vi.waitFor(() => expect(api.requests.at(-1)?.body).toMatchObject({ op: 'discardSection' }))
     expect(await screen.findByText('Discarded', { selector: 'span' })).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'User Story' })).queryByRole('button', { name: /Discard/ })).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('region', { name: 'User Story' })).queryByRole('button', { name: /Discard/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('renames the Draft', async () => {
@@ -175,7 +220,7 @@ describe('DraftPage from v1', () => {
 
   it('shows title and new-Section changes where they land', async () => {
     let draft = applyHumanOp(v1Draft(), { op: 'retitle', title: 'Archive a device' })
-    draft = { ...draft, sections: draft.sections.filter((s) => s.key !== 'design') }
+    draft = { ...draft, sections: draft.sections.filter((section) => section.key !== 'design') }
     draft = openProposal(
       draft,
       [
@@ -211,7 +256,11 @@ describe('DraftPage from v1', () => {
 
     const design2 = sectionByKey(draft, 'design')
     await vi.waitFor(() =>
-      expect(api.requests.at(-1)?.body).toEqual({ kind: 'focused', focus: { sectionId: design2.id }, humanNote: 'Figma is ready' }),
+      expect(api.requests.at(-1)?.body).toEqual({
+        kind: 'focused',
+        focus: { sectionId: design2.id },
+        humanNote: 'Figma is ready',
+      }),
     )
   })
 
@@ -228,7 +277,17 @@ describe('DraftPage from v1', () => {
 
   it('sets References to other written Drafts', async () => {
     const draft = v1Draft()
-    const other = { id: 'other', projectId: draft.projectId, title: 'Billing export', requirement: '', workItemType: 'Feature' as const, version: 2, templateName: '', pendingChanges: 0, updatedAt: '' }
+    const other = {
+      id: 'other',
+      projectId: draft.projectId,
+      title: 'Billing export',
+      requirement: '',
+      workItemType: 'Feature' as const,
+      version: 2,
+      templateName: '',
+      pendingChanges: 0,
+      updatedAt: '',
+    }
     const api = draftBackend(draft, { otherDrafts: [other] })
     const { user } = renderPage(draft)
 
@@ -254,7 +313,12 @@ describe('DraftPage from v1', () => {
   it('continues an ended session by typing, or goes back to a new one', async () => {
     const draft = v1Draft()
     const old = transcript(draft, grillingMessages, { id: 'sess-old' })
-    const ended = transcript(draft, grillingMessages, { id: 'sess-1', kind: 'iteration', claudeSessionId: 'claude-1', startedAt: '2026-09-22T11:00:00Z' })
+    const ended = transcript(draft, grillingMessages, {
+      id: 'sess-1',
+      kind: 'iteration',
+      claudeSessionId: 'claude-1',
+      startedAt: '2026-09-22T11:00:00Z',
+    })
     const api = draftBackend(draft, { transcripts: [old, ended] })
     const { user } = renderPage(draft)
 
@@ -269,20 +333,31 @@ describe('DraftPage from v1', () => {
     await user.click(screen.getByRole('button', { name: 'Continue New Iteration' }))
     await user.type(box, 'Bulk archive is back{Enter}')
     await vi.waitFor(() =>
-      expect(api.requests).toContainEqual(expect.objectContaining({ path: endpoints.continueSession(draft.projectId, draft.id, 'sess-1'), body: { humanNote: 'Bulk archive is back' } })),
+      expect(api.requests).toContainEqual(
+        expect.objectContaining({
+          path: endpoints.continueSession(draft.projectId, draft.id, 'sess-1'),
+          body: { humanNote: 'Bulk archive is back' },
+        }),
+      ),
     )
   })
 
   it('offers to continue the latest session right in the message box', async () => {
     const draft = v1Draft()
-    const api = draftBackend(draft, { transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', claudeSessionId: 'claude-1' })] })
+    const api = draftBackend(draft, {
+      transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', claudeSessionId: 'claude-1' })],
+    })
     const { user } = renderPage(draft)
 
     await user.click(await screen.findByRole('button', { name: 'Continue this session instead' }))
     expect(screen.getByText(/Continuing First session/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continue this session instead' })).not.toBeInTheDocument()
     await user.type(screen.getByRole('textbox', { name: 'Message Claude' }), 'One more AC{Enter}')
-    await vi.waitFor(() => expect(api.requests).toContainEqual(expect.objectContaining({ path: endpoints.continueSession(draft.projectId, draft.id, 'sess-1') })))
+    await vi.waitFor(() =>
+      expect(api.requests).toContainEqual(
+        expect.objectContaining({ path: endpoints.continueSession(draft.projectId, draft.id, 'sess-1') }),
+      ),
+    )
   })
 
   it('cannot continue while a Proposal waits for triage', async () => {
@@ -297,9 +372,17 @@ describe('DraftPage from v1', () => {
   it('drives a running session from the composer', async () => {
     const draft = v1Draft()
     const live = liveSession(draft)
-    const ready: ChatMessage = { id: 'r1', at, role: 'claude', segments: [{ type: 'ready', summary: 'Two ACs change.' }] }
+    const ready: ChatMessage = {
+      id: 'r1',
+      at,
+      role: 'claude',
+      segments: [{ type: 'ready', summary: 'Two ACs change.' }],
+    }
     const older = transcript(draft, grillingMessages, { id: 'sess-old' })
-    const api = draftBackend(draft, { liveSession: live, transcripts: [older, transcript(draft, [ready], { id: live.id, kind: 'iteration', status: 'waiting' })] })
+    const api = draftBackend(draft, {
+      liveSession: live,
+      transcripts: [older, transcript(draft, [ready], { id: live.id, kind: 'iteration', status: 'waiting' })],
+    })
     const { user } = renderPage(draft)
 
     expect(await screen.findByText('Ready to write the Proposal')).toBeInTheDocument()
@@ -310,7 +393,11 @@ describe('DraftPage from v1', () => {
     await user.click(screen.getByRole('button', { name: /Stop/ }))
 
     await vi.waitFor(() =>
-      expect(api.requests.map((r) => r.path)).toEqual(['/api/sessions/sess-live/messages', '/api/sessions/sess-live/write', '/api/sessions/sess-live/stop']),
+      expect(api.requests.map((request) => request.path)).toEqual([
+        '/api/sessions/sess-live/messages',
+        '/api/sessions/sess-live/write',
+        '/api/sessions/sess-live/stop',
+      ]),
     )
 
     await user.click(screen.getByRole('button', { name: /First session/ }))
@@ -332,7 +419,11 @@ describe('DraftPage from v1', () => {
   it('shows why the Draft cannot load', async () => {
     const draft = v1Draft()
     draftBackend(draft)
-    server.use(http.get(`*${endpoints.draft(draft.projectId, draft.id)}`, () => HttpResponse.json({ error: 'No such Draft' }, { status: 404 })))
+    server.use(
+      http.get(`*${endpoints.draft(draft.projectId, draft.id)}`, () =>
+        HttpResponse.json({ error: 'No such Draft' }, { status: 404 }),
+      ),
+    )
     renderPage(draft)
     expect(await screen.findByText('No such Draft')).toBeInTheDocument()
   })

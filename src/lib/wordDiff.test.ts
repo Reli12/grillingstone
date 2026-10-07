@@ -1,4 +1,6 @@
+// Tests for wordDiff: removed, added and shared words, empty text and line breaks.
 import { describe, expect, it } from 'vitest'
+
 import { wordDiff } from '@/lib/wordDiff'
 
 describe('wordDiff', () => {
@@ -13,6 +15,6 @@ describe('wordDiff', () => {
 
   it('handles additions to empty text and line breaks', () => {
     expect(wordDiff('', 'Given x')).toEqual([{ op: 'add', text: 'Given x' }])
-    expect(wordDiff('a\nb', 'a\nc').map((p) => p.op)).toEqual(['same', 'del', 'add'])
+    expect(wordDiff('a\nb', 'a\nc').map((part) => part.op)).toEqual(['same', 'del', 'add'])
   })
 })

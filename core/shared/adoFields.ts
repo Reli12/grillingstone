@@ -1,3 +1,4 @@
+// The Azure DevOps fields this tool Publishes into, with their display labels.
 /** Azure DevOps field reference names a Section can be Published into (ADR-0008). */
 export const ADO_FIELDS = {
   title: 'System.Title',
@@ -8,7 +9,12 @@ export const ADO_FIELDS = {
 } as const
 export type AdoField = (typeof ADO_FIELDS)[keyof typeof ADO_FIELDS]
 /** Every field some Section may be Published into — Title is the Draft's own, never a Section's. */
-export const SECTION_TARGETS = [ADO_FIELDS.description, ADO_FIELDS.acceptanceCriteria, ADO_FIELDS.reproSteps, ADO_FIELDS.systemInfo] as const
+export const SECTION_TARGETS = [
+  ADO_FIELDS.description,
+  ADO_FIELDS.acceptanceCriteria,
+  ADO_FIELDS.reproSteps,
+  ADO_FIELDS.systemInfo,
+] as const
 export type SectionTarget = (typeof SECTION_TARGETS)[number]
 export const ADO_FIELD_LABELS: Record<string, string> = {
   [ADO_FIELDS.title]: 'Title',

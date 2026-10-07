@@ -1,6 +1,7 @@
 // Where each kind of state lives under DATA_DIR (ADR-0009). Ids become file names, so each one is
 // checked to be a single safe path segment first.
 import path from 'node:path'
+
 import { DATA_DIR } from '../config.ts'
 import { NotFound } from './errors.ts'
 import { isSafeId } from './fsUtil.ts'
@@ -15,9 +16,11 @@ export const projectsDir = path.join(DATA_DIR, 'projects')
 export const projectDir = (projectId: string) => path.join(projectsDir, safeId(projectId))
 export const projectFile = (projectId: string) => path.join(projectDir(projectId), 'project.json')
 export const draftsDir = (projectId: string) => path.join(projectDir(projectId), 'drafts')
-export const draftFile = (projectId: string, draftId: string, ext: 'json' | 'md') => path.join(draftsDir(projectId), `${safeId(draftId)}.${ext}`)
+export const draftFile = (projectId: string, draftId: string, ext: 'json' | 'md') =>
+  path.join(draftsDir(projectId), `${safeId(draftId)}.${ext}`)
 export const transcriptsDir = (projectId: string) => path.join(projectDir(projectId), 'transcripts')
-export const transcriptFile = (projectId: string, sessionId: string) => path.join(transcriptsDir(projectId), `${safeId(sessionId)}.json`)
+export const transcriptFile = (projectId: string, sessionId: string) =>
+  path.join(transcriptsDir(projectId), `${safeId(sessionId)}.json`)
 export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
 
 /** Each Template Session runs in its own empty folder; its Transcript is kept beside it, out of its reach. */

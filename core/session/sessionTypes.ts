@@ -23,7 +23,15 @@ export const LIVE_STATUSES: SessionStatus[] = ['starting', 'thinking', 'waiting'
 export type ChatMessage =
   | { id: string; at: string; role: 'human'; text: string; kind: 'answer' | 'message' | 'write' }
   | { id: string; at: string; role: 'claude'; segments: Segment[] }
-  | { id: string; at: string; role: 'tool'; tool: string; summary: string; outcome?: 'ok' | 'denied' | 'error'; toolUseId?: string }
+  | {
+      id: string
+      at: string
+      role: 'tool'
+      tool: string
+      summary: string
+      outcome?: 'ok' | 'denied' | 'error'
+      toolUseId?: string
+    }
   | { id: string; at: string; role: 'system'; text: string; tone?: 'info' | 'success' | 'error' }
 
 /** What every session has, whatever it writes. */

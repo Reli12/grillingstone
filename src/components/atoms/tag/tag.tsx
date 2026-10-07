@@ -1,4 +1,6 @@
+// A small coloured label (status, type, count) that sits inline with text.
 import type { ReactNode } from 'react'
+
 import { cn } from '@/lib/cn'
 
 type Tone = 'neutral' | 'claude' | 'mark' | 'redpencil' | 'proof' | 'ink'
@@ -18,9 +20,16 @@ interface TagProps {
   title?: string
 }
 
-export function Tag({ tone = 'neutral', children, className, title }: TagProps) {
+export function Tag({ tone = 'neutral', children, className, title }: Readonly<TagProps>) {
   return (
-    <span title={title} className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded px-1.5 text-[12px] leading-none font-medium whitespace-nowrap', tones[tone], className)}>
+    <span
+      title={title}
+      className={cn(
+        'inline-flex h-5 shrink-0 items-center gap-1 rounded px-1.5 text-[12px] leading-none font-medium whitespace-nowrap',
+        tones[tone],
+        className,
+      )}
+    >
       {children}
     </span>
   )

@@ -1,3 +1,4 @@
+// Human edits to a Draft that keep an open Proposal honest: the edit, then its Conflicts re-derived.
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyHumanOp, type HumanOp } from '#core/draft/humanOps.ts'
 import { reclassify } from '#core/proposal/classify.ts'

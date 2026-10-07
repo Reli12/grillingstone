@@ -3,7 +3,7 @@
 import type { Proposal } from '#core/proposal/proposalTypes.ts'
 import type { SectionTarget } from '#core/shared/adoFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
-import type { Template, SectionShape } from '#core/template/templateTypes.ts'
+import type { SectionShape, Template } from '#core/template/templateTypes.ts'
 
 export interface Entry {
   id: string

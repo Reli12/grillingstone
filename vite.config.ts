@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
+
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
@@ -33,7 +34,11 @@ export default defineConfig({
           environment: 'node',
           // One backend on one port and one data-test/ folder: run the files one after another.
           fileParallelism: false,
-          env: { WHETSTONE_DATA_DIR: 'data-test', WHETSTONE_SERVER_PORT: '5397', WHETSTONE_CLAUDE_BIN: fileURLToPath(new URL('./test/server/fakeClaude.mjs', import.meta.url)) },
+          env: {
+            WHETSTONE_DATA_DIR: 'data-test',
+            WHETSTONE_SERVER_PORT: '5397',
+            WHETSTONE_CLAUDE_BIN: fileURLToPath(new URL('./test/server/fakeClaude.mjs', import.meta.url)),
+          },
         },
       },
       {

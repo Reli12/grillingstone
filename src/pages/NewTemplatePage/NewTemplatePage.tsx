@@ -1,3 +1,4 @@
+// The New Template page: loads the Templates the start step can build from.
 import { useTemplates } from '@/api/hooks/templates/templateHooks'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
 import { NewTemplateForm } from '@/components/features/templates/newTemplateForm/newTemplateForm'

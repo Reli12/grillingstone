@@ -2,11 +2,11 @@
 // method, ADR-0007), the current Draft, the Glossary, References and what the human Discarded.
 // No earlier Transcript is passed on: the Draft is the memory. A Continuation (ADR-0014) also has Claude
 // Code's own conversation, so its task says the Draft below wins over anything said there.
-import type { Draft, Section } from '#core/draft/draftTypes.ts'
-import { submitUsage, type Seed } from '#core/session/cardProtocol.ts'
+import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
+import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
-import type { Template } from '#core/template/templateTypes.ts'
+import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
 
 export interface SeedInput {
   kind: SessionKind
@@ -25,13 +25,14 @@ export interface SeedInput {
   continuing?: boolean
 }
 
-const templateSectionList = (t: Template) =>
-  t.sections
-    .map(
-      (s, i) =>
-        `${i + 1}. key "${s.key}" — ${s.heading} (${s.shape}${s.locked ? ', Locked: never empty, never N/A' : ''}${s.entryFormat === 'gherkin' ? ', each Entry body is Given / When / Then lines' : ''}) — ${s.guidance}`,
-    )
-    .join('\n')
+/** One numbered line per Template Section: key, heading, shape and the rules that come with it. */
+const templateSectionLine = (def: TemplateSection, index: number) => {
+  const lockedNote = def.locked ? ', Locked: never empty, never N/A' : ''
+  const gherkinNote = def.entryFormat === 'gherkin' ? ', each Entry body is Given / When / Then lines' : ''
+  return `${index + 1}. key "${def.key}" — ${def.heading} (${def.shape}${lockedNote}${gherkinNote}) — ${def.guidance}`
+}
+
+const templateSectionList = (template: Template) => template.sections.map(templateSectionLine).join('\n')
 
 function submitRules(input: SeedInput): string {
   const first = input.kind === 'first'
@@ -66,43 +67,58 @@ ${payload}
 The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human it is written, and stop.`
 }
 
+// The human-edit markers Claude sees, so it treats the human's deliberate work with care.
+const humanMarkers = (item: { humanEdited: boolean; humanMoved: boolean }) => ({
+  ...(item.humanEdited ? { editedByHuman: true } : {}),
+  ...(item.humanMoved ? { movedByHuman: true } : {}),
+})
+
+const entryForClaude = (entry: Entry) => ({
+  id: entry.id,
+  title: entry.title,
+  body: entry.body,
+  ...humanMarkers(entry),
+})
+
+/** A prose Section's body; an entries Section's live Entries, plus its "N/A — reason" body when it has none. */
+function sectionContentForClaude(section: Section) {
+  if (section.shape === 'prose') return { body: section.body }
+  const liveEntries = section.entries.filter((entry) => !entry.discarded)
+  return {
+    ...(liveEntries.length ? {} : { body: section.body }),
+    entries: liveEntries.map(entryForClaude),
+  }
+}
+
+/** The Draft as JSON for Claude: live content only, with ids to target and the human-edit markers. */
 function draftForClaude(draft: Draft) {
-  const live = draft.sections.filter((s) => !s.discarded)
+  const live = draft.sections.filter((section) => !section.discarded)
   return {
     title: draft.title,
     ...(draft.titleHumanEdited ? { titleEditedByHuman: true } : {}),
     version: draft.version,
-    sections: live.map((s) => ({
-      id: s.id,
-      key: s.key,
-      heading: s.heading,
-      ...(s.humanEdited ? { editedByHuman: true } : {}),
-      ...(s.humanMoved ? { movedByHuman: true } : {}),
-      ...(s.shape === 'prose'
-        ? { body: s.body }
-        : {
-            ...(s.entries.some((e) => !e.discarded) ? {} : { body: s.body }),
-            entries: s.entries
-              .filter((e) => !e.discarded)
-              .map((e) => ({
-                id: e.id,
-                title: e.title,
-                body: e.body,
-                ...(e.humanEdited ? { editedByHuman: true } : {}),
-                ...(e.humanMoved ? { movedByHuman: true } : {}),
-              })),
-          }),
+    sections: live.map((section) => ({
+      id: section.id,
+      key: section.key,
+      heading: section.heading,
+      ...humanMarkers(section),
+      ...sectionContentForClaude(section),
     })),
   }
 }
 
 function discardedList(draft: Draft): string {
   const lines: string[] = []
-  for (const s of draft.sections) {
-    if (s.discarded) lines.push(`- Section "${s.heading}" (sectionId ${s.id})`)
-    else
-      for (const e of s.entries.filter((x) => x.discarded))
-        lines.push(`- In "${s.heading}": "${e.title}" — ${e.body.split('\n')[0]} (sectionId ${s.id}, entryId ${e.id})`)
+  for (const section of draft.sections) {
+    if (section.discarded) {
+      lines.push(`- Section "${section.heading}" (sectionId ${section.id})`)
+      continue
+    }
+    for (const entry of section.entries.filter((candidate) => candidate.discarded)) {
+      const firstLine = entry.body.split('\n')[0]
+      const ids = `sectionId ${section.id}, entryId ${entry.id}`
+      lines.push(`- In "${section.heading}": "${entry.title}" — ${firstLine} (${ids})`)
+    }
   }
   if (!lines.length) return ''
   return `## Discarded by the human
@@ -111,9 +127,9 @@ ${lines.join('\n')}`
 }
 
 const focusLine = (draft: Draft, focus: SeedInput['focus']) => {
-  const section: Section | undefined = draft.sections.find((s) => s.id === focus?.sectionId)
+  const section: Section | undefined = draft.sections.find((candidate) => candidate.id === focus?.sectionId)
   if (!section) return ''
-  const entry = section.entries.find((e) => e.id === focus?.entryId)
+  const entry = section.entries.find((candidate) => candidate.id === focus?.entryId)
   return entry
     ? `This is a Focused Session on "${section.heading}" › "${entry.title}" (sectionId ${section.id}, entryId ${entry.id}).`
     : `This is a Focused Session on "${section.heading}" (sectionId ${section.id}).`
@@ -125,8 +141,9 @@ function continuationTask(input: SeedInput, note: string): string {
     input.kind === 'first'
       ? 'Nothing has been written yet: your task is still to write v1 of this Draft.'
       : `Anything you write now is a Proposal against the current Draft (v${draft.version}). Whatever this conversation submitted before is already in it or was triaged by the human.`
+  const focus = input.kind === 'focused' ? `\n${focusLine(draft, input.focus)}` : ''
   return `This continues your earlier conversation with the human. The context above is the current state and replaces anything said earlier in the conversation: the human may have edited, moved or discarded content since.
-${what}${input.kind === 'focused' ? `\n${focusLine(draft, input.focus)}` : ''}${note}
+${what}${focus}${note}
 Reply to the human; do not start the grilling over.`
 }
 
@@ -142,12 +159,14 @@ function task(input: SeedInput): string {
     case 'iteration':
       return `This is a full new Iteration on the whole Draft (v${draft.version}).${note}\nRe-grill whatever the new information affects, then propose changes.\nStart with your first question.`
     case 'upgrade': {
-      const to = input.upgradeTo
-      if (!to) return 'Template upgrade requested, but no target Template was given. Tell the human.'
-      const have = new Set(draft.sections.map((s) => s.key))
-      const added = to.sections.filter((s) => !have.has(s.key))
-      const addedList = added.length ? added.map((s) => `- key "${s.key}" — ${s.heading} (${s.shape}) — ${s.guidance}`).join('\n') : '- none'
-      return `Upgrade this Draft from ${draft.template.name} v${draft.template.version} to ${to.name} v${to.version}.
+      const target = input.upgradeTo
+      if (!target) return 'Template upgrade requested, but no target Template was given. Tell the human.'
+      const have = new Set(draft.sections.map((section) => section.key))
+      const added = target.sections.filter((def) => !have.has(def.key))
+      const addedList = added.length
+        ? added.map((def) => `- key "${def.key}" — ${def.heading} (${def.shape}) — ${def.guidance}`).join('\n')
+        : '- none'
+      return `Upgrade this Draft from ${draft.template.name} v${draft.template.version} to ${target.name} v${target.version}.
 Sections the newer version adds (propose each with an addSection change):
 ${addedList}
 
@@ -178,12 +197,15 @@ ${template.method}`
   const glossary = input.glossary.trim()
     ? `## Project Glossary (CONTEXT.md)\n${input.glossary.trim()}`
     : '## Project Glossary (CONTEXT.md)\nEmpty so far — create CONTEXT.md in the Project folder when the first term is settled.'
+  const referenceBlocks = input.references
+    .map((reference) => `### ${reference.workItemType}: ${reference.title}\n${reference.markdown.trim()}`)
+    .join('\n\n')
   const references = input.references.length
-    ? `## References (other Drafts in this Project the human linked as context — no hierarchy implied)\n${input.references
-        .map((r) => `### ${r.workItemType}: ${r.title}\n${r.markdown.trim()}`)
-        .join('\n\n')}`
+    ? `## References (other Drafts in this Project the human linked as context — no hierarchy implied)\n${referenceBlocks}`
     : ''
-  const current = first ? '' : `## Current Draft (v${draft.version})\n\`\`\`json\n${JSON.stringify(draftForClaude(draft), null, 2)}\n\`\`\``
+  const current = first
+    ? ''
+    : `## Current Draft (v${draft.version})\n\`\`\`json\n${JSON.stringify(draftForClaude(draft), null, 2)}\n\`\`\``
 
   const firstMessage = [
     `Project: ${input.projectName} · Work Item Type: ${draft.workItemType} · Template: ${template.name}`,

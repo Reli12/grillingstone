@@ -3,8 +3,11 @@
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
+
 import { vi } from 'vitest'
+
 import type { ServerEvent } from '#core/session/sessionTypes.ts'
+
 import { createApp } from '../../server/app.ts'
 import { DATA_DIR, SERVER_PORT, SERVER_URL } from '../../server/config.ts'
 import { Hub } from '../../server/hub.ts'
@@ -17,7 +20,8 @@ export interface Reply<T = any> {
 
 /** Empties data-test/ — and refuses to touch any other folder. */
 export async function resetTestData() {
-  if (path.basename(DATA_DIR) !== 'data-test') throw new Error(`Server tests must run with WHETSTONE_DATA_DIR=data-test, not ${DATA_DIR}`)
+  if (path.basename(DATA_DIR) !== 'data-test')
+    throw new Error(`Server tests must run with WHETSTONE_DATA_DIR=data-test, not ${DATA_DIR}`)
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 
@@ -31,7 +35,12 @@ export async function startBackend() {
   const server = http.createServer(createApp(deps))
   await new Promise<void>((resolve) => server.listen(SERVER_PORT, '127.0.0.1', resolve))
 
-  const call = async <T = any>(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<Reply<T>> => {
+  const call = async <T = any>(
+    method: string,
+    url: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<Reply<T>> => {
     const res = await fetch(`${SERVER_URL}${url}`, {
       method,
       headers: { ...(method === 'GET' ? {} : { 'content-type': 'application/json' }), ...headers },
@@ -41,7 +50,8 @@ export async function startBackend() {
   }
 
   const close = async () => {
-    supervisor.stopAll()
+    // Wait for every session to save, so the next test's reset cannot delete data-test/ under a late write.
+    await supervisor.stopAll()
     await new Promise((resolve) => server.close(resolve))
   }
   return { call, events, supervisor, close }

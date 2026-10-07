@@ -1,17 +1,35 @@
-import { THEMES, type Settings } from '#core/contract/apiTypes.ts'
+// The human's Settings (author, Claude model, theme) in data/settings.json. Reads and saves both clean the
+// values, so a hand-edited or missing file still yields usable Settings.
+import { type Settings, THEMES } from '#core/contract/apiTypes.ts'
+
 import { DEFAULT_AUTHOR } from '../config.ts'
 import { readJson, writeJson } from './fsUtil.ts'
 import { settingsFile } from './paths.ts'
 
-const theme = (t: unknown): Settings['theme'] => (THEMES.includes(t as Settings['theme']) ? (t as Settings['theme']) : 'system')
+type Theme = Settings['theme']
+
+const DEFAULT_THEME: Theme = 'system'
+
+/** A leading "@" typed before a handle; the author is stored as the bare name. */
+const LEADING_AT = /^@/
+
+const theme = (value: unknown): Theme => (THEMES.includes(value as Theme) ? (value as Theme) : DEFAULT_THEME)
 
 export async function getSettings(): Promise<Settings> {
-  const s = await readJson<Partial<Settings>>(settingsFile)
-  return { author: s?.author?.trim() || DEFAULT_AUTHOR, model: s?.model?.trim() ?? '', theme: theme(s?.theme) }
+  const stored = await readJson<Partial<Settings>>(settingsFile)
+  return {
+    author: stored?.author?.trim() || DEFAULT_AUTHOR,
+    model: stored?.model?.trim() ?? '',
+    theme: theme(stored?.theme),
+  }
 }
 
-export async function saveSettings(s: Settings): Promise<Settings> {
-  const clean: Settings = { author: s.author.trim().replace(/^@/, '') || DEFAULT_AUTHOR, model: s.model.trim(), theme: theme(s.theme) }
+export async function saveSettings(settings: Settings): Promise<Settings> {
+  const clean: Settings = {
+    author: settings.author.trim().replace(LEADING_AT, '') || DEFAULT_AUTHOR,
+    model: settings.model.trim(),
+    theme: theme(settings.theme),
+  }
   await writeJson(settingsFile, clean)
   return clean
 }
