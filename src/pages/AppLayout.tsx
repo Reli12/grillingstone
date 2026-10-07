@@ -1,3 +1,5 @@
+// The frame around every page: the header with the Project switcher and navigation, and a banner
+// while the backend can't be reached.
 import { NavLink, Outlet, useParams } from 'react-router'
 
 import { Wordmark } from '@/components/atoms/wordmark/wordmark'

@@ -1,3 +1,4 @@
+// Tests for lastProject: remembering the last Project, and degrading quietly without storage.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { lastProject, rememberProject } from '@/lib/lastProject'

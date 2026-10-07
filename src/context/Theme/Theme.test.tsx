@@ -1,3 +1,4 @@
+// Tests for ThemeProvider: the saved theme is applied and cached, even without storage.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'

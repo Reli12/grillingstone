@@ -1,3 +1,5 @@
+// Draft API: reading and changing a Draft, its Proposal and references, and driving its Grilling
+// Sessions (start, continue, answer, write now, stop).
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { Rendered } from '#core/publish/publishRenderer.ts'

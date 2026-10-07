@@ -1,3 +1,4 @@
+// Renders Markdown written by Claude or a human as styled HTML.
 import { useMemo } from 'react'
 
 import { markdownToHtml } from '#core/shared/markdownHtml.ts'
@@ -13,7 +14,7 @@ interface RichTextProps {
  * Renders the small markdown subset Claude and humans write (paragraphs, lists, tables, bold, code, links).
  * markdownToHtml escapes everything first, so the HTML is safe to inject.
  */
-export function RichText({ text, className }: RichTextProps) {
+export function RichText({ text, className }: Readonly<RichTextProps>) {
   const html = useMemo(() => markdownToHtml(text), [text])
   return (
     <div

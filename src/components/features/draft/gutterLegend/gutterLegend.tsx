@@ -1,3 +1,4 @@
+// The key to the ownership gutter's marks, shown under the Draft.
 import { ArrowUpDown } from 'lucide-react'
 
 /** Explains the ownership gutter's marks. */

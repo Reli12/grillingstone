@@ -1,3 +1,4 @@
+// Tests for EditableText: editing prose and Entry titles in place, skipping unchanged or blank saves, cancelling.
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'

@@ -1,3 +1,4 @@
+// The HTTP verbs as one-liners over fetchJson, so the domain API files only name a URL and a body.
 import { fetchJson } from '@/api/fetchJson'
 
 export const api = {

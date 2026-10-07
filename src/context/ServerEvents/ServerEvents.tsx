@@ -16,7 +16,7 @@ interface ServerEventsProviderProps {
   children: ReactNode
 }
 
-export function ServerEventsProvider({ children }: ServerEventsProviderProps) {
+export function ServerEventsProvider({ children }: Readonly<ServerEventsProviderProps>) {
   const qc = useQueryClient()
   const [connection, setConnection] = useState<Connection>('connecting')
 
@@ -28,7 +28,7 @@ export function ServerEventsProvider({ children }: ServerEventsProviderProps) {
           if (reconnected) void qc.invalidateQueries()
           setConnection('open')
         },
-        onEvent: (e) => applyServerEvent(qc, e),
+        onEvent: (event) => applyServerEvent(qc, event),
         onClose: () => setConnection('closed'),
       }),
     [qc],

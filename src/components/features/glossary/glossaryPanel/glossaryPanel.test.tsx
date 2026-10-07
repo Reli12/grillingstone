@@ -1,3 +1,4 @@
+// Tests for GlossaryPanel: listing, adding, editing and removing terms, and editing the raw CONTEXT.md.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

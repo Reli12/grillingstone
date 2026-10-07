@@ -1,3 +1,4 @@
+// The Theme setting as a three-way switch: System, Light or Dark.
 import { Monitor, Moon, Sun } from 'lucide-react'
 
 import { type Settings, type Theme, THEMES } from '#core/contract/apiTypes.ts'
@@ -18,7 +19,7 @@ interface ThemeChoiceProps {
 }
 
 /** Applies on click and saves at once — no Save button needed for a visual preference. */
-export function ThemeChoice({ settings }: ThemeChoiceProps) {
+export function ThemeChoice({ settings }: Readonly<ThemeChoiceProps>) {
   const save = useSaveSettings()
   const choose = (theme: Theme) => {
     applyTheme(theme)
@@ -30,16 +31,16 @@ export function ThemeChoice({ settings }: ThemeChoiceProps) {
         Theme
       </FieldLabel>
       <div className="grid grid-cols-3 rounded-lg bg-fog-deep p-1" role="radiogroup" aria-label="Theme">
-        {THEMES.map((t) => {
-          const { label, icon: Icon } = THEME_OPTIONS[t]
-          const on = settings.theme === t
+        {THEMES.map((theme) => {
+          const { label, icon: Icon } = THEME_OPTIONS[theme]
+          const on = settings.theme === theme
           return (
             <button
-              key={t}
+              key={theme}
               type="button"
               role="radio"
               aria-checked={on}
-              onClick={() => choose(t)}
+              onClick={() => choose(theme)}
               className={cn(
                 'flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium',
                 on ? 'bg-sheet text-ink shadow-sm' : 'text-ink-soft hover:text-ink',

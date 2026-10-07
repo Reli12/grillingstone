@@ -1,3 +1,4 @@
+// The New Draft page: loads the Project, Templates and Drafts the form needs.
 import { useParams } from 'react-router'
 
 import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'

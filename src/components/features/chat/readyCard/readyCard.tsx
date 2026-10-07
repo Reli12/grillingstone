@@ -1,3 +1,4 @@
+// The Ready Check: Claude says it has enough, and the human writes now or adds something first.
 import { Button } from '@/components/atoms/button/button'
 import { cn } from '@/lib/cn'
 
@@ -10,7 +11,7 @@ interface ReadyCardProps {
 }
 
 /** `target` is what gets written, e.g. "the Draft", "the Proposal", "the Template". */
-export function ReadyCard({ summary, target, open, onWrite, onAdd }: ReadyCardProps) {
+export function ReadyCard({ summary, target, open, onWrite, onAdd }: Readonly<ReadyCardProps>) {
   return (
     <div
       className={cn('rounded-lg border-2 px-4 py-3.5', open ? 'border-proof bg-proof-wash' : 'border-line bg-sheet')}

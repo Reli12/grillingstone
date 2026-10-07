@@ -1,3 +1,4 @@
+// The bar pinned above the Draft while a Proposal is open: what it holds and "Accept all clean".
 import type { Proposal } from '#core/proposal/proposalTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
@@ -10,9 +11,9 @@ interface ProposalBarProps {
 }
 
 /** Sticky summary of the open Proposal: Clean Changes go in one click, Conflicts one by one. */
-export function ProposalBar({ proposal, busy, onAcceptClean }: ProposalBarProps) {
-  const pending = proposal.changes.filter((c) => c.status === 'pending')
-  const clean = pending.filter((c) => !c.conflict).length
+export function ProposalBar({ proposal, busy, onAcceptClean }: Readonly<ProposalBarProps>) {
+  const pending = proposal.changes.filter((change) => change.status === 'pending')
+  const clean = pending.filter((change) => !change.conflict).length
   const conflicts = pending.length - clean
   const decided = proposal.changes.length - pending.length
   return (

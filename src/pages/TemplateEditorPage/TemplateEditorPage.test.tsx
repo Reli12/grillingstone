@@ -1,3 +1,4 @@
+// Tests for TemplateEditorPage: Defaults read-only, editing and saving versions, validation, discard and delete.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -85,7 +86,7 @@ describe('TemplateEditorPage', () => {
     await user.click(save)
 
     await vi.waitFor(() => expect(saved).toBeDefined())
-    expect(saved!.sections.map((s) => s.key)).toEqual(['acs', 'story', 'openQuestions'])
+    expect(saved!.sections.map((section) => section.key)).toEqual(['acs', 'story', 'openQuestions'])
     expect(saved!.sections[2]).toMatchObject({ heading: 'Open questions!', shape: 'entries', entryFormat: 'gherkin' })
     expect(await screen.findByText(/Saved as v2/)).toBeInTheDocument()
   })
@@ -96,7 +97,7 @@ describe('TemplateEditorPage', () => {
     expect(
       within(fields)
         .getAllByRole('option')
-        .map((o) => o.textContent),
+        .map((option) => option.textContent),
     ).toEqual(['→ Repro Steps', '→ System Info', '→ Acceptance Criteria'])
     const log = screen.getByRole('combobox', { name: 'Iteration Log field' })
     expect(log).toHaveValue(ADO_FIELDS.reproSteps)
@@ -105,7 +106,9 @@ describe('TemplateEditorPage', () => {
 
     await vi.waitFor(() => expect(saved).toBeDefined())
     expect(saved!.iterationLogTarget).toBe(ADO_FIELDS.systemInfo)
-    expect(saved!.sections.map((s) => s.target)).toEqual(defaultBugTemplate.sections.map((s) => s.target))
+    expect(saved!.sections.map((section) => section.target)).toEqual(
+      defaultBugTemplate.sections.map((section) => section.target),
+    )
   })
 
   it('refuses invalid input with a message', async () => {

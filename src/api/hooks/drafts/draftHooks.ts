@@ -1,3 +1,5 @@
+// React Query hooks for a Draft: its data, Transcripts and rendered fields, every Draft mutation,
+// and the calls that drive a Grilling Session.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Draft } from '#core/draft/draftTypes.ts'

@@ -1,3 +1,4 @@
+// A single-line text field, and the field styling it shares with TextArea.
 import { forwardRef, type InputHTMLAttributes } from 'react'
 
 import { cn } from '@/lib/cn'

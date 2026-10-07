@@ -1,3 +1,4 @@
+// Validation for a message or answer typed to Claude.
 import { z } from 'zod'
 
 /** Anything the human types to Claude: a chat message or a free-text answer. */

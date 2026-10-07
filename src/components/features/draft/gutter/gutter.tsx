@@ -16,7 +16,14 @@ interface GutterProps {
   group?: 'section' | 'entry'
 }
 
-export function Gutter({ edited, moved, pending, handleProps, size = 'section', group = 'section' }: GutterProps) {
+export function Gutter({
+  edited,
+  moved,
+  pending,
+  handleProps,
+  size = 'section',
+  group = 'section',
+}: Readonly<GutterProps>) {
   return (
     <div className={cn('relative flex shrink-0 justify-center', size === 'section' ? 'w-7' : 'w-5')}>
       <span

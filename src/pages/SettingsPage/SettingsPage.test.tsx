@@ -1,3 +1,4 @@
+// Tests for SettingsPage: the theme applies at once; author and model save, and author is required.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'

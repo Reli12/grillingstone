@@ -1,3 +1,4 @@
+// Tests for ProjectPage: the empty state, renaming the Project and the load error.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

@@ -20,7 +20,7 @@ export interface DraftEditorValue {
 export const DraftEditorContext = createContext<DraftEditorValue | null>(null)
 
 export function useDraftEditor() {
-  const v = useContext(DraftEditorContext)
-  if (!v) throw new Error('useDraftEditor outside DraftEditorContext')
-  return v
+  const value = useContext(DraftEditorContext)
+  if (!value) throw new Error('useDraftEditor outside DraftEditorContext')
+  return value
 }

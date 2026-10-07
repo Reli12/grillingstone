@@ -1,3 +1,4 @@
+// A Project's page: its Drafts, a way to start a new one, and the Project Glossary beside them.
 import { Link, useParams } from 'react-router'
 
 import { Plus } from 'lucide-react'
@@ -10,6 +11,36 @@ import { DraftList } from '@/components/features/drafts/draftList/draftList'
 import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
 import { ProjectTitle } from '@/components/features/projects/projectTitle/projectTitle'
 import { routesPaths } from '@/routes/routes'
+
+function NoDraftsYet({ projectId }: Readonly<{ projectId: string }>) {
+  return (
+    <EmptyState
+      title="No Drafts in this Project yet"
+      action={
+        <Link to={routesPaths.newDraft(projectId)}>
+          <Button variant="claude" tabIndex={-1}>
+            Grill your first requirement
+          </Button>
+        </Link>
+      }
+    >
+      Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be written
+      down.
+    </EmptyState>
+  )
+}
+
+function GlossaryAside({ projectId, projectName }: Readonly<{ projectId: string; projectName: string }>) {
+  return (
+    <aside>
+      <h2 className="font-serif text-lg font-semibold">Glossary</h2>
+      <p className="mb-4 text-[13px] text-ink-faint">
+        Shared by every Draft in {projectName}. Every session is challenged against it.
+      </p>
+      <GlossaryPanel projectId={projectId} />
+    </aside>
+  )
+}
 
 export default function ProjectPage() {
   const { projectId = '' } = useParams()
@@ -32,32 +63,10 @@ export default function ProjectPage() {
             </Link>
           </div>
           <div className="mt-6">
-            {drafts.length ? (
-              <DraftList drafts={drafts} />
-            ) : (
-              <EmptyState
-                title="No Drafts in this Project yet"
-                action={
-                  <Link to={routesPaths.newDraft(projectId)}>
-                    <Button variant="claude" tabIndex={-1}>
-                      Grill your first requirement
-                    </Button>
-                  </Link>
-                }
-              >
-                Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be
-                written down.
-              </EmptyState>
-            )}
+            {drafts.length ? <DraftList drafts={drafts} /> : <NoDraftsYet projectId={projectId} />}
           </div>
         </section>
-        <aside>
-          <h2 className="font-serif text-lg font-semibold">Glossary</h2>
-          <p className="mb-4 text-[13px] text-ink-faint">
-            Shared by every Draft in {project.name}. Every session is challenged against it.
-          </p>
-          <GlossaryPanel projectId={projectId} />
-        </aside>
+        <GlossaryAside projectId={projectId} projectName={project.name} />
       </div>
     </div>
   )

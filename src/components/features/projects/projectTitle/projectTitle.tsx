@@ -1,3 +1,4 @@
+// The Project page's heading, renamed in place by double-clicking it.
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -14,7 +15,7 @@ interface ProjectTitleProps {
 }
 
 /** The Project's name as the page heading; double-click to rename, Enter saves, leaving the field cancels. */
-export function ProjectTitle({ project }: ProjectTitleProps) {
+export function ProjectTitle({ project }: Readonly<ProjectTitleProps>) {
   const [editing, setEditing] = useState(false)
 
   const { register, handleSubmit, reset } = useForm<ProjectNameFormData>({ resolver: zodResolver(projectNameSchema) })

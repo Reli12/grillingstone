@@ -1,3 +1,4 @@
+// React Query hooks for Template Sessions: the live one, one Transcript, and starting a session.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { queryKeys } from '@/api/reactQueryKeys'

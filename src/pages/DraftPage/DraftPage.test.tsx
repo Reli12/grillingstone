@@ -1,3 +1,4 @@
+// Tests for DraftPage: the full-screen chat before v1, and editing, triaging and session control from v1 on.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
@@ -129,7 +130,7 @@ describe('DraftPage before v1', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete Draft' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Draft' }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
-    expect(api.requests.map((r) => r.method)).toContain('DELETE')
+    expect(api.requests.map((request) => request.method)).toContain('DELETE')
   })
 })
 
@@ -161,7 +162,10 @@ describe('DraftPage from v1', () => {
     await user.click(within(scope).getAllByRole('button', { name: /Discard/ })[1]) // [0] is the Section's own
     await user.click(await within(scope).findByRole('button', { name: /Restore/ }))
     await vi.waitFor(() =>
-      expect(api.requests.map((r) => (r.body as { op: string }).op)).toEqual(['discardEntry', 'restoreEntry']),
+      expect(api.requests.map((request) => (request.body as { op: string }).op)).toEqual([
+        'discardEntry',
+        'restoreEntry',
+      ]),
     )
 
     await user.click(within(scope).getByRole('button', { name: /Add Entry/ }))
@@ -216,7 +220,7 @@ describe('DraftPage from v1', () => {
 
   it('shows title and new-Section changes where they land', async () => {
     let draft = applyHumanOp(v1Draft(), { op: 'retitle', title: 'Archive a device' })
-    draft = { ...draft, sections: draft.sections.filter((s) => s.key !== 'design') }
+    draft = { ...draft, sections: draft.sections.filter((section) => section.key !== 'design') }
     draft = openProposal(
       draft,
       [
@@ -389,7 +393,7 @@ describe('DraftPage from v1', () => {
     await user.click(screen.getByRole('button', { name: /Stop/ }))
 
     await vi.waitFor(() =>
-      expect(api.requests.map((r) => r.path)).toEqual([
+      expect(api.requests.map((request) => request.path)).toEqual([
         '/api/sessions/sess-live/messages',
         '/api/sessions/sess-live/write',
         '/api/sessions/sess-live/stop',

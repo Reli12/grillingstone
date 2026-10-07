@@ -1,3 +1,4 @@
+// Tests for ImportDialog: the bundle preview, refused bundles, failed previews and importing.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'

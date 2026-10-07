@@ -1,3 +1,4 @@
+// The placeholder a page shows, centred, while its data loads.
 import { Thinking } from '@/components/atoms/thinking/thinking'
 
 export function PageLoading() {

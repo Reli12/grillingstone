@@ -1,3 +1,4 @@
+// Tests for HomePage: the Project list, the first-run welcome and creating a Project with its Glossary.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'

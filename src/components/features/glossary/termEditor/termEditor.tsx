@@ -1,3 +1,4 @@
+// The inline form for one Glossary term: the term, its definition and the words to avoid.
 import { useForm } from 'react-hook-form'
 
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,13 +13,13 @@ import { type GlossaryTermFormData, glossaryTermSchema } from '@/lib/formSchemas
 
 interface TermEditorProps {
   initial: GlossaryTerm
-  onSave: (t: GlossaryTerm) => void
+  onSave: (term: GlossaryTerm) => void
   onCancel: () => void
   /** Offered only for an existing term. */
   onRemove?: () => void
 }
 
-export function TermEditor({ initial, onSave, onCancel, onRemove }: TermEditorProps) {
+export function TermEditor({ initial, onSave, onCancel, onRemove }: Readonly<TermEditorProps>) {
   const { register, handleSubmit, formState } = useForm<GlossaryTermFormData>({
     resolver: zodResolver(glossaryTermSchema),
     mode: 'onChange',

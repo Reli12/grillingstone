@@ -1,3 +1,4 @@
+// Tests for TemplatesPage: listing, duplicating, exporting and importing Templates.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

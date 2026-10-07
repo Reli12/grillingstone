@@ -1,11 +1,12 @@
+// The Settings page: the theme, the Iteration Log author and the Claude model.
 import { useSettings } from '@/api/hooks/projects/projectHooks'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
 import { SettingsForm } from '@/components/features/settings/settingsForm/settingsForm'
 import { ThemeChoice } from '@/components/features/settings/themeChoice/themeChoice'
 
 export default function SettingsPage() {
-  const { data } = useSettings()
-  if (!data) return <PageLoading />
+  const { data: settings } = useSettings()
+  if (!settings) return <PageLoading />
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-xl px-4 py-10">
@@ -14,8 +15,8 @@ export default function SettingsPage() {
           Sessions run as headless Claude Code on your own subscription, inside each Project’s folder.
         </p>
         <div className="mt-8 space-y-10">
-          <ThemeChoice settings={data} />
-          <SettingsForm settings={data} />
+          <ThemeChoice settings={settings} />
+          <SettingsForm settings={settings} />
         </div>
       </div>
     </div>

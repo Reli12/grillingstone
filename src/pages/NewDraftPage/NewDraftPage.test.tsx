@@ -1,3 +1,4 @@
+// Tests for NewDraftPage: starting each Work Item Type with its Template and References.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'

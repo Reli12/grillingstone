@@ -1,3 +1,4 @@
+// The Settings form for the Iteration Log author and the Claude model.
 import { useForm } from 'react-hook-form'
 
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,27 +18,26 @@ interface SettingsFormProps {
 }
 
 /** Author and model; saved together with the Save button. */
-export function SettingsForm({ settings }: SettingsFormProps) {
+export function SettingsForm({ settings }: Readonly<SettingsFormProps>) {
   const save = useSaveSettings()
   const { register, handleSubmit, formState, reset } = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: settings,
   })
+  const onSubmit = handleSubmit((values) =>
+    save.mutate(
+      { ...settings, ...values },
+      {
+        onSuccess: (saved) => {
+          // The saved values become the new baseline, so Save disables again until the next edit.
+          reset({ author: saved.author, model: saved.model })
+          toast.success('Settings saved.')
+        },
+      },
+    ),
+  )
   return (
-    <form
-      className="space-y-6"
-      onSubmit={handleSubmit((s) =>
-        save.mutate(
-          { ...settings, ...s },
-          {
-            onSuccess: (saved) => {
-              reset({ author: saved.author, model: saved.model })
-              toast.success('Settings saved.')
-            },
-          },
-        ),
-      )}
-    >
+    <form className="space-y-6" onSubmit={onSubmit}>
       <div>
         <FieldLabel htmlFor="author" hint="Iteration Log lines read “22.09.2026 - @author v2”.">
           Your name in the Iteration Log

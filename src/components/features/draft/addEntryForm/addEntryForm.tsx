@@ -1,3 +1,4 @@
+// The inline form that adds a new Entry (title and text) to a Section.
 import { useForm } from 'react-hook-form'
 
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,7 +11,7 @@ interface AddEntryFormProps {
   onCancel: () => void
 }
 
-export function AddEntryForm({ onSave, onCancel }: AddEntryFormProps) {
+export function AddEntryForm({ onSave, onCancel }: Readonly<AddEntryFormProps>) {
   const { register, handleSubmit, formState } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
     mode: 'onChange',

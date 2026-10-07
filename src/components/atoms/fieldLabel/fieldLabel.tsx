@@ -1,3 +1,4 @@
+// A form field's label, with an optional quieter hint line under it.
 import type { ReactNode } from 'react'
 
 interface FieldLabelProps {
@@ -6,7 +7,7 @@ interface FieldLabelProps {
   hint?: ReactNode
 }
 
-export function FieldLabel({ children, htmlFor, hint }: FieldLabelProps) {
+export function FieldLabel({ children, htmlFor, hint }: Readonly<FieldLabelProps>) {
   return (
     <label htmlFor={htmlFor} className="mb-1.5 block">
       <span className="text-sm font-semibold text-ink">{children}</span>

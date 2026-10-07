@@ -1,3 +1,4 @@
+// Tests for NewTemplatePage: grilling a Template with Claude or building one by hand, from a base or blank.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'

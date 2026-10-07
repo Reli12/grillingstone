@@ -1,3 +1,4 @@
+// Template API: the Template library, plus exporting and importing shareable bundles.
 import type { Bundle, ImportItem } from '#core/template/templateBundle.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 

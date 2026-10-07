@@ -1,3 +1,5 @@
+// One Section of the Draft sheet: its heading and actions, its prose or sortable Entries, and the
+// Proposal changes that would land in it. Discarded Sections and Entries fold into a restorable line.
 import { useState } from 'react'
 
 import {
@@ -32,20 +34,33 @@ import { Gutter } from '@/components/features/draft/gutter/gutter'
 import { useDraftEditor } from '@/context/DraftEditor/DraftEditor'
 import { cn } from '@/lib/cn'
 
-const pendingTone = (changes: Change[]) =>
-  changes.some((c) => c.conflict) ? 'conflict' : changes.length ? 'clean' : undefined
+/** A press must move this far before it becomes a drag, so a click on an Entry still edits it. */
+const DRAG_START_DISTANCE_PX = 4
+
+/** The gutter's mark for pending changes: red if any is a Conflict, green if all are clean. */
+function pendingTone(changes: Change[]) {
+  if (!changes.length) return undefined
+  return changes.some((change) => change.conflict) ? 'conflict' : 'clean'
+}
+
+/** Makes a Section or Entry draggable: the props for its element and for its gutter's drag handle. */
+function useSortableRow(id: string) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+  return { setNodeRef, style, isDragging, handleProps: { ...attributes, ...listeners } }
+}
 
 interface ChangesProps {
   changes: Change[]
 }
 
-function Changes({ changes }: ChangesProps) {
+function Changes({ changes }: Readonly<ChangesProps>) {
   const { decide, busy } = useDraftEditor()
   if (!changes.length) return null
   return (
     <div className="mt-2 space-y-2">
-      {changes.map((c) => (
-        <ChangeCard key={c.id} change={c} busy={busy} onDecide={(accept) => decide(c.id, accept)} />
+      {changes.map((change) => (
+        <ChangeCard key={change.id} change={change} busy={busy} onDecide={(accept) => decide(change.id, accept)} />
       ))}
     </div>
   )
@@ -58,7 +73,7 @@ interface RowActionsProps {
   entry?: boolean
 }
 
-function RowActions({ onGrill, onDiscard, grillDisabled, entry = false }: RowActionsProps) {
+function RowActions({ onGrill, onDiscard, grillDisabled, entry = false }: Readonly<RowActionsProps>) {
   return (
     <span
       className={cn(
@@ -100,7 +115,7 @@ interface DiscardedLineProps {
   changes: Change[]
 }
 
-function DiscardedLine({ label, onRestore, changes }: DiscardedLineProps) {
+function DiscardedLine({ label, onRestore, changes }: Readonly<DiscardedLineProps>) {
   return (
     <div>
       <div className="flex items-center gap-2 rounded border border-dashed border-line px-2.5 py-1.5 text-[13px] text-ink-faint">
@@ -115,16 +130,43 @@ function DiscardedLine({ label, onRestore, changes }: DiscardedLineProps) {
   )
 }
 
-interface EntryRowProps {
+interface EntryProps {
   section: Section
   entry: Entry
+}
+
+/** The Entry's title and text, editable in place, with its Grill and Discard actions. */
+function EntryContent({ section, entry }: Readonly<EntryProps>) {
+  const { apply, grill, sessionRunning } = useDraftEditor()
+  const target = { sectionId: section.id, entryId: entry.id }
+  return (
+    <div className="flex items-start gap-2">
+      <EditableText
+        className="min-w-0 flex-1"
+        value={entry.body}
+        title={entry.title}
+        onSave={({ body, title }) => apply({ op: 'editEntry', ...target, body, title })}
+      >
+        <p className="font-serif text-[15px] leading-7 font-semibold text-ink">{entry.title}</p>
+        <RichText text={entry.body} className="font-serif text-[15px] leading-7 text-ink" />
+      </EditableText>
+      <RowActions
+        entry
+        grillDisabled={sessionRunning}
+        onGrill={() => grill({ ...target, heading: `${section.heading} › ${entry.title}` })}
+        onDiscard={() => apply({ op: 'discardEntry', ...target })}
+      />
+    </div>
+  )
+}
+
+interface EntryRowProps extends EntryProps {
   changes: Change[]
 }
 
-function EntryRow({ section, entry, changes }: EntryRowProps) {
-  const { apply, grill, sessionRunning } = useDraftEditor()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id })
-  const style = { transform: CSS.Transform.toString(transform), transition }
+function EntryRow({ section, entry, changes }: Readonly<EntryRowProps>) {
+  const { apply } = useDraftEditor()
+  const { setNodeRef, style, isDragging, handleProps } = useSortableRow(entry.id)
 
   if (entry.discarded)
     return (
@@ -149,30 +191,10 @@ function EntryRow({ section, entry, changes }: EntryRowProps) {
         edited={entry.humanEdited}
         moved={entry.humanMoved}
         pending={pendingTone(changes)}
-        handleProps={{ ...attributes, ...listeners }}
+        handleProps={handleProps}
       />
       <div className="min-w-0 flex-1 pb-1">
-        <div className="flex items-start gap-2">
-          <EditableText
-            className="min-w-0 flex-1"
-            value={entry.body}
-            title={entry.title}
-            onSave={({ body, title }) =>
-              apply({ op: 'editEntry', sectionId: section.id, entryId: entry.id, body, title })
-            }
-          >
-            <p className="font-serif text-[15px] leading-7 font-semibold text-ink">{entry.title}</p>
-            <RichText text={entry.body} className="font-serif text-[15px] leading-7 text-ink" />
-          </EditableText>
-          <RowActions
-            entry
-            grillDisabled={sessionRunning}
-            onGrill={() =>
-              grill({ sectionId: section.id, entryId: entry.id, heading: `${section.heading} › ${entry.title}` })
-            }
-            onDiscard={() => apply({ op: 'discardEntry', sectionId: section.id, entryId: entry.id })}
-          />
-        </div>
+        <EntryContent section={section} entry={entry} />
         <Changes changes={changes} />
       </div>
     </li>
@@ -183,7 +205,7 @@ interface AddEntryProps {
   section: Section
 }
 
-function AddEntry({ section }: AddEntryProps) {
+function AddEntry({ section }: Readonly<AddEntryProps>) {
   const { apply } = useDraftEditor()
   const [open, setOpen] = useState(false)
   if (!open)
@@ -210,28 +232,33 @@ interface EntriesProps {
   pending: Change[]
 }
 
-function Entries({ section, pending }: EntriesProps) {
+function Entries({ section, pending }: Readonly<EntriesProps>) {
   const { apply } = useDraftEditor()
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: DRAG_START_DISTANCE_PX } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
-    const toIndex = section.entries.findIndex((e) => e.id === over.id)
+    const toIndex = section.entries.findIndex((entry) => entry.id === over.id)
     apply({ op: 'moveEntry', sectionId: section.id, entryId: String(active.id), toIndex })
   }
-  const live = section.entries.filter((e) => !e.discarded)
+  const live = section.entries.filter((entry) => !entry.discarded)
   return (
     <>
       {live.length === 0 && section.body && (
         <RichText text={section.body} className="ml-6 font-serif text-[15px] leading-7 text-ink-soft italic" />
       )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={section.entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={section.entries.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
           <ul className="space-y-2">
-            {section.entries.map((e) => (
-              <EntryRow key={e.id} section={section} entry={e} changes={pending.filter((c) => c.entryId === e.id)} />
+            {section.entries.map((entry) => (
+              <EntryRow
+                key={entry.id}
+                section={section}
+                entry={entry}
+                changes={pending.filter((change) => change.entryId === entry.id)}
+              />
             ))}
           </ul>
         </SortableContext>
@@ -241,16 +268,52 @@ function Entries({ section, pending }: EntriesProps) {
   )
 }
 
-interface SectionBlockProps {
+interface SectionProps {
   section: Section
 }
 
-export function SectionBlock({ section }: SectionBlockProps) {
-  const { apply, grill, pending: allPending, sessionRunning } = useDraftEditor()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id })
-  const style = { transform: CSS.Transform.toString(transform), transition }
-  const pending = allPending.filter((c) => c.sectionId === section.id)
-  const sectionLevel = pending.filter((c) => !c.entryId)
+/** The Section's heading line: name, lock, the ADO field it publishes to, and its actions. */
+function SectionHeader({ section }: Readonly<SectionProps>) {
+  const { apply, grill, sessionRunning } = useDraftEditor()
+  // A locked Section can never be discarded, so it offers no Discard action.
+  const discard = section.locked ? undefined : () => apply({ op: 'discardSection', sectionId: section.id })
+  return (
+    <header className="group/head flex min-h-8 flex-wrap items-center gap-x-2 gap-y-1">
+      <h2 className="font-serif text-[19px] font-semibold tracking-tight text-ink">{section.heading}</h2>
+      {section.locked && (
+        <span className="text-ink-faint" title="Locked Section — you can edit and move it, never discard it">
+          <Lock size={14} aria-label="Locked" />
+        </span>
+      )}
+      <Tag tone="claude" title="The Azure DevOps field this Section is copied into">
+        {ADO_FIELD_LABELS[section.target] ?? section.target}
+      </Tag>
+      <span className="ml-auto" />
+      <RowActions
+        grillDisabled={sessionRunning}
+        onGrill={() => grill({ sectionId: section.id, heading: section.heading })}
+        onDiscard={discard}
+      />
+    </header>
+  )
+}
+
+/** A prose Section's text, editable in place; an Entries Section's sortable list. */
+function SectionBody({ section, pending }: Readonly<EntriesProps>) {
+  const { apply } = useDraftEditor()
+  if (section.shape !== 'prose') return <Entries section={section} pending={pending} />
+  return (
+    <EditableText value={section.body} onSave={({ body }) => apply({ op: 'editSection', sectionId: section.id, body })}>
+      <RichText text={section.body} className="font-serif text-[15px] leading-7 text-ink" />
+    </EditableText>
+  )
+}
+
+export function SectionBlock({ section }: Readonly<SectionProps>) {
+  const { apply, pending: allPending } = useDraftEditor()
+  const { setNodeRef, style, isDragging, handleProps } = useSortableRow(section.id)
+  const pending = allPending.filter((change) => change.sectionId === section.id)
+  const sectionLevel = pending.filter((change) => !change.entryId)
 
   if (section.discarded)
     return (
@@ -274,37 +337,12 @@ export function SectionBlock({ section }: SectionBlockProps) {
         edited={section.humanEdited}
         moved={section.humanMoved}
         pending={pendingTone(pending)}
-        handleProps={{ ...attributes, ...listeners }}
+        handleProps={handleProps}
       />
       <div className="min-w-0 flex-1">
-        <header className="group/head flex min-h-8 flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 className="font-serif text-[19px] font-semibold tracking-tight text-ink">{section.heading}</h2>
-          {section.locked && (
-            <span className="text-ink-faint" title="Locked Section — you can edit and move it, never discard it">
-              <Lock size={14} aria-label="Locked" />
-            </span>
-          )}
-          <Tag tone="claude" title="The Azure DevOps field this Section is copied into">
-            {ADO_FIELD_LABELS[section.target] ?? section.target}
-          </Tag>
-          <span className="ml-auto" />
-          <RowActions
-            grillDisabled={sessionRunning}
-            onGrill={() => grill({ sectionId: section.id, heading: section.heading })}
-            onDiscard={section.locked ? undefined : () => apply({ op: 'discardSection', sectionId: section.id })}
-          />
-        </header>
+        <SectionHeader section={section} />
         <div className="mt-1.5">
-          {section.shape === 'prose' ? (
-            <EditableText
-              value={section.body}
-              onSave={({ body }) => apply({ op: 'editSection', sectionId: section.id, body })}
-            >
-              <RichText text={section.body} className="font-serif text-[15px] leading-7 text-ink" />
-            </EditableText>
-          ) : (
-            <Entries section={section} pending={pending} />
-          )}
+          <SectionBody section={section} pending={pending} />
         </div>
         <Changes changes={sectionLevel} />
       </div>

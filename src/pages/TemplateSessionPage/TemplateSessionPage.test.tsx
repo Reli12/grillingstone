@@ -1,3 +1,4 @@
+// Tests for TemplateSessionPage: a live session, its saved Template, an ended one and the load error.
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
@@ -28,8 +29,8 @@ const transcript = (patch: Partial<TemplateTranscript> = {}): TemplateTranscript
   ...patch,
 })
 
-const serve = (t: TemplateTranscript) =>
-  server.use(http.get(`*${endpoints.templateSession('ts')}`, () => HttpResponse.json(t)))
+const serve = (transcript: TemplateTranscript) =>
+  server.use(http.get(`*${endpoints.templateSession('ts')}`, () => HttpResponse.json(transcript)))
 const renderPage = () =>
   render(<TemplateSessionPage />, { route: '/templates/session/ts', path: '/templates/session/:sessionId' })
 
@@ -50,7 +51,7 @@ describe('TemplateSessionPage', () => {
     await user.click(screen.getByRole('button', { name: 'Enough — write it' }))
     await user.click(screen.getByRole('button', { name: /Stop/ }))
     await vi.waitFor(() =>
-      expect(sent.map((s) => (s as string[])[0])).toEqual(['messages', 'messages', 'write', 'stop']),
+      expect(sent.map((call) => (call as string[])[0])).toEqual(['messages', 'messages', 'write', 'stop']),
     )
   })
 

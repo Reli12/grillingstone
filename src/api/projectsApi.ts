@@ -1,3 +1,4 @@
+// Project API: Projects, their Draft lists and Glossary, and the app-wide Settings.
 import type { DraftSummary, GlossaryDoc, ProjectSummary, Settings } from '#core/contract/apiTypes.ts'
 import type { Project } from '#core/contract/apiTypes.ts'
 

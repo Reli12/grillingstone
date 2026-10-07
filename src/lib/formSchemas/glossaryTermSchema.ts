@@ -1,3 +1,4 @@
+// Validation for one Glossary term in the term editor.
 import { z } from 'zod'
 
 export const glossaryTermSchema = z.object({

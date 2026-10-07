@@ -1,3 +1,4 @@
+// React Query hooks for the Template library and bundle export/import.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Template } from '#core/template/templateTypes.ts'
@@ -22,8 +23,10 @@ function useTemplateMutation<V, R>(fn: (v: V) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.templates }) })
 }
 
-export const useCreateTemplate = () => useTemplateMutation((t: Template) => templatesApi.createTemplate(t))
-export const useUpdateTemplate = () => useTemplateMutation((t: Template) => templatesApi.updateTemplate(t))
+export const useCreateTemplate = () =>
+  useTemplateMutation((template: Template) => templatesApi.createTemplate(template))
+export const useUpdateTemplate = () =>
+  useTemplateMutation((template: Template) => templatesApi.updateTemplate(template))
 export const useDeleteTemplate = () => useTemplateMutation((id: string) => templatesApi.deleteTemplate(id))
 export const useImportTemplates = () =>
   useTemplateMutation(({ bundle, selected }: { bundle: unknown; selected: number[] }) =>

@@ -1,3 +1,4 @@
+// React Query hooks for Projects, their Drafts and Glossary, and the Settings.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Settings } from '#core/contract/apiTypes.ts'
@@ -44,7 +45,7 @@ export function useSaveGlossary(projectId: string) {
 export function useSaveSettings() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (s: Settings) => projectsApi.saveSettings(s),
-    onSuccess: (s) => qc.setQueryData(queryKeys.settings, s),
+    mutationFn: (settings: Settings) => projectsApi.saveSettings(settings),
+    onSuccess: (settings) => qc.setQueryData(queryKeys.settings, settings),
   })
 }

@@ -16,7 +16,7 @@ export function applyTheme(theme: Theme) {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme)
   } catch {
-    /* storage unavailable: the setting still applies for this page */
+    // Storage can be blocked; the theme still applies to this page, only the early paint on reload is lost.
   }
 }
 
@@ -24,7 +24,7 @@ interface ThemeProviderProps {
   children: ReactNode
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
+export function ThemeProvider({ children }: Readonly<ThemeProviderProps>) {
   const { data } = useSettings()
   useEffect(() => {
     if (data) applyTheme(data.theme)

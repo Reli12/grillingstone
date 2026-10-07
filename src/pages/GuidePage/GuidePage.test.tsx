@@ -1,3 +1,4 @@
+// Tests for GuidePage: the walkthrough's steps and its inert live examples.
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 

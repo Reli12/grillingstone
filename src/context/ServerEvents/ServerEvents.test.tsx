@@ -1,3 +1,4 @@
+// Tests for ServerEventsProvider: events reach the cache, and a lost backend reconnects and refetches.
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { ws } from 'msw'

@@ -1,3 +1,4 @@
+// Every route of the app: the URL builders the rest of the code links with, and the router itself.
 import { lazy, type ReactNode, Suspense } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
@@ -30,7 +31,7 @@ export const routesPaths = {
 
 // Local single-user tool: no auth or permission metadata on routes (ADR-0011). Route patterns come from
 // routesPaths with `:param` placeholders, so a path is spelled in one place only.
-const page = (el: ReactNode) => <Suspense fallback={<PageLoading />}>{el}</Suspense>
+const page = (content: ReactNode) => <Suspense fallback={<PageLoading />}>{content}</Suspense>
 
 const routes: RouteObject[] = [
   {

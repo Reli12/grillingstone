@@ -1,21 +1,25 @@
-const p = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}`
-const d = (projectId: string, draftId: string) => `${p(projectId)}/drafts/${encodeURIComponent(draftId)}`
+// Every backend URL the frontend calls, built in one place. Ids are URL-encoded here so callers
+// can pass them raw.
+
+const projectPath = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}`
+const draftPath = (projectId: string, draftId: string) =>
+  `${projectPath(projectId)}/drafts/${encodeURIComponent(draftId)}`
 
 export const endpoints = {
   settings: '/api/settings',
   projects: '/api/projects',
-  project: p,
-  glossary: (projectId: string) => `${p(projectId)}/glossary`,
-  drafts: (projectId: string) => `${p(projectId)}/drafts`,
-  draft: d,
-  draftOps: (projectId: string, draftId: string) => `${d(projectId, draftId)}/ops`,
-  draftReferences: (projectId: string, draftId: string) => `${d(projectId, draftId)}/references`,
-  decide: (projectId: string, draftId: string) => `${d(projectId, draftId)}/proposal/decide`,
-  acceptClean: (projectId: string, draftId: string) => `${d(projectId, draftId)}/proposal/accept-clean`,
-  render: (projectId: string, draftId: string) => `${d(projectId, draftId)}/render`,
-  draftSessions: (projectId: string, draftId: string) => `${d(projectId, draftId)}/sessions`,
+  project: projectPath,
+  glossary: (projectId: string) => `${projectPath(projectId)}/glossary`,
+  drafts: (projectId: string) => `${projectPath(projectId)}/drafts`,
+  draft: draftPath,
+  draftOps: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/ops`,
+  draftReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/references`,
+  decide: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/decide`,
+  acceptClean: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/accept-clean`,
+  render: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/render`,
+  draftSessions: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/sessions`,
   continueSession: (projectId: string, draftId: string, sessionId: string) =>
-    `${d(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,
+    `${draftPath(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,
   sessionMessages: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
   sessionWrite: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/write`,
   sessionStop: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/stop`,

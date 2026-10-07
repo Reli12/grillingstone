@@ -1,3 +1,4 @@
+// Tests for TextArea: ref forwarding, input pass-through and controlled use.
 import { createRef } from 'react'
 
 import { render, screen } from '@testing-library/react'

@@ -1,3 +1,4 @@
+// Asks before a Draft is deleted, and says what goes and what stays.
 import { Button } from '@/components/atoms/button/button'
 import { Dialog } from '@/components/composite/dialog/dialog'
 
@@ -7,7 +8,7 @@ interface DeleteDraftDialogProps {
   onDelete: () => void
 }
 
-export function DeleteDraftDialog({ open, onClose, onDelete }: DeleteDraftDialogProps) {
+export function DeleteDraftDialog({ open, onClose, onDelete }: Readonly<DeleteDraftDialogProps>) {
   return (
     <Dialog
       open={open}

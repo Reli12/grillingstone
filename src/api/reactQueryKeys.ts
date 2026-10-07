@@ -1,3 +1,5 @@
+// Every React Query key in one place. Keys nest under their Project and Draft, so invalidating a
+// parent key also invalidates what hangs below it.
 export const queryKeys = {
   settings: ['settings'] as const,
   projects: ['projects'] as const,

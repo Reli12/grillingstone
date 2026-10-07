@@ -1,3 +1,4 @@
+// The red line under a form field that failed validation.
 interface FieldErrorProps {
   message?: string
 }

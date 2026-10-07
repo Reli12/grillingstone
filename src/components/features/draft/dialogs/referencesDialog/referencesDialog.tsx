@@ -1,3 +1,4 @@
+// The References dialog: which other Drafts of the Project later sessions may read as context.
 import type { Draft } from '#core/draft/draftTypes.ts'
 
 import { useSetReferences } from '@/api/hooks/drafts/draftHooks'
@@ -11,10 +12,11 @@ interface ReferencesDialogProps {
 }
 
 /** Picks the other written Drafts that later sessions may read as context. */
-export function ReferencesDialog({ open, onClose, draft }: ReferencesDialogProps) {
+export function ReferencesDialog({ open, onClose, draft }: Readonly<ReferencesDialogProps>) {
   const { data: drafts } = useDrafts(draft.projectId)
-  const set = useSetReferences(draft.projectId, draft.id)
-  const others = drafts?.filter((d) => d.id !== draft.id && d.version > 0) ?? []
+  const setReferences = useSetReferences(draft.projectId, draft.id)
+  // Only Drafts with a written version have anything to read.
+  const others = drafts?.filter((other) => other.id !== draft.id && other.version > 0) ?? []
   return (
     <Dialog open={open} onClose={onClose} title="References">
       <p className="mb-3 text-sm text-ink-soft">
@@ -22,23 +24,24 @@ export function ReferencesDialog({ open, onClose, draft }: ReferencesDialogProps
       </p>
       {others.length === 0 && <p className="text-sm text-ink-faint">No other written Drafts in this Project yet.</p>}
       <div className="space-y-1.5">
-        {others.map((d) => {
-          const on = draft.references.includes(d.id)
+        {others.map((other) => {
+          const on = draft.references.includes(other.id)
+          const toggled = on
+            ? draft.references.filter((reference) => reference !== other.id)
+            : [...draft.references, other.id]
           return (
             <label
-              key={d.id}
+              key={other.id}
               className="flex cursor-pointer items-center gap-2.5 rounded-md border border-line px-3 py-2 text-sm hover:border-ink-faint"
             >
               <input
                 type="checkbox"
                 className="accent-claude"
                 checked={on}
-                onChange={() =>
-                  set.mutate(on ? draft.references.filter((r) => r !== d.id) : [...draft.references, d.id])
-                }
+                onChange={() => setReferences.mutate(toggled)}
               />
-              <span className="text-ink-faint">{d.workItemType}</span>
-              {d.title}
+              <span className="text-ink-faint">{other.workItemType}</span>
+              {other.title}
             </label>
           )
         })}

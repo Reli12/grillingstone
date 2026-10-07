@@ -1,3 +1,4 @@
+// Tests for DraftList: each row's type, version, pending Changes and age.
 import { screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
