@@ -1,3 +1,4 @@
+import type { SectionTarget } from '#core/shared/adoFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
 import type { TemplateContent } from '#core/template/templateValidator.ts'
@@ -25,6 +26,8 @@ export function templateFromSession(content: TemplateContent, workItemType: Work
     sections,
     method: content.method.trim(),
     iterationLogHeading: content.iterationLogHeading?.trim() || `${workItemType} Iteration Log`,
+    // Already checked against the type's fields by the validator.
+    ...(content.iterationLogTarget ? { iterationLogTarget: content.iterationLogTarget as SectionTarget } : {}),
     updatedAt: now,
   }
 }

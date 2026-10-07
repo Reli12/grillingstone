@@ -3,7 +3,7 @@ import { newDraft } from '#core/draft/draft.ts'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
 import { buildSeed } from '#core/session/grillingSeed.ts'
 import type { Template } from '#core/template/templateTypes.ts'
-import { defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
+import { defaultBugTemplate, defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
 
@@ -15,6 +15,16 @@ describe('Session Seed Builder', () => {
     expect(all).toContain('Frontend PBI Guide')
     expect(all).toContain('Managers need to archive devices.')
     expect(all).toContain('acceptanceCriteria')
+  })
+
+  it('grills a Bug as an observed defect, never recommending what the human saw or did', () => {
+    const draft = newDraft({ projectId: 'customer-portal', workItemType: 'Bug', template: defaultBugTemplate, requirement: 'Blank page after paying.', now: meta.date })
+    const seed = buildSeed({ kind: 'first', draft, projectName: 'Customer Portal', glossary: '', references: [], submitCommand })
+    const all = seed.systemPrompt + seed.firstMessage
+    expect(all).toContain('a requirement or an observed defect')
+    expect(all).toMatch(/observed facts .* without a recommended answer/i)
+    expect(all).toContain('Bug Guide')
+    expect(all).not.toContain('described the requirement')
   })
 
   it('gives a later session the current Draft with ids, and asks for a Proposal instead of a rewrite', () => {

@@ -1,7 +1,7 @@
 // Sharing Templates between people: a bundle carries Templates only (never Projects, Drafts or Glossaries),
 // the preview compares by meaning, and an import never deletes anything.
 import { newId } from '#core/shared/ids.ts'
-import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
+import { defaultIterationLogTarget, isWorkItemType } from '#core/shared/workItemType.ts'
 import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
 
 export const BUNDLE_FORMAT = 'whetstone/templates'
@@ -41,6 +41,7 @@ const pickTemplate = (t: Template): Template => ({
   sections: t.sections.map(pickSection),
   method: t.method,
   iterationLogHeading: t.iterationLogHeading,
+  ...(t.iterationLogTarget ? { iterationLogTarget: t.iterationLogTarget } : {}),
   updatedAt: t.updatedAt,
 })
 
@@ -59,6 +60,7 @@ const meaning = (t: Template) =>
     type: t.workItemType,
     name: norm(t.name),
     log: norm(t.iterationLogHeading),
+    logTarget: t.iterationLogTarget ?? defaultIterationLogTarget(t.workItemType),
     method: norm(t.method),
     sections: t.sections.map((s) => ({ ...pickSection(s), heading: norm(s.heading), guidance: norm(s.guidance) })),
   })
@@ -74,7 +76,7 @@ const isTemplate = (t: unknown): t is Template => {
     !!r &&
     typeof r.id === 'string' &&
     typeof r.name === 'string' &&
-    WORK_ITEM_TYPES.includes(r.workItemType as Template['workItemType']) &&
+    isWorkItemType(r.workItemType) &&
     typeof r.method === 'string' &&
     Array.isArray(r.sections) &&
     r.sections.length > 0 &&

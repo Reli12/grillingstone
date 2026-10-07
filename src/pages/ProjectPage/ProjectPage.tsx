@@ -43,7 +43,7 @@ export default function ProjectPage() {
                   </Link>
                 }
               >
-                Describe a requirement, pick Epic, Feature or PBI, and Claude grills it with you until it can be written down.
+                Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be written down.
               </EmptyState>
             )}
           </div>

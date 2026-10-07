@@ -1,9 +1,13 @@
 // Realistic fixtures for core tests: a PBI "Archive device from device list".
+import bugTemplate from '../../defaults/templates/bug.json' with { type: 'json' }
 import pbiTemplate from '../../defaults/templates/pbi.json' with { type: 'json' }
+import taskTemplate from '../../defaults/templates/task.json' with { type: 'json' }
 import type { DraftContent } from '#core/draft/draftTypes.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
 export const defaultPbiTemplate = pbiTemplate as Template
+export const defaultBugTemplate = bugTemplate as Template
+export const defaultTaskTemplate = taskTemplate as Template
 
 export const validPbiContent = (): DraftContent => ({
   title: 'Archive device from device list',

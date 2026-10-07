@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { applyImport, exportBundle, previewImport } from '#core/template/templateBundle.ts'
 import type { Template } from '#core/template/templateTypes.ts'
-import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+import { ADO_FIELDS } from '#core/shared/adoFields.ts'
+import { defaultBugTemplate, defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 const backendPbi: Template = { ...defaultPbiTemplate, id: 't-backend', name: 'Backend PBI', isDefault: false, method: 'Write for backend devs.' }
 const spike: Template = { ...defaultPbiTemplate, id: 't-spike', name: 'Spike PBI', isDefault: false, method: 'Timebox it.' }
@@ -22,6 +23,13 @@ describe('Template bundles', () => {
       ['Default PBI Template', 'changed', false],
       ['Spike PBI', 'new', true],
     ])
+  })
+
+  it('carries where a Template puts its Iteration Log, and counts moving it as a change', () => {
+    const teamBug: Template = { ...defaultBugTemplate, id: 't-bug', name: 'Team Bug', isDefault: false }
+    const moved = { ...teamBug, iterationLogTarget: ADO_FIELDS.systemInfo }
+    const preview = previewImport(exportBundle([moved], 'now'), [teamBug])
+    expect(preview.ok && preview.items[0]).toMatchObject({ status: 'changed', template: { iterationLogTarget: ADO_FIELDS.systemInfo } })
   })
 
   it('matches a colleague’s Template by type and name when its id differs', () => {

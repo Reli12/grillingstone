@@ -6,7 +6,7 @@ import type { HumanOp } from '#core/draft/humanOps.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
-const workItemType = z.enum(WORK_ITEM_TYPES as ['Epic', 'Feature', 'PBI'], { error: 'Choose Epic, Feature or PBI.' })
+const workItemType = z.enum(WORK_ITEM_TYPES, { error: 'Choose Epic, Feature, PBI, Task or Bug.' })
 const ids = z.array(z.string()).default([])
 
 export const settingsBody = z.object({

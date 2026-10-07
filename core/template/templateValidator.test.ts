@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { methodSkeleton, type TemplateContent, validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
-const content = (): TemplateContent => structuredClone({ name: defaultPbiTemplate.name, sections: defaultPbiTemplate.sections, method: defaultPbiTemplate.method })
-const codes = (c: unknown, opts?: { requireSkeleton: boolean }) => {
+const content = (): TemplateContent => structuredClone({ workItemType: defaultPbiTemplate.workItemType, name: defaultPbiTemplate.name, sections: defaultPbiTemplate.sections, method: defaultPbiTemplate.method })
+const codes = (c: unknown, opts?: Parameters<typeof validateTemplate>[1]) => {
   const r = validateTemplate(c, opts)
   return r.ok ? [] : r.reasons.map((x) => `${x.code}${x.sectionKey ? `:${x.sectionKey}` : ''}`)
 }
@@ -14,7 +15,7 @@ describe('Template Validator', () => {
   })
 
   it('needs a name, a method and at least one Section', () => {
-    expect(codes({ name: ' ', sections: [], method: '' })).toEqual(['missing-name', 'no-sections', 'missing-method'])
+    expect(codes({ workItemType: 'PBI', name: ' ', sections: [], method: '' })).toEqual(['missing-name', 'no-sections', 'missing-method'])
   })
 
   it('refuses malformed, duplicate or headless Section keys', () => {
@@ -31,6 +32,34 @@ describe('Template Validator', () => {
     c.sections[1] = { ...c.sections[1], shape: 'table' as never }
     c.sections[6] = { ...c.sections[6], entryFormat: 'gherkin' }
     expect(codes(c)).toEqual(['unknown-target:userStory', 'bad-shape:roles', 'gherkin-on-prose:technicalNotes'])
+  })
+
+  describe('fields per Work Item Type', () => {
+    it('refuses a PBI Section published into Repro Steps, naming the fields a PBI may use', () => {
+      const c = { ...content(), workItemType: 'PBI' }
+      c.sections[0] = { ...c.sections[0], target: ADO_FIELDS.reproSteps }
+      const r = validateTemplate(c)
+      expect(r.ok ? [] : r.reasons.map((x) => [x.code, x.sectionKey, x.message])).toEqual([
+        ['unknown-target', 'userStory', 'Section "userStory": a PBI can be Published only into Description, Acceptance Criteria.'],
+      ])
+    })
+
+    it("checks a Template Session's submission against the session's type: a Task has no Acceptance Criteria", () => {
+      const { workItemType: _, ...submitted } = content()
+      expect(codes(submitted, { workItemType: 'Task' })).toEqual(['unknown-target:acceptanceCriteria'])
+    })
+
+    it("refuses an Iteration Log published into a field the type's form hides, but accepts one it shows", () => {
+      const bug = { ...content(), workItemType: 'Bug', sections: content().sections.map((s) => ({ ...s, target: ADO_FIELDS.reproSteps })) }
+      expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.description })).toEqual(['unknown-iteration-log-target'])
+      expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.reproSteps })).toEqual([])
+    })
+
+    it('refuses a Template whose Work Item Type is missing or unknown, once rather than per Section', () => {
+      const { workItemType: _, ...untyped } = content()
+      expect(codes(untyped)).toEqual(['unknown-work-item-type'])
+      expect(codes({ ...untyped, workItemType: 'Story' })).toEqual(['unknown-work-item-type'])
+    })
   })
 
   it('refuses input that is not a Template at all instead of crashing', () => {

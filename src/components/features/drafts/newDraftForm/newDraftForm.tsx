@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import type { Project } from '#core/contract/apiTypes.ts'
-import { WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
+import { WORK_ITEM_TYPE_HINTS, WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { useCreateDraft } from '@/api/hooks/drafts/draftHooks'
 import { Button } from '@/components/atoms/button/button'
@@ -14,12 +14,6 @@ import { TextArea } from '@/components/atoms/textArea/textArea'
 import { cn } from '@/lib/cn'
 import { newDraftSchema, type NewDraftFormData } from '@/lib/formSchemas/newDraftSchema'
 import { routesPaths } from '@/routes/routes'
-
-const TYPE_HINT: Record<WorkItemType, string> = {
-  Epic: 'A large business outcome, often with no requirements yet.',
-  Feature: 'One capability with numbered business rules.',
-  PBI: 'An implementation slice of a Feature, with testable ACs.',
-}
 
 interface NewDraftFormProps {
   project: Project
@@ -96,7 +90,7 @@ export function NewDraftForm({ project, templates, drafts }: NewDraftFormProps) 
       <aside className="space-y-7 md:pt-12">
         <fieldset>
           <FieldLabel>Work Item Type</FieldLabel>
-          <div className="grid grid-cols-3 rounded-lg bg-fog-deep p-1" role="radiogroup">
+          <div className="grid grid-cols-5 rounded-lg bg-fog-deep p-1" role="radiogroup">
             {WORK_ITEM_TYPES.map((t) => (
               <button
                 key={t}
@@ -110,7 +104,7 @@ export function NewDraftForm({ project, templates, drafts }: NewDraftFormProps) 
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[13px] text-ink-faint">{TYPE_HINT[type]}</p>
+          <p className="mt-2 text-[13px] text-ink-faint">{WORK_ITEM_TYPE_HINTS[type]}</p>
         </fieldset>
 
         <fieldset>

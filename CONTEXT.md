@@ -5,11 +5,11 @@ A tool that runs only on the user's own machine, where a human and Claude grill 
 ## Language
 
 **Work Item Type**:
-The kind of item being written: Epic, Feature or PBI. Chosen once, before grilling starts, and fixes what the Draft must contain.
+The kind of item being written: Epic, Feature, PBI, Task or Bug. Epic, Feature, PBI and Task describe something to be built; a Bug describes a defect already observed. Chosen once, before grilling starts, and fixes what the Draft must contain.
 _Avoid_: level, kind, ticket type
 
 **Grilling Session**:
-One conversation with Claude that interrogates a requirement until it is understood well enough to write down.
+One conversation with Claude that interrogates a requirement, or an observed defect, until it is understood well enough to write down.
 _Avoid_: chat, run, interview
 
 **Draft**:
@@ -33,7 +33,7 @@ One named part of a Draft (e.g. Scope, Open Questions / Risks, Acceptance Criter
 _Avoid_: part, block, chapter
 
 **Locked Section**:
-A Section the human may edit and move but never discard, because a Draft without it is not a valid work item of its type (for a PBI: User Story, Acceptance Criteria).
+A Section the human may edit and move but never discard, because a Draft without it is not a valid work item of its type (for a PBI: User Story, Acceptance Criteria; for a Bug: Steps to Reproduce, Expected Result, Actual Result; for a Task: Goal, Done When).
 _Avoid_: required section, mandatory section
 
 **Entry**:
@@ -52,12 +52,20 @@ _Avoid_: context, dictionary, terms file
 An optional, human-chosen link from one Draft to another whose current content a Grilling Session may read as context. Carries no hierarchy and no obligation; every Draft stands on its own.
 _Avoid_: parent, child, link, dependency
 
+**Backlog Reference**:
+An optional link the human supplies from a Draft to a work item in Azure DevOps, whose current content a Grilling Session may read as context. It is read fresh at the start of every session and never stored. Like a Reference, it carries no obligation, and no hierarchy unless the human marks it as the Draft's Parent. Nothing is fetched that the human did not link. It may point into any Azure DevOps project of the connected organization, not only the Project's Backlog. It can be added or removed at any time and affects only later sessions.
+_Avoid_: external reference, ADO link, linked item (that is the Linked Work Item)
+
+**Parent**:
+The one Backlog Reference the human marks as the work item this Draft belongs under in Azure DevOps (a Task under a PBI or Bug, a PBI or Bug under a Feature, a Feature under an Epic). Sessions are told about it. Publish places the Linked Work Item under it only if the item has no parent yet. It never replaces or removes a parent, which stays manual in Azure DevOps.
+_Avoid_: parent link, epic link (when meaning the Draft's own setting)
+
 **Discarded**:
 The state of a Section or Entry the human removed from a Draft. Hidden and excluded from publishing, but kept and restorable, and visible to later sessions as a judgement not to repeat.
 _Avoid_: deleted, removed, rejected
 
 **Ready Check**:
-Claude's question, when it believes it understands enough, asking whether the human has anything to add before it writes. Claude never writes a Draft or Proposal without the human confirming — either by answering the Ready Check or by asking to write at any moment.
+Claude's question, when it believes it understands enough, asking whether the human has anything to add before it writes. Claude never writes a Draft or Proposal without the human confirming — either by answering the Ready Check or by asking to write at any moment. The one exception is an Import: starting the Import is the confirmation.
 _Avoid_: confirmation, final check
 
 **Transcript**:
@@ -65,8 +73,40 @@ The tool's own record of one Grilling Session's conversation, kept with the Draf
 _Avoid_: chat log, history, session file
 
 **Publish**:
-Creating (or updating) the Azure DevOps work item from a Draft, through an Azure DevOps MCP server. Planned for v2. Only non-Discarded content is published, in the human's order.
+Creating (or updating) the Azure DevOps work item from a Draft. The tool itself does it; Claude never takes part. Planned for v2. Only non-Discarded content is published, in the human's order.
 _Avoid_: export, push, sync
+
+**Backlog**:
+The Azure DevOps project a Project Publishes into, within the one Azure DevOps organization the tool is connected to. A Project has at most one Backlog, and several Projects may share one. Its process must be Scrum or inherit from Scrum, since the Work Item Types are named after Scrum's.
+_Avoid_: ADO project, board, (Azure DevOps) project — "Project" always means this tool's Project
+
+**Linked Work Item**:
+The one Azure DevOps work item a Draft is tied to, of the same Work Item Type. Set when the Draft is first Published, when it is Imported, or when the human links an item that already exists. Once linked, Publishing always updates that item. Unlinking never touches Azure DevOps. Within a Project, only one active Draft may be linked to a given work item.
+_Avoid_: ADO id, remote item, synced item
+
+**Import**:
+Creating a Draft from an existing Azure DevOps work item. The Draft is born linked to that item. An Import Session moves the item's content into the chosen Template's Sections without rewording or adding anything. Sections the item lacks stay empty with that reason, Locked Sections included. The item's full original content is kept as the Draft's requirement. Changes made in Azure DevOps afterwards arrive only as Drift.
+_Avoid_: sync, pull, clone
+
+**Import Session**:
+The short, single-turn session that writes an Imported Draft's v1. It never grills, asks or adds. It is not a Grilling Session.
+_Avoid_: import grilling, conversion
+
+**Published Snapshot**:
+What Azure DevOps held for a Draft's Linked Work Item at the last Publish or link, together with that item's revision at the time. It is the baseline a Drift Check compares against.
+_Avoid_: last sync, cache, remote copy
+
+**Drift**:
+A field of the Linked Work Item that someone changed in Azure DevOps since the Published Snapshot. Only fields the Template publishes count. Drift blocks the next Publish until the human decides for each field whether to overwrite it or bring the change into the Draft as a Proposal.
+_Avoid_: out of sync, diff, remote changes
+
+**Drift Check**:
+Comparing a Linked Work Item with its Published Snapshot and the current Draft. It runs before every Publish that updates an item, and whenever the human asks.
+_Avoid_: sync, refresh, compare
+
+**Archived**:
+The state of a whole Draft that is no longer worked on. It is read-only: it has no sessions, edits or Publish. It stays visible and can still be the target of a Reference, and the human can restore it. A Draft is Archived by the human, or with the human's confirmation when another Draft takes over its Linked Work Item. It keeps that work item only as history.
+_Avoid_: deleted, closed, inactive (and never "Discarded", which is for Sections and Entries)
 
 ### Changing a Draft after v1
 
@@ -97,8 +137,14 @@ _Avoid_: sub-session, partial session
 ## Relationships
 
 - A **Project** has many **Drafts** and exactly one **Glossary**.
+- A **Project** has at most one **Backlog**; a **Backlog** may serve many **Projects**.
 - A **Draft** may hold any number of **References** to other **Drafts** in the same Project; none is required.
+- A **Task** usually belongs to a **PBI** or a **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
+- A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
 - A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**.
+- A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.
+- A **Draft** has any number of **Backlog References**, at most one of which is its **Parent**. A Parent must already exist in Azure DevOps, so a Task's PBI is Published before the Task can point to it.
+- Each **Publish** replaces the Draft's **Published Snapshot**. Bringing **Drift** into the Draft produces a **Proposal**, never a direct edit.
 - The first **Grilling Session** on a **Draft** writes v1 directly; every later session produces a **Proposal**, and each accepted **Proposal** is one **Iteration**.
 - A **Proposal** is split into **Clean Changes** and **Conflicts**.
 - A **Draft** has many **Grilling Sessions** over its life. Each session starts from the current **Draft**, the **Glossary** and the Draft's **References**. An ended session may be picked up by a **Continuation**, which also has the earlier chat but is told the current Draft wins. Every session's **Transcript** stays read-only.

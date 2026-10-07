@@ -136,7 +136,7 @@ function task(input: SeedInput): string {
   if (input.continuing) return continuationTask(input, note)
   switch (input.kind) {
     case 'first':
-      return `Write the first Draft (v1) of this ${draft.workItemType}. The human described the requirement as:\n\n"""\n${draft.requirement}\n"""${note}\n\nStart grilling with your first question.`
+      return `Write the first Draft (v1) of this ${draft.workItemType}. The human described it as:\n\n"""\n${draft.requirement}\n"""${note}\n\nStart grilling with your first question.`
     case 'focused':
       return `${focusLine(draft, input.focus)} Grill only about this part.${note}\nYour Proposal may also suggest knock-on changes elsewhere (e.g. Acceptance Criteria or Dependencies affected by a Scope change) — as separate changes the human can reject.\nStart with your first question.`
     case 'iteration':
@@ -162,7 +162,7 @@ export function buildSeed(input: SeedInput): Seed {
   const template = input.kind === 'upgrade' && input.upgradeTo ? input.upgradeTo : draft.template
 
   const systemPrompt = `# Your role
-You grill a requirement with a human and write it down as one ${draft.workItemType} Draft for Azure DevOps, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
+You grill a requirement or an observed defect with a human and write it down as one ${draft.workItemType} Draft for Azure DevOps, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
 ${first ? 'This first session writes Draft v1 directly.' : `The Draft already exists (v${draft.version}). You never rewrite it: you submit a Proposal of changes, which the human triages.`}
 
 ${grillingRules(first)}

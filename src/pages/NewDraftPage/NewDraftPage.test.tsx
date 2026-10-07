@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
-import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+import { defaultBugTemplate, defaultPbiTemplate, defaultTaskTemplate } from '#core/testing/fixtures.ts'
 import { endpoints } from '@/api/endpoints/endpoints'
 import NewDraftPage from '@/pages/NewDraftPage/NewDraftPage'
 import { server } from '@test/mocks/server'
@@ -21,7 +21,7 @@ describe('NewDraftPage', () => {
     server.use(
       http.get(`*${endpoints.project('customer-portal')}`, () => HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '' })),
       http.get(`*${endpoints.drafts('customer-portal')}`, () => HttpResponse.json([written])),
-      http.get(`*${endpoints.templates}`, () => HttpResponse.json([defaultPbiTemplate, teamPbi, featureTemplate])),
+      http.get(`*${endpoints.templates}`, () => HttpResponse.json([defaultPbiTemplate, teamPbi, featureTemplate, defaultBugTemplate, defaultTaskTemplate])),
       http.post(`*${endpoints.drafts('customer-portal')}`, async ({ request }) => {
         sent = await request.json()
         return HttpResponse.json({ draft: { id: 'new-draft' }, session: {} })
@@ -40,6 +40,22 @@ describe('NewDraftPage', () => {
 
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
     expect(sent).toEqual({ workItemType: 'PBI', templateId: defaultPbiTemplate.id, requirement: 'Managers archive devices.', references: [] })
+  })
+
+  it('starts a Bug or a Task in its own Default Template, explaining each type', async () => {
+    const { user } = renderPage()
+    await user.click(await screen.findByRole('radio', { name: 'Bug' }))
+    expect(screen.getByText(/defect someone has already observed/)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Default Bug Template/ })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Task' }))
+    expect(screen.getByText(/few hours of work/)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Default Task Template/ })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Bug' }))
+    await user.type(screen.getByRole('textbox', { name: 'Requirement' }), 'Blank page after paying')
+    await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+
+    await screen.findByTestId('navigated')
+    expect(sent).toEqual({ workItemType: 'Bug', templateId: defaultBugTemplate.id, requirement: 'Blank page after paying', references: [] })
   })
 
   it('sends the chosen Template, type and References', async () => {

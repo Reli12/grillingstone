@@ -30,4 +30,13 @@ describe('templateFromSession', () => {
       ],
     })
   })
+
+  it('keeps the Iteration Log field the session chose', () => {
+    const t = templateFromSession(
+      { name: 'Team Bug', method: 'm', iterationLogTarget: 'Microsoft.VSTS.TCM.SystemInfo', sections: [{ key: 'steps', heading: 'Steps', shape: 'entries', locked: true, guidance: '', target: 'Microsoft.VSTS.TCM.ReproSteps' }] },
+      'Bug',
+      '2026-10-03',
+    )
+    expect(t.iterationLogTarget).toBe('Microsoft.VSTS.TCM.SystemInfo')
+  })
 })

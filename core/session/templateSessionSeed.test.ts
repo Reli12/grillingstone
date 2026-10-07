@@ -17,6 +17,15 @@ describe('Template Session seed', () => {
     return s.systemPrompt + '\n' + s.firstMessage
   }
 
+  it("offers only the Azure DevOps fields the type's form shows, and lets Claude place the Iteration Log", () => {
+    const bug = seedText({ workItemType: 'Bug' })
+    expect(bug).toContain('"Microsoft.VSTS.TCM.ReproSteps" | "Microsoft.VSTS.TCM.SystemInfo" | "Microsoft.VSTS.Common.AcceptanceCriteria"')
+    expect(bug).toContain('(Repro Steps, System Info or Acceptance Criteria)')
+    expect(bug).not.toContain('System.Description')
+    expect(bug).toMatch(/"iterationLogTarget": one of those fields/)
+    expect(seedText({ workItemType: 'Task' })).not.toContain('AcceptanceCriteria"')
+  })
+
   it('asks for a method with the required skeleton and good and bad examples', () => {
     const all = seedText()
     for (const part of ['Purpose', 'Guiding principle', 'Sections', 'Working process']) expect(all).toContain(part)

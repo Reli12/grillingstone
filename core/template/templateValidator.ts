@@ -1,18 +1,22 @@
 // Template Validator: the gate every saved Template passes — hand-made, imported, or written by a
 // Template Session. Session output must also follow the method skeleton.
-import { ADO_FIELDS } from '#core/shared/adoFields.ts'
+import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
 import type { Reason, Validation } from '#core/shared/validation.ts'
+import { allowedTargets, isWorkItemType, WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
 import type { TemplateSection } from '#core/template/templateTypes.ts'
 
 /** What defines a Template's meaning; ids, versions and timestamps are the store's business. */
 export interface TemplateContent {
+  /** Absent in a Template Session's submission — the session knows its type and passes it as an option. */
+  workItemType?: WorkItemType
   name: string
   sections: TemplateSection[]
   method: string
   iterationLogHeading?: string
+  /** Absent means the type's default field (Templates made before Bugs existed). */
+  iterationLogTarget?: string
 }
 
-const TARGETS: string[] = [ADO_FIELDS.description, ADO_FIELDS.acceptanceCriteria]
 const KEY = /^[A-Za-z][A-Za-z0-9_]*$/
 
 const isContent = (c: unknown): c is TemplateContent => {
@@ -59,7 +63,7 @@ function skeletonReasons(method: string): Reason[] {
   return []
 }
 
-export function validateTemplate(content: unknown, opts: { requireSkeleton: boolean } = { requireSkeleton: false }): Validation {
+export function validateTemplate(content: unknown, opts: { requireSkeleton?: boolean; workItemType?: WorkItemType } = {}): Validation {
   if (!isContent(content))
     return {
       ok: false,
@@ -73,6 +77,11 @@ export function validateTemplate(content: unknown, opts: { requireSkeleton: bool
     }
 
   const reasons: Reason[] = []
+  const type = opts.workItemType ?? content.workItemType
+  const knownType = isWorkItemType(type)
+  if (!knownType) reasons.push({ code: 'unknown-work-item-type', message: `The Template needs a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.` })
+  const targets: string[] = knownType ? allowedTargets(type) : []
+  const fieldNames = targets.map((t) => ADO_FIELD_LABELS[t]).join(', ')
   if (!content.name.trim()) reasons.push({ code: 'missing-name', message: 'The Template needs a name.' })
   if (!content.sections.length) reasons.push({ code: 'no-sections', message: 'A Template needs at least one Section.' })
 
@@ -92,9 +101,12 @@ export function validateTemplate(content: unknown, opts: { requireSkeleton: bool
     if (s.shape !== 'prose' && s.shape !== 'entries') reasons.push({ code: 'bad-shape', ...at, message: `Section "${s.key}": shape must be "prose" or "entries".` })
     else if (s.entryFormat === 'gherkin' && s.shape !== 'entries')
       reasons.push({ code: 'gherkin-on-prose', ...at, message: `Section "${s.key}": Given / When / Then applies only to entries Sections.` })
-    if (!TARGETS.includes(s.target)) reasons.push({ code: 'unknown-target', ...at, message: `Section "${s.key}": target must be one of ${TARGETS.join(', ')}.` })
+    if (knownType && !targets.includes(s.target)) reasons.push({ code: 'unknown-target', ...at, message: `Section "${s.key}": a ${type} can be Published only into ${fieldNames}.` })
     if (typeof s.locked !== 'boolean') reasons.push({ code: 'bad-locked', ...at, message: `Section "${s.key}": locked must be true or false.` })
   }
+
+  if (knownType && content.iterationLogTarget !== undefined && !targets.includes(content.iterationLogTarget))
+    reasons.push({ code: 'unknown-iteration-log-target', message: `The Iteration Log of a ${type} can be Published only into ${fieldNames}.` })
 
   if (!content.method.trim()) reasons.push({ code: 'missing-method', message: 'The Template needs a writing method.' })
   else if (opts.requireSkeleton) reasons.push(...skeletonReasons(content.method))

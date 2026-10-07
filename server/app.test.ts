@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
+import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
+import type { Template } from '#core/template/templateTypes.ts'
+import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 import { startBackend } from '../test/server/testBackend.ts'
 
@@ -238,6 +241,23 @@ describe('Focused Sessions', () => {
 })
 
 describe('Templates', () => {
+  it('ships one valid, read-only Default Template for every Work Item Type', async () => {
+    const list = (await call('GET', '/api/templates')).body as Template[]
+    for (const type of WORK_ITEM_TYPES) {
+      const defaults = list.filter((t) => t.workItemType === type && t.isDefault)
+      expect(defaults, type).toHaveLength(1)
+      expect(validateTemplate(defaults[0]), type).toEqual({ ok: true })
+    }
+  })
+
+  it('starts a Bug Draft from the Default Bug Template', async () => {
+    const project = await newProject()
+    const bug = ((await call('GET', '/api/templates')).body as Template[]).find((t) => t.workItemType === 'Bug' && t.isDefault)!
+    const created = await call('POST', `/api/projects/${project.id}/drafts`, { workItemType: 'Bug', templateId: bug.id, requirement: 'Checkout shows a blank page after paying.' })
+    expect(created.status).toBe(200)
+    expect((created.body as { draft: Draft }).draft).toMatchObject({ workItemType: 'Bug', template: { id: bug.id } })
+  })
+
   it('keeps Defaults read-only and versions the human’s own', async () => {
     const list = (await call('GET', '/api/templates')).body
     expect(list.map((t: { isDefault: boolean }) => t.isDefault)).toContain(true)

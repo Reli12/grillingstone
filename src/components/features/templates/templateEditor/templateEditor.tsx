@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { ADO_FIELD_LABELS, ADO_FIELDS } from '#core/shared/adoFields.ts'
+import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+import { allowedTargets, defaultIterationLogTarget } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { useCreateTemplate, useDeleteTemplate, useUpdateTemplate } from '@/api/hooks/templates/templateHooks'
 import { Button } from '@/components/atoms/button/button'
@@ -21,6 +22,7 @@ const toForm = (t: Template): TemplateFormData => ({
   name: t.name,
   workItemType: t.workItemType,
   iterationLogHeading: t.iterationLogHeading,
+  iterationLogTarget: t.iterationLogTarget ?? defaultIterationLogTarget(t.workItemType),
   method: t.method,
   sections: t.sections.map((s) => ({
     key: s.key,
@@ -28,7 +30,7 @@ const toForm = (t: Template): TemplateFormData => ({
     shape: s.shape,
     locked: s.locked,
     guidance: s.guidance,
-    target: s.target === ADO_FIELDS.acceptanceCriteria ? ADO_FIELDS.acceptanceCriteria : ADO_FIELDS.description,
+    target: s.target,
     gherkin: s.entryFormat === 'gherkin',
   })),
 })
@@ -37,6 +39,7 @@ const fromForm = (base: Template, f: TemplateFormData): Template => ({
   ...base,
   name: f.name,
   iterationLogHeading: f.iterationLogHeading,
+  iterationLogTarget: f.iterationLogTarget,
   method: f.method,
   sections: f.sections.map(({ gherkin, ...s }) => ({ ...s, ...(gherkin && s.shape === 'entries' ? { entryFormat: 'gherkin' as const } : {}) })),
 })
@@ -66,6 +69,12 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
   const remove = useDeleteTemplate()
 
   const readOnly = template.isDefault
+  const targets = allowedTargets(template.workItemType)
+  const targetOptions = targets.map((t) => (
+    <option key={t} value={t}>
+      → {ADO_FIELD_LABELS[t]}
+    </option>
+  ))
 
   const { register, control, handleSubmit, watch, setValue, formState, reset } = useForm<TemplateFormData>({ resolver: zodResolver(templateSchema), defaultValues: toForm(template) })
   const { fields, append, remove: removeSection, move } = useFieldArray({ control, name: 'sections' })
@@ -125,6 +134,13 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           <TextInput id="log" {...register('iterationLogHeading')} />
           <FieldError message={errors.iterationLogHeading?.message} />
         </div>
+        <div>
+          <FieldLabel htmlFor="logTarget">Iteration Log field</FieldLabel>
+          <select id="logTarget" {...register('iterationLogTarget')} className={cn(inputCls, 'w-full')}>
+            {targetOptions}
+          </select>
+          <FieldError message={errors.iterationLogTarget?.message} />
+        </div>
       </fieldset>
 
       <section className="mt-10">
@@ -153,11 +169,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
                     <FieldError message={errors.sections?.[i]?.heading?.message} />
                   </div>
                   <select {...register(`sections.${i}.target`)} aria-label="Azure DevOps field" className={inputCls}>
-                    {[ADO_FIELDS.description, ADO_FIELDS.acceptanceCriteria].map((t) => (
-                      <option key={t} value={t}>
-                        → {ADO_FIELD_LABELS[t]}
-                      </option>
-                    ))}
+                    {targetOptions}
                   </select>
                   <span className="flex items-center gap-0.5">
                     <Button size="sm" variant="quiet" aria-label="Move up" disabled={readOnly || i === 0} onClick={() => move(i, i - 1)}>
@@ -203,7 +215,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
             size="sm"
             variant="quiet"
             className="mt-2"
-            onClick={() => append({ key: `section${fields.length + 1}`, heading: '', shape: 'prose', locked: false, guidance: '', target: ADO_FIELDS.description, gherkin: false })}
+            onClick={() => append({ key: `section${fields.length + 1}`, heading: '', shape: 'prose', locked: false, guidance: '', target: targets[0], gherkin: false })}
           >
             <Plus size={14} /> Add Section
           </Button>

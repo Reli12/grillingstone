@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
 import { render } from '#core/publish/publishRenderer.ts'
-import { ADO_FIELDS } from '#core/shared/adoFields.ts'
+import type { Draft } from '#core/draft/draftTypes.ts'
+import { ADO_FIELDS, type SectionTarget } from '#core/shared/adoFields.ts'
 import { sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 describe('Publish Renderer', () => {
@@ -55,5 +56,36 @@ describe('Publish Renderer', () => {
   it('appends the Iteration Log to the Description under the Template heading', () => {
     const d = render(v1Draft()).fields[ADO_FIELDS.description]
     expect(d.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
+  })
+
+  describe('a Bug', () => {
+    /** The fixture Draft, published the way a Bug is: everything but Acceptance Criteria into Repro Steps. */
+    const bugDraft = (iterationLogTarget?: SectionTarget): Draft => {
+      const d = v1Draft()
+      const toReproSteps = <T extends { target: SectionTarget }>(s: T) => (s.target === ADO_FIELDS.description ? { ...s, target: ADO_FIELDS.reproSteps } : s)
+      return {
+        ...d,
+        workItemType: 'Bug',
+        sections: d.sections.map(toReproSteps),
+        template: { ...d.template, workItemType: 'Bug', sections: d.template.sections.map(toReproSteps), ...(iterationLogTarget ? { iterationLogTarget } : {}) },
+      }
+    }
+
+    it('fills Repro Steps with headed Sections and offers no Description', () => {
+      const out = render(bugDraft(ADO_FIELDS.reproSteps))
+      expect(out.fields[ADO_FIELDS.reproSteps]).toContain('<h2>User Story</h2>')
+      expect(out.fields).not.toHaveProperty(ADO_FIELDS.description)
+    })
+
+    it('appends the Iteration Log to the field the Template names', () => {
+      const r = render(bugDraft(ADO_FIELDS.reproSteps)).fields[ADO_FIELDS.reproSteps]
+      expect(r.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
+    })
+
+    it('appends the Iteration Log to Repro Steps when its Template names no field', () => {
+      const out = render(bugDraft())
+      expect(out.fields[ADO_FIELDS.reproSteps]).toContain('PBI Iteration Log')
+      expect(out.fields).not.toHaveProperty(ADO_FIELDS.description)
+    })
   })
 })

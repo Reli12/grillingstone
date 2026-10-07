@@ -1,0 +1,86 @@
+{
+  "id": "default-bug",
+  "workItemType": "Bug",
+  "name": "Default Bug Template",
+  "version": 1,
+  "isDefault": true,
+  "iterationLogHeading": "Bug Iteration Log",
+  "iterationLogTarget": "Microsoft.VSTS.TCM.ReproSteps",
+  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "sections": [
+    {
+      "key": "stepsToReproduce",
+      "heading": "Steps to Reproduce",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "One Entry per step, exactly as the human did it. Say so, with the reason, when not reproduced on demand.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "expectedResult",
+      "heading": "Expected Result",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "What should have happened — from the human, or cited from a Referenced Draft.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "actualResult",
+      "heading": "Actual Result",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "What did happen, in the human's words, with exact error text.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "environment",
+      "heading": "Environment",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Build, browser/device, user role, data state.",
+      "target": "Microsoft.VSTS.TCM.SystemInfo"
+    },
+    {
+      "key": "reproducibility",
+      "heading": "Reproducibility",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Always, or intermittent with a frequency.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "impact",
+      "heading": "Impact",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Who is affected, workaround, and a proposed severity with its reason.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "evidence",
+      "heading": "Evidence",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Logs, request IDs, screenshot links — as text or links.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "openQuestions",
+      "heading": "Open Questions",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per unknown fact; never a guess.",
+      "target": "Microsoft.VSTS.TCM.ReproSteps"
+    },
+    {
+      "key": "acceptanceCriteria",
+      "heading": "Acceptance Criteria",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Given / When / Then for the fix, or empty with a reason.",
+      "target": "Microsoft.VSTS.Common.AcceptanceCriteria",
+      "entryFormat": "gherkin"
+    }
+  ],
+  "method": "# Bug Guide\n\n## Purpose\nA Bug reports a defect someone has already observed, so that a developer can reproduce it without asking QA again. QA writes it; developers reproduce and fix it; the PO weighs its impact.\n\n## Guiding principle\n- Observed facts — steps, actual result, environment, evidence — come only from the human. Never infer, complete or tidy up a step the human did not state.\n- Label anything the human recalls but has not confirmed (\"recalled, not re-checked\"). Every unknown becomes an Open Questions Entry, never a guess.\n- An expectation may come from a Referenced Draft, but only cited by name and Entry (e.g. \"per PBI *Checkout confirmation*, AC03\") and confirmed with the human before you write it.\n- You may ask the human to go and check something (\"try it in a private window and tell me what happens\") and wait for the answer.\n- A bug that cannot be reproduced on demand can still be written: its Locked Sections are present and say so, with the reason.\n- If pasted content looks like a secret or personal data (tokens, passwords, emails, card numbers, customer names), point it out and suggest masking it (e.g. `Bearer ***`). The human decides; do not refuse to write.\n- Never ask for Priority — that is the PO's call.\n\n## Sections\n### Steps to Reproduce\nOne Entry per step, in order, titled \"N. Action\"; body only if the step needs data or a precondition.\nGood example: \"3. Pay with the test card 4111 1111 1111 1111\" — exactly what the human said they did.\nBad example: \"3. Complete the checkout\" — vague, and if the human never said it, invented.\nWhen not reproduced on demand, a single Entry says so: \"Not reproduced on demand — last seen twice on 2026-10-02 on staging; steps below are recalled.\"\n\n### Expected Result\nWhat should have happened. From the human, or cited from a Referenced Draft and confirmed.\nGood example: \"The confirmation page shows the order number (per PBI *Checkout confirmation*, AC03).\"\nBad example: \"It should work properly.\" — not checkable.\n\n### Actual Result\nWhat did happen, in the human's words, including exact error text.\nGood example: \"Blank white page; the browser console shows `TypeError: order is undefined`.\"\n\n### Environment\nOne Entry per fact: build or version, browser/device, user role, data state (e.g. \"account with an expired card\").\n\n### Reproducibility\nAlways, or intermittent with a frequency (\"2 of 10 attempts\").\n\n### Impact\nWho is affected, how badly, and whether there is a workaround. End with \"Proposed severity: N – Name, because …\".\nGood example: \"All EU customers paying by card; no workaround. Proposed severity: 2 – High, because checkout is blocked but other payment methods work.\"\n\n### Evidence\nOne Entry per item: log excerpt, request ID, screenshot link. Text or links only.\n\n### Open Questions\nOne Entry per unknown: title \"N. Question\"; body \"Why it matters:\", \"Who can answer:\".\n\n### Acceptance Criteria\nGiven / When / Then for the fixed behaviour. Leave empty with a reason when the fix is the developer's or PO's call.\n\n## Working process\n1. Ask for the steps first, one question at a time, then what the human expected, then what actually happened — as separate questions.\n2. Ask for environment, reproducibility, impact and evidence.\n3. If a Draft is Referenced, read it and offer cited expectations for the human to confirm.\n4. Send the human to check anything that is uncertain and could be checked now; record what cannot be checked as Open Questions.\n5. Run the Ready Check, then write only what was stated, pasted or cited.\n"
+}

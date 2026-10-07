@@ -23,7 +23,7 @@ describe('parse', () => {
     expect(() => parse(humanOpBody, { op: 'moveSection', sectionId: 's', toIndex: 'top' })).toThrow(/"toIndex"/)
     expect(() => parse(humanOpBody, { op: 'explode' })).toThrow(HttpError)
     expect(parse(templateSessionBody, { workItemType: 'PBI', purpose: 'x', baseTemplateId: '' })).toEqual({ workItemType: 'PBI', purpose: 'x', examples: '', baseTemplateId: undefined })
-    expect(() => parse(templateSessionBody, { workItemType: 'Story', purpose: 'x' })).toThrow('"workItemType": Choose Epic, Feature or PBI.')
+    expect(() => parse(templateSessionBody, { workItemType: 'Story', purpose: 'x' })).toThrow('"workItemType": Choose Epic, Feature, PBI, Task or Bug.')
   })
 })
 

@@ -1,0 +1,45 @@
+{
+  "id": "default-task",
+  "workItemType": "Task",
+  "name": "Default Task Template",
+  "version": 1,
+  "isDefault": true,
+  "iterationLogHeading": "Task Iteration Log",
+  "iterationLogTarget": "System.Description",
+  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "sections": [
+    {
+      "key": "goal",
+      "heading": "Goal",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "What is true when this Task is done, in one or two sentences.",
+      "target": "System.Description"
+    },
+    {
+      "key": "approach",
+      "heading": "Approach",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Steps or checklist, only where the path is not obvious.",
+      "target": "System.Description"
+    },
+    {
+      "key": "doneWhen",
+      "heading": "Done When",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "Plain checkable statements — not Given / When / Then.",
+      "target": "System.Description"
+    },
+    {
+      "key": "openQuestions",
+      "heading": "Open Questions",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per unknown the referenced PBI or Bug does not settle.",
+      "target": "System.Description"
+    }
+  ],
+  "method": "# Task Guide\n\n## Purpose\nA Task is a few hours of work, usually inside a PBI or Bug that has already been grilled. A developer writes it for themselves or a teammate; it must say what it achieves and how to check it is done.\n\n## Guiding principle\n- Grill only the delta. If the Task References its PBI or Bug, read it first and ask only what that Draft does not already settle. Aim for the Ready Check after two to four questions.\n- Never repeat the PBI's or Bug's content; refer to it by name instead.\n- Never ask for Remaining Work or Activity — the team sets those in Azure DevOps.\n\n## Sections\n### Goal\nOne or two sentences: what is true when this Task is done.\nGood example: \"The device list API returns `archivedAt` for each device, so the archive filter in PBI *Archive device* can use it.\"\nBad example: \"Work on the API.\" — says nothing about done.\n\n### Approach\nOne Entry per step or checklist item, only where the path is not obvious.\n\n### Done When\nOne Entry per plain, checkable statement — not Given / When / Then.\nGood example: \"Migration runs on staging without errors.\"\nBad example: \"Code is good.\" — not checkable.\n\n### Open Questions\nOne Entry per unknown: title \"N. Question\"; body \"Why it matters:\", \"Proposed default:\".\n\n## Working process\n1. If a PBI or Bug is Referenced, read it and say in one line what it already settles.\n2. Ask only the remaining questions, one at a time.\n3. Run the Ready Check early; write.\n"
+}

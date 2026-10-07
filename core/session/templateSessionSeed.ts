@@ -2,8 +2,8 @@
 // and sees no Glossary — a Template is reused across Projects and shared with colleagues — so its only
 // material is the purpose, the pasted examples and an optional base Template (read-only).
 import { cardProtocol, type Seed, submitUsage } from '#core/session/cardProtocol.ts'
-import { ADO_FIELDS } from '#core/shared/adoFields.ts'
-import type { WorkItemType } from '#core/shared/workItemType.ts'
+import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+import { allowedTargets, defaultIterationLogTarget, type WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { SKELETON_PARTS } from '#core/template/templateValidator.ts'
 
@@ -26,10 +26,14 @@ const templateJson = (t: Pick<Template, 'name' | 'sections'>) =>
 
 export function buildTemplateSeed(input: TemplateSeedInput): Seed {
   const { workItemType } = input
-  const example = '{"name": "Spike PBI", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "System.Description"}], "method": "# Spike PBI Guide\\n\\n## Purpose\\n…"}'
+  const targets = allowedTargets(workItemType)
+  const targetNames = targets.map((t) => ADO_FIELD_LABELS[t])
+  const fieldChoice = targetNames.length > 1 ? `${targetNames.slice(0, -1).join(', ')} or ${targetNames.at(-1)}` : targetNames[0]
+  const targetValues = targets.map((t) => `"${t}"`).join(' | ')
+  const example = `{"name": "Spike ${workItemType}", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "${targets[0]}"}], "method": "# Spike ${workItemType} Guide\\n\\n## Purpose\\n…"}`
 
   const systemPrompt = `# Your role
-You run a Template Session: you interrogate how the human's team writes a ${workItemType}, until you can write it down as a new Template for Whetstone. A Template is an ordered list of Sections plus a writing method that Claude follows when it later grills requirements into ${workItemType} Drafts for Azure DevOps.
+You run a Template Session: you interrogate how the human's team writes a ${workItemType}, until you can write it down as a new Template for Whetstone. A Template is an ordered list of Sections plus a writing method that Claude follows when it later grills requirements or observed defects into ${workItemType} Drafts for Azure DevOps.
 This session belongs to no Project: there is no Glossary, and you must keep the Template free of any one product's terms, because it is reused across Projects and shared with colleagues. You cannot read or write files; everything you need is in this conversation. You may search and fetch the web (e.g. to check an Azure DevOps field or a writing convention).
 You always create a new Template. A base Template, if given, is starting material only — it is never changed.
 
@@ -38,7 +42,7 @@ You always create a new Template. A base Template, if given, is starting materia
 - Walk the decision tree in this order, resolving each before the next:
   1. purpose and audience — what this ${workItemType} is for and who reads it (BA, developer, tester, product owner);
   2. the Section list — which Sections, in which order;
-  3. per Section: its shape (prose, or Entries such as one Acceptance Criterion each), whether it is Locked (can never be empty or discarded), its target field in Azure DevOps (Description or Acceptance Criteria), and whether its Entries must be Given / When / Then;
+  3. per Section: its shape (prose, or Entries such as one Acceptance Criterion each), whether it is Locked (can never be empty or discarded), its target field in Azure DevOps (${fieldChoice}), and whether its Entries must be Given / When / Then;
   4. per Section: the rules and examples — what good content looks like and the common mistake to avoid;
   5. the guiding principle — the rules that hold across all Sections.
 - Stress-test with concrete scenarios from the examples ("In your second example the ACs mix setup and outcome — should the Template forbid that?").
@@ -64,7 +68,8 @@ ${submitUsage(input.submitCommand, '{ …the Template JSON… }')}
 JSON shape:
 ${example}
 
-- "sections": [{ "key": camelCase letters/digits, unique; "heading"; "shape": "prose" | "entries"; "locked": true | false; "guidance": one line; "target": "${ADO_FIELDS.description}" | "${ADO_FIELDS.acceptanceCriteria}"; "entryFormat": "gherkin" (entries Sections only, optional) }]
+- "sections": [{ "key": camelCase letters/digits, unique; "heading"; "shape": "prose" | "entries"; "locked": true | false; "guidance": one line; "target": ${targetValues}; "entryFormat": "gherkin" (entries Sections only, optional) }]
+- "iterationLogTarget": one of those fields — where the Iteration Log is appended (optional; defaults to ${ADO_FIELD_LABELS[defaultIterationLogTarget(workItemType)]})
 - The Work Item Type is fixed to ${workItemType}; do not include it.
 
 The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`

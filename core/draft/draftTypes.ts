@@ -1,7 +1,7 @@
 // The Draft: one work item being written, its Sections and Entries, and the Iteration Log.
 // The human-edit markers (humanEdited / humanMoved / discarded) decide what becomes a Conflict (ADR-0005).
 import type { Proposal } from '#core/proposal/proposalTypes.ts'
-import type { AdoField } from '#core/shared/adoFields.ts'
+import type { SectionTarget } from '#core/shared/adoFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template, SectionShape } from '#core/template/templateTypes.ts'
 
@@ -20,7 +20,7 @@ export interface Section {
   heading: string
   shape: SectionShape
   locked: boolean
-  target: AdoField
+  target: SectionTarget
   guidance: string
   entryFormat?: 'gherkin'
   /** Prose body; for an empty entries Section, the "N/A — reason" line. */

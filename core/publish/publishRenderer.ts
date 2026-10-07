@@ -4,6 +4,7 @@
 import type { Draft, Entry, IterationLogLine, Section } from '#core/draft/draftTypes.ts'
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { escapeHtml, inlineHtml, markdownToHtml } from '#core/shared/markdownHtml.ts'
+import { defaultIterationLogTarget } from '#core/shared/workItemType.ts'
 
 export interface Rendered {
   /** Plain text — System.Title is not a rich-text field. */
@@ -50,8 +51,8 @@ export function render(draft: Draft): Rendered {
 
   if (draft.iterationLog.length) {
     const log = `<h2>${escapeHtml(draft.template.iterationLogHeading)}</h2>\n<p>${draft.iterationLog.map((l) => escapeHtml(iterationLogLine(l))).join('<br>')}</p>`
-    const d = fields[ADO_FIELDS.description]
-    fields[ADO_FIELDS.description] = d ? `${d}\n${log}` : log
+    const target = draft.template.iterationLogTarget ?? defaultIterationLogTarget(draft.workItemType)
+    fields[target] = fields[target] ? `${fields[target]}\n${log}` : log
   }
   return { title: draft.title, fields }
 }

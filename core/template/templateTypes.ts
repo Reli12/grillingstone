@@ -1,4 +1,4 @@
-import type { AdoField } from '#core/shared/adoFields.ts'
+import type { SectionTarget } from '#core/shared/adoFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 
 export type SectionShape = 'prose' | 'entries'
@@ -10,7 +10,7 @@ export interface TemplateSection {
   locked: boolean
   /** One-line guidance for Claude and the human. */
   guidance: string
-  target: AdoField
+  target: SectionTarget
   /** 'gherkin' requires each Entry body to read Given … Then … */
   entryFormat?: 'gherkin'
 }
@@ -26,6 +26,8 @@ export interface Template {
   method: string
   /** Heading the Iteration Log is Published under, appended to the Description. */
   iterationLogHeading: string
+  /** Field the Iteration Log is appended to; absent means the type's default (`defaultIterationLogTarget`). */
+  iterationLogTarget?: SectionTarget
   updatedAt: string
   /** Set when a Template Session made it; local only — bundles leave it out. */
   origin?: { sessionId: string; at: string }

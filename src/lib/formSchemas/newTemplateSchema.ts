@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
 export const newTemplateSchema = z.object({
-  workItemType: z.enum(WORK_ITEM_TYPES as ['Epic', 'Feature', 'PBI']),
+  workItemType: z.enum(WORK_ITEM_TYPES),
   /** '' = start from nothing. */
   baseId: z.string(),
   purpose: z.string().trim(),

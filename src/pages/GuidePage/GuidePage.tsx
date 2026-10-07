@@ -67,7 +67,7 @@ export default function GuidePage() {
           <header className="mb-12">
             <h1 className="font-serif text-[36px] leading-tight font-semibold tracking-tight">How it works</h1>
             <p className="mt-3 text-[17px] leading-relaxed text-ink-soft">
-              You describe a requirement; Claude interrogates it one question at a time until it is clear, then writes it as an Epic, Feature or PBI in your Template. You edit the result
+              You describe a requirement or a bug you saw; Claude interrogates it one question at a time until it is clear, then writes it as an Epic, Feature, PBI, Task or Bug in your Template. You edit the result
               like a document, ask Claude to rework any part, and copy it into Azure DevOps. Claude writes the copy — you stay the editor.
             </p>
             <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
@@ -97,7 +97,7 @@ export default function GuidePage() {
 
             <NumberedStep n={2} id="start" title={STEPS[1].title}>
               <p>
-                Press <strong>New Draft</strong>, pick the <strong>Work Item Type</strong> (Epic, Feature or PBI) and a <strong>Template</strong> — the Default one is preselected —
+                Press <strong>New Draft</strong>, pick the <strong>Work Item Type</strong> (Epic, Feature, PBI, Task or Bug) and a <strong>Template</strong> — the Default one is preselected —
                 then describe the requirement in your own words. A sentence is enough; paste the BA’s Feature text or business rules if you have them.
               </p>
               <p>

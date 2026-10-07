@@ -43,6 +43,8 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
+      // lcov feeds SonarQube (see sonar-project.properties).
+      reporter: ['text', 'html', 'clover', 'json', 'lcov'],
       include: ['src/**/*.{ts,tsx}', 'core/**/*.ts', 'server/**/*.ts'],
       // Entry points only wire things together; fixtures are test data.
       exclude: ['src/components/ui/**', 'src/main.tsx', 'server/main.ts', 'core/testing/**', '**/*.test.{ts,tsx}'],

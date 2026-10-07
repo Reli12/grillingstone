@@ -1,0 +1,33 @@
+# Local SonarQube for code-quality checks. Nothing here is part of the app.
+#   npm run sonar:up    start the server on http://localhost:9000
+#   npm run sonar       run tests with coverage, then analyse (needs SONAR_TOKEN)
+#   npm run sonar:down  stop the server (analysis history is kept in the volumes)
+name: whetstone-sonar
+
+services:
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - '127.0.0.1:9000:9000'
+    environment:
+      # Local-only: skip the Elasticsearch bootstrap checks that need host kernel tuning.
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+
+  scanner:
+    image: sonarsource/sonar-scanner-cli
+    profiles: [scan]
+    depends_on: [sonarqube]
+    environment:
+      SONAR_HOST_URL: http://sonarqube:9000
+      SONAR_TOKEN: ${SONAR_TOKEN:-}  # a token from http://localhost:9000/account/security
+    volumes:
+      - .:/usr/src
+
+volumes:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:

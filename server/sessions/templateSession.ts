@@ -35,7 +35,7 @@ export async function prepareTemplateSession(request: TemplateRequest, deps: Tem
   }
 
   const submit = async (payload: unknown) => {
-    const result = validateTemplate(payload, { requireSkeleton: true })
+    const result = validateTemplate(payload, { requireSkeleton: true, workItemType: request.workItemType })
     if (!result.ok) return { ok: false as const, reasons: result.reasons }
     const { workItemType } = request
     const template = await deps.templates.create(templateFromSession(payload as TemplateContent, workItemType, now()), { sessionId: transcript.id, at: now() })
