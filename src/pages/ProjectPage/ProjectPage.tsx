@@ -6,41 +6,11 @@ import { Plus } from 'lucide-react'
 import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'
 import { Button } from '@/components/atoms/button/button'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
-import { EmptyState } from '@/components/composite/emptyState/emptyState'
 import { DraftList } from '@/components/features/drafts/draftList/draftList'
-import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
+import { NoDraftsYet } from '@/components/features/drafts/noDraftsYet/noDraftsYet'
+import { GlossaryAside } from '@/components/features/glossary/glossaryAside/glossaryAside'
 import { ProjectTitle } from '@/components/features/projects/projectTitle/projectTitle'
 import { routesPaths } from '@/routes/routes'
-
-function NoDraftsYet({ projectId }: Readonly<{ projectId: string }>) {
-  return (
-    <EmptyState
-      title="No Drafts in this Project yet"
-      action={
-        <Link to={routesPaths.newDraft(projectId)}>
-          <Button variant="claude" tabIndex={-1}>
-            Grill your first requirement
-          </Button>
-        </Link>
-      }
-    >
-      Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be written
-      down.
-    </EmptyState>
-  )
-}
-
-function GlossaryAside({ projectId, projectName }: Readonly<{ projectId: string; projectName: string }>) {
-  return (
-    <aside>
-      <h2 className="font-serif text-lg font-semibold">Glossary</h2>
-      <p className="mb-4 text-[13px] text-ink-faint">
-        Shared by every Draft in {projectName}. Every session is challenged against it.
-      </p>
-      <GlossaryPanel projectId={projectId} />
-    </aside>
-  )
-}
 
 export default function ProjectPage() {
   const { projectId = '' } = useParams()
