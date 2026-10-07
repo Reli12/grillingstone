@@ -1,12 +1,15 @@
 import { forwardRef, type KeyboardEvent } from 'react'
+import { useForm } from 'react-hook-form'
+
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Square } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+
 import type { SessionBase } from '#core/session/sessionTypes.ts'
+
 import { Button } from '@/components/atoms/button/button'
 import { writeTarget } from '@/constants/SessionConstants'
 import { cn } from '@/lib/cn'
-import { messageSchema, type MessageFormData } from '@/lib/formSchemas/messageSchema'
+import { type MessageFormData, messageSchema } from '@/lib/formSchemas/messageSchema'
 
 interface Props {
   session: SessionBase
@@ -17,8 +20,15 @@ interface Props {
 }
 
 /** The message box for a running session, with "Enough — write it" always at hand. */
-export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer({ session, sending, onSend, onWriteNow, onStop }, ref) {
-  const { register, handleSubmit, reset, formState } = useForm<MessageFormData>({ resolver: zodResolver(messageSchema), mode: 'onChange', defaultValues: { text: '' } })
+export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
+  { session, sending, onSend, onWriteNow, onStop },
+  ref,
+) {
+  const { register, handleSubmit, reset, formState } = useForm<MessageFormData>({
+    resolver: zodResolver(messageSchema),
+    mode: 'onChange',
+    defaultValues: { text: '' },
+  })
 
   const yourTurn = session.status === 'waiting'
   const { ref: fieldRef, ...field } = register('text')
@@ -31,14 +41,19 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      send()
+      void send()
     }
   }
 
   return (
     <div className="shrink-0 border-t border-line bg-sheet">
       <div className="mx-auto max-w-[720px] px-4 py-3">
-        <div className={cn('rounded-lg border bg-sheet transition-colors', yourTurn ? 'border-line focus-within:border-claude' : 'border-line-soft')}>
+        <div
+          className={cn(
+            'rounded-lg border bg-sheet transition-colors',
+            yourTurn ? 'border-line focus-within:border-claude' : 'border-line-soft',
+          )}
+        >
           <textarea
             {...field}
             ref={(el) => {

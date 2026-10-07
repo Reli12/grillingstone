@@ -42,7 +42,11 @@ function conflictReason(draft: Draft, p: ProposedChange, { section, entry }: Tar
   }
 }
 
-function describe(draft: Draft, p: ProposedChange, { section, entry }: Target): Pick<Change, 'label' | 'before' | 'after'> {
+function describe(
+  draft: Draft,
+  p: ProposedChange,
+  { section, entry }: Target,
+): Pick<Change, 'label' | 'before' | 'after'> {
   const heading = section?.heading ?? draft.template.sections.find((d) => d.key === p.sectionKey)?.heading ?? 'Draft'
   const label = (verb: string) => p.label?.trim() || `${heading} · ${verb}`
   switch (p.kind) {
@@ -60,7 +64,8 @@ function describe(draft: Draft, p: ProposedChange, { section, entry }: Target): 
       return { label: label('add Entry'), after: entryText({ title: p.title ?? '', body: p.body ?? '' }) }
     case 'restore': {
       const current = entry ? entryText(entry) : section?.body
-      const after = p.body || p.title ? entryText({ title: p.title ?? entry?.title ?? '', body: p.body ?? '' }) : (current ?? '')
+      const after =
+        p.body || p.title ? entryText({ title: p.title ?? entry?.title ?? '', body: p.body ?? '' }) : (current ?? '')
       return { label: label(`bring back${entry ? ` "${entry.title}"` : ''}`), before: '(Discarded by you)', after }
     }
     case 'addSection': {
@@ -68,6 +73,15 @@ function describe(draft: Draft, p: ProposedChange, { section, entry }: Target): 
       return { label: label('add Section'), after }
     }
   }
+}
+
+const stripDerived = (p: ProposedChange): ProposedChange => {
+  const { kind, sectionId, entryId, afterEntryId, sectionKey, title, body, entries, label } = p
+  return Object.fromEntries(
+    Object.entries({ kind, label, sectionId, entryId, afterEntryId, sectionKey, title, body, entries }).filter(
+      ([, v]) => v !== undefined,
+    ),
+  ) as unknown as ProposedChange
 }
 
 function classifyOne(draft: Draft, p: ProposedChange, id: string, status: Change['status']): Change {
@@ -80,13 +94,6 @@ function classifyOne(draft: Draft, p: ProposedChange, id: string, status: Change
   return change
 }
 
-const stripDerived = (p: ProposedChange): ProposedChange => {
-  const { kind, sectionId, entryId, afterEntryId, sectionKey, title, body, entries, label } = p
-  return Object.fromEntries(
-    Object.entries({ kind, label, sectionId, entryId, afterEntryId, sectionKey, title, body, entries }).filter(([, v]) => v !== undefined),
-  ) as unknown as ProposedChange
-}
-
 export function classify(draft: Draft, proposed: ProposedChange[]): Change[] {
   return proposed.map((p) => classifyOne(draft, p, newId('c'), 'pending'))
 }
@@ -94,7 +101,9 @@ export function classify(draft: Draft, proposed: ProposedChange[]): Change[] {
 /** Re-derives Conflicts for pending changes after the human edited the Draft mid-triage. */
 export function reclassify(draft: Draft): Draft {
   if (!draft.proposal) return draft
-  const changes = draft.proposal.changes.map((c) => (c.status === 'pending' ? classifyOne(draft, c, c.id, c.status) : c))
+  const changes = draft.proposal.changes.map((c) =>
+    c.status === 'pending' ? classifyOne(draft, c, c.id, c.status) : c,
+  )
   return { ...draft, proposal: { ...draft.proposal, changes } }
 }
 

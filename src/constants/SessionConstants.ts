@@ -9,4 +9,5 @@ export const SESSION_TITLES = {
 } as const
 
 /** What the Ready Check offers to write. */
-export const writeTarget = (kind: SessionBase['kind']) => (kind === 'first' ? 'the Draft' : kind === 'template' ? 'the Template' : 'the Proposal')
+export const writeTarget = (kind: SessionBase['kind']) =>
+  kind === 'first' ? 'the Draft' : kind === 'template' ? 'the Template' : 'the Proposal'

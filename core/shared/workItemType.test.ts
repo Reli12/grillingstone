@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { allowedTargets, defaultIterationLogTarget, WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
@@ -8,7 +9,8 @@ describe('Work Item Types', () => {
   })
 
   it('let Epics, Features and PBIs publish into Description and Acceptance Criteria', () => {
-    for (const t of ['Epic', 'Feature', 'PBI'] as const) expect(allowedTargets(t)).toEqual([ADO_FIELDS.description, ADO_FIELDS.acceptanceCriteria])
+    for (const t of ['Epic', 'Feature', 'PBI'] as const)
+      expect(allowedTargets(t)).toEqual([ADO_FIELDS.description, ADO_FIELDS.acceptanceCriteria])
   })
 
   it('let a Bug publish into Repro Steps, System Info and Acceptance Criteria — never the hidden Description', () => {
@@ -21,6 +23,7 @@ describe('Work Item Types', () => {
 
   it('put the Iteration Log where the work item form shows it', () => {
     expect(defaultIterationLogTarget('Bug')).toBe(ADO_FIELDS.reproSteps)
-    for (const t of ['Epic', 'Feature', 'PBI', 'Task'] as const) expect(defaultIterationLogTarget(t)).toBe(ADO_FIELDS.description)
+    for (const t of ['Epic', 'Feature', 'PBI', 'Task'] as const)
+      expect(defaultIterationLogTarget(t)).toBe(ADO_FIELDS.description)
   })
 })

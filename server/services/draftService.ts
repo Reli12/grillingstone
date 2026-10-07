@@ -6,6 +6,7 @@ import type { HumanOp } from '#core/draft/humanOps.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acceptAllClean, decide } from '#core/proposal/triage.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
+
 import type { Hub } from '../hub.ts'
 import * as drafts from '../storage/drafts.ts'
 import { getTemplate } from '../storage/templates.ts'
@@ -29,11 +30,14 @@ export class DraftService {
 
   async create(projectId: string, input: NewDraftInput): Promise<Draft> {
     const template = await getTemplate(input.templateId)
-    if (template.workItemType !== input.workItemType) throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
+    if (template.workItemType !== input.workItemType)
+      throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
     const requirement = input.requirement.trim()
     if (!requirement) throw new DraftInputError('Describe the requirement so Claude has something to grill.')
     const references = await this.existingReferences(projectId, input.references)
-    const draft = await drafts.createDraft(newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }))
+    const draft = await drafts.createDraft(
+      newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }),
+    )
     this.hub.broadcast({ type: 'drafts', projectId })
     return draft
   }
@@ -43,7 +47,8 @@ export class DraftService {
     return this.update(projectId, draftId, (d) => ({ ...d, references: refs }))
   }
 
-  edit = (projectId: string, draftId: string, op: HumanOp) => this.update(projectId, draftId, (d) => applyHumanEdit(d, op))
+  edit = (projectId: string, draftId: string, op: HumanOp) =>
+    this.update(projectId, draftId, (d) => applyHumanEdit(d, op))
 
   async decide(projectId: string, draftId: string, changeId: string, accept: boolean) {
     const meta = await iterationMeta()

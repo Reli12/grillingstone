@@ -1,5 +1,6 @@
 import type { Bundle, ImportItem } from '#core/template/templateBundle.ts'
 import type { Template } from '#core/template/templateTypes.ts'
+
 import { api } from '@/api/apiMethods'
 import { endpoints } from '@/api/endpoints/endpoints'
 
@@ -12,5 +13,6 @@ export const templatesApi = {
   deleteTemplate: (id: string) => api.delete<{ ok: true }>(endpoints.template(id)),
   exportBundle: (ids: string[]) => api.post<Bundle>(endpoints.templatesExport, { ids }),
   previewImport: (bundle: unknown) => api.post<ImportPreview>(endpoints.templatesImportPreview, { bundle }),
-  importBundle: (bundle: unknown, selected: number[]) => api.post<Template[]>(endpoints.templatesImport, { bundle, selected }),
+  importBundle: (bundle: unknown, selected: number[]) =>
+    api.post<Template[]>(endpoints.templatesImport, { bundle, selected }),
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+
+import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
 import { render } from '#core/publish/publishRenderer.ts'
-import type { Draft } from '#core/draft/draftTypes.ts'
 import { ADO_FIELDS, type SectionTarget } from '#core/shared/adoFields.ts'
 import { sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
@@ -39,10 +40,16 @@ describe('Publish Renderer', () => {
 
   it('escapes the text people and Claude wrote', () => {
     let draft = v1Draft()
-    draft = applyHumanOp(draft, { op: 'editSection', sectionId: sectionByKey(draft, 'technicalNotes').id, body: 'Use <script>alert(1)</script> & "quotes"' })
+    draft = applyHumanOp(draft, {
+      op: 'editSection',
+      sectionId: sectionByKey(draft, 'technicalNotes').id,
+      body: 'Use <script>alert(1)</script> & "quotes"',
+    })
     draft = applyHumanOp(draft, { op: 'retitle', title: 'Archive <b>' })
     const out = render(draft)
-    expect(out.fields[ADO_FIELDS.description]).toContain('Use &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quotes&quot;')
+    expect(out.fields[ADO_FIELDS.description]).toContain(
+      'Use &lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quotes&quot;',
+    )
     expect(out.fields[ADO_FIELDS.description]).not.toContain('<script>')
     expect(out.title).toBe('Archive <b>')
   })
@@ -62,12 +69,18 @@ describe('Publish Renderer', () => {
     /** The fixture Draft, published the way a Bug is: everything but Acceptance Criteria into Repro Steps. */
     const bugDraft = (iterationLogTarget?: SectionTarget): Draft => {
       const d = v1Draft()
-      const toReproSteps = <T extends { target: SectionTarget }>(s: T) => (s.target === ADO_FIELDS.description ? { ...s, target: ADO_FIELDS.reproSteps } : s)
+      const toReproSteps = <T extends { target: SectionTarget }>(s: T) =>
+        s.target === ADO_FIELDS.description ? { ...s, target: ADO_FIELDS.reproSteps } : s
       return {
         ...d,
         workItemType: 'Bug',
         sections: d.sections.map(toReproSteps),
-        template: { ...d.template, workItemType: 'Bug', sections: d.template.sections.map(toReproSteps), ...(iterationLogTarget ? { iterationLogTarget } : {}) },
+        template: {
+          ...d.template,
+          workItemType: 'Bug',
+          sections: d.template.sections.map(toReproSteps),
+          ...(iterationLogTarget ? { iterationLogTarget } : {}),
+        },
       }
     }
 

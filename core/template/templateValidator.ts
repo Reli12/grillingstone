@@ -17,7 +17,13 @@ export interface TemplateContent {
   iterationLogTarget?: string
 }
 
-const KEY = /^[A-Za-z][A-Za-z0-9_]*$/
+const KEY = /^[A-Za-z]\w*$/
+
+const isSectionShape = (section: unknown): boolean => {
+  if (!section || typeof section !== 'object') return false
+  const { key, heading } = section as Record<string, unknown>
+  return typeof key === 'string' && typeof heading === 'string'
+}
 
 const isContent = (c: unknown): c is TemplateContent => {
   if (!c || typeof c !== 'object') return false
@@ -26,14 +32,15 @@ const isContent = (c: unknown): c is TemplateContent => {
     typeof name === 'string' &&
     typeof method === 'string' &&
     Array.isArray(sections) &&
-    sections.every((s) => s && typeof s === 'object' && typeof s.key === 'string' && typeof s.heading === 'string')
+    (sections as unknown[]).every(isSectionShape)
   )
 }
 
 /** The parts every method written by a Template Session must have, as markdown headings, in this order. */
 export const SKELETON_PARTS = ['Purpose', 'Guiding principle', 'Sections', 'Working process'] as const
 
-const hasHeading = (method: string, part: string) => new RegExp(`^#{1,4}\\s+(\\d+[.)]\\s*)?${part}\\b`, 'im').test(method)
+const hasHeading = (method: string, part: string) =>
+  new RegExp(`^#{1,4}\\s+(\\d+[.)]\\s*)?${part}\\b`, 'im').test(method)
 
 /** The skeleton pre-filled for a Template built by hand from nothing — a nudge, never enforced there. */
 export const methodSkeleton = (name: string) => `# ${name} Guide
@@ -57,13 +64,27 @@ Bad example: … (and why it is wrong)
 function skeletonReasons(method: string): Reason[] {
   const missing = SKELETON_PARTS.filter((p) => !hasHeading(method, p))
   if (missing.length)
-    return [{ code: 'method-missing-part', message: `The method must have these markdown headings: ${SKELETON_PARTS.join(', ')}. Missing: ${missing.join(', ')}.` }]
+    return [
+      {
+        code: 'method-missing-part',
+        message: `The method must have these markdown headings: ${SKELETON_PARTS.join(', ')}. Missing: ${missing.join(', ')}.`,
+      },
+    ]
   if (!/\bgood example\b/i.test(method))
-    return [{ code: 'method-without-examples', message: 'Under Sections, give at least one "Good example:" (and a "Bad example:" where a common mistake exists).' }]
+    return [
+      {
+        code: 'method-without-examples',
+        message:
+          'Under Sections, give at least one "Good example:" (and a "Bad example:" where a common mistake exists).',
+      },
+    ]
   return []
 }
 
-export function validateTemplate(content: unknown, opts: { requireSkeleton?: boolean; workItemType?: WorkItemType } = {}): Validation {
+export function validateTemplate(
+  content: unknown,
+  opts: { requireSkeleton?: boolean; workItemType?: WorkItemType } = {},
+): Validation {
   if (!isContent(content))
     return {
       ok: false,
@@ -79,7 +100,11 @@ export function validateTemplate(content: unknown, opts: { requireSkeleton?: boo
   const reasons: Reason[] = []
   const type = opts.workItemType ?? content.workItemType
   const knownType = isWorkItemType(type)
-  if (!knownType) reasons.push({ code: 'unknown-work-item-type', message: `The Template needs a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.` })
+  if (!knownType)
+    reasons.push({
+      code: 'unknown-work-item-type',
+      message: `The Template needs a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.`,
+    })
   const targets: string[] = knownType ? allowedTargets(type) : []
   const fieldNames = targets.map((t) => ADO_FIELD_LABELS[t]).join(', ')
   if (!content.name.trim()) reasons.push({ code: 'missing-name', message: 'The Template needs a name.' })
@@ -89,7 +114,11 @@ export function validateTemplate(content: unknown, opts: { requireSkeleton?: boo
   for (const s of content.sections) {
     const at = { sectionKey: s.key }
     if (!KEY.test(s.key)) {
-      reasons.push({ code: 'bad-key', ...at, message: `Section key "${s.key}" must be letters and digits, starting with a letter (e.g. "openQuestions").` })
+      reasons.push({
+        code: 'bad-key',
+        ...at,
+        message: `Section key "${s.key}" must be letters and digits, starting with a letter (e.g. "openQuestions").`,
+      })
       continue
     }
     if (seen.has(s.key)) {
@@ -97,16 +126,31 @@ export function validateTemplate(content: unknown, opts: { requireSkeleton?: boo
       continue
     }
     seen.add(s.key)
-    if (!s.heading.trim()) reasons.push({ code: 'missing-heading', ...at, message: `Section "${s.key}" needs a heading.` })
-    if (s.shape !== 'prose' && s.shape !== 'entries') reasons.push({ code: 'bad-shape', ...at, message: `Section "${s.key}": shape must be "prose" or "entries".` })
+    if (!s.heading.trim())
+      reasons.push({ code: 'missing-heading', ...at, message: `Section "${s.key}" needs a heading.` })
+    if (s.shape !== 'prose' && s.shape !== 'entries')
+      reasons.push({ code: 'bad-shape', ...at, message: `Section "${s.key}": shape must be "prose" or "entries".` })
     else if (s.entryFormat === 'gherkin' && s.shape !== 'entries')
-      reasons.push({ code: 'gherkin-on-prose', ...at, message: `Section "${s.key}": Given / When / Then applies only to entries Sections.` })
-    if (knownType && !targets.includes(s.target)) reasons.push({ code: 'unknown-target', ...at, message: `Section "${s.key}": a ${type} can be Published only into ${fieldNames}.` })
-    if (typeof s.locked !== 'boolean') reasons.push({ code: 'bad-locked', ...at, message: `Section "${s.key}": locked must be true or false.` })
+      reasons.push({
+        code: 'gherkin-on-prose',
+        ...at,
+        message: `Section "${s.key}": Given / When / Then applies only to entries Sections.`,
+      })
+    if (knownType && !targets.includes(s.target))
+      reasons.push({
+        code: 'unknown-target',
+        ...at,
+        message: `Section "${s.key}": a ${type} can be Published only into ${fieldNames}.`,
+      })
+    if (typeof s.locked !== 'boolean')
+      reasons.push({ code: 'bad-locked', ...at, message: `Section "${s.key}": locked must be true or false.` })
   }
 
   if (knownType && content.iterationLogTarget !== undefined && !targets.includes(content.iterationLogTarget))
-    reasons.push({ code: 'unknown-iteration-log-target', message: `The Iteration Log of a ${type} can be Published only into ${fieldNames}.` })
+    reasons.push({
+      code: 'unknown-iteration-log-target',
+      message: `The Iteration Log of a ${type} can be Published only into ${fieldNames}.`,
+    })
 
   if (!content.method.trim()) reasons.push({ code: 'missing-method', message: 'The Template needs a writing method.' })
   else if (opts.requireSkeleton) reasons.push(...skeletonReasons(content.method))

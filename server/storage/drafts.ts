@@ -1,8 +1,10 @@
 // Drafts: JSON is the source of truth, with a readable markdown rendering regenerated on every save (ADR-0004).
 import fs from 'node:fs/promises'
+
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
+
 import { NotFound } from './errors.ts'
 import { KeyedLock, listJson, readJson, writeFileAtomic, writeJson } from './fsUtil.ts'
 import { draftFile, draftsDir } from './paths.ts'
@@ -28,7 +30,11 @@ export async function createDraft(draft: Draft): Promise<Draft> {
 }
 
 /** Read-modify-write under a per-Draft lock. Returning null (or the same Draft) from `fn` means "no change". */
-export function updateDraft(projectId: string, draftId: string, fn: (d: Draft) => Draft | null | Promise<Draft | null>): Promise<Draft> {
+export function updateDraft(
+  projectId: string,
+  draftId: string,
+  fn: (d: Draft) => Draft | null | Promise<Draft | null>,
+): Promise<Draft> {
   return lock.run(`${projectId}/${draftId}`, async () => {
     const current = await getDraft(projectId, draftId)
     const next = await fn(current)

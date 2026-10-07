@@ -1,6 +1,8 @@
 import { screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
+
 import { DraftList } from '@/components/features/drafts/draftList/draftList'
 import { render } from '@test/utils/testUtils'
 
@@ -27,7 +29,13 @@ describe('DraftList', () => {
         drafts={[
           draft('a', {}),
           draft('b', { workItemType: 'Feature', updatedAt: '2026-09-22T09:00:00Z', pendingChanges: 3 }),
-          draft('c', { workItemType: 'Epic', updatedAt: '2026-09-20T09:00:00Z', version: 0, title: '', requirement: 'Archive everything' }),
+          draft('c', {
+            workItemType: 'Epic',
+            updatedAt: '2026-09-20T09:00:00Z',
+            version: 0,
+            title: '',
+            requirement: 'Archive everything',
+          }),
           draft('d', { updatedAt: '2026-08-01T09:00:00Z' }),
         ]}
       />,

@@ -45,7 +45,12 @@ export const newEntry = (title: string, body: string): Entry => ({
 })
 
 /** Builds a Section for a Template Section key from submitted content (content must already be validated). */
-export function sectionFromContent(template: Template, key: string, body = '', entries: { title: string; body: string }[] = []): Section {
+export function sectionFromContent(
+  template: Template,
+  key: string,
+  body = '',
+  entries: { title: string; body: string }[] = [],
+): Section {
   const def = template.sections.find((d) => d.key === key)
   if (!def) throw new Error(`Unknown Section key ${key}`)
   return {

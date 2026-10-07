@@ -1,5 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { LIVE_STATUSES, type ServerEvent, type TemplateTranscript, type Transcript } from '#core/session/sessionTypes.ts'
+
+import {
+  LIVE_STATUSES,
+  type ServerEvent,
+  type TemplateTranscript,
+  type Transcript,
+} from '#core/session/sessionTypes.ts'
+
 import type { DraftWithSession } from '@/api/draftsApi'
 import { queryKeys } from '@/api/reactQueryKeys'
 
@@ -7,18 +14,21 @@ import { queryKeys } from '@/api/reactQueryKeys'
 export function applyServerEvent(qc: QueryClient, e: ServerEvent) {
   switch (e.type) {
     case 'draft':
-      qc.setQueryData<DraftWithSession>(queryKeys.draft(e.projectId, e.draft.id), (old) => ({ draft: e.draft, liveSession: old?.liveSession ?? null }))
-      qc.invalidateQueries({ queryKey: queryKeys.render(e.projectId, e.draft.id) })
+      qc.setQueryData<DraftWithSession>(queryKeys.draft(e.projectId, e.draft.id), (old) => ({
+        draft: e.draft,
+        liveSession: old?.liveSession ?? null,
+      }))
+      void qc.invalidateQueries({ queryKey: queryKeys.render(e.projectId, e.draft.id) })
       break
     case 'drafts':
-      qc.invalidateQueries({ queryKey: queryKeys.drafts(e.projectId), exact: true })
-      qc.invalidateQueries({ queryKey: queryKeys.projects, exact: true })
+      void qc.invalidateQueries({ queryKey: queryKeys.drafts(e.projectId), exact: true })
+      void qc.invalidateQueries({ queryKey: queryKeys.projects, exact: true })
       break
     case 'glossary':
-      qc.invalidateQueries({ queryKey: queryKeys.glossary(e.projectId) })
+      void qc.invalidateQueries({ queryKey: queryKeys.glossary(e.projectId) })
       break
     case 'templates':
-      qc.invalidateQueries({ queryKey: queryKeys.templates })
+      void qc.invalidateQueries({ queryKey: queryKeys.templates })
       break
     case 'session': {
       const s = e.session
@@ -30,7 +40,7 @@ export function applyServerEvent(qc: QueryClient, e: ServerEvent) {
         if (!old) return old
         return old.some((t) => t.id === s.id) ? old.map((t) => (t.id === s.id ? { ...t, ...s } : t)) : old
       })
-      if (!live) qc.invalidateQueries({ queryKey: queryKeys.transcripts(e.projectId, s.draftId) })
+      if (!live) void qc.invalidateQueries({ queryKey: queryKeys.transcripts(e.projectId, s.draftId) })
       break
     }
     case 'templateSession': {
@@ -43,20 +53,28 @@ export function applyServerEvent(qc: QueryClient, e: ServerEvent) {
       qc.setQueryData<TemplateTranscript>(queryKeys.templateSession(e.sessionId), (old) => {
         if (!old) return old
         const has = old.messages.some((m) => m.id === e.message.id)
-        return { ...old, messages: has ? old.messages.map((m) => (m.id === e.message.id ? e.message : m)) : [...old.messages, e.message] }
+        return {
+          ...old,
+          messages: has
+            ? old.messages.map((m) => (m.id === e.message.id ? e.message : m))
+            : [...old.messages, e.message],
+        }
       })
       break
     case 'message':
       qc.setQueryData<Transcript[]>(queryKeys.transcripts(e.projectId, e.draftId), (old) => {
         if (!old) return old
         if (!old.some((t) => t.id === e.sessionId)) {
-          qc.invalidateQueries({ queryKey: queryKeys.transcripts(e.projectId, e.draftId) })
+          void qc.invalidateQueries({ queryKey: queryKeys.transcripts(e.projectId, e.draftId) })
           return old
         }
         return old.map((t) => {
           if (t.id !== e.sessionId) return t
           const has = t.messages.some((m) => m.id === e.message.id)
-          return { ...t, messages: has ? t.messages.map((m) => (m.id === e.message.id ? e.message : m)) : [...t.messages, e.message] }
+          return {
+            ...t,
+            messages: has ? t.messages.map((m) => (m.id === e.message.id ? e.message : m)) : [...t.messages, e.message],
+          }
         })
       })
       break

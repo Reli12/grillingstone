@@ -6,7 +6,9 @@ import type { AppDeps } from './deps.ts'
 
 export function sessionRoutes(r: Router, { supervisor }: AppDeps) {
   // Grilling Sessions
-  r.get('/api/projects/:projectId/drafts/:draftId/sessions', ({ params }) => listTranscripts(params.projectId, params.draftId))
+  r.get('/api/projects/:projectId/drafts/:draftId/sessions', ({ params }) =>
+    listTranscripts(params.projectId, params.draftId),
+  )
   r.post('/api/projects/:projectId/drafts/:draftId/sessions', ({ params, body }) =>
     supervisor.start({ projectId: params.projectId, draftId: params.draftId, ...parse(startSessionBody, body) }),
   )
@@ -24,8 +26,8 @@ export function sessionRoutes(r: Router, { supervisor }: AppDeps) {
     await supervisor.writeNow(params.sessionId)
     return { ok: true }
   })
-  r.post('/api/sessions/:sessionId/stop', async ({ params }) => {
-    await supervisor.stop(params.sessionId)
+  r.post('/api/sessions/:sessionId/stop', ({ params }) => {
+    supervisor.stop(params.sessionId)
     return { ok: true }
   })
   // Called by scripts/writeDraft.mjs from inside a session, authenticated by the session's token.

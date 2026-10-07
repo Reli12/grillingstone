@@ -1,6 +1,7 @@
 // A stateful fake of the Draft endpoints for page tests. It runs the real core modules (human edits,
 // Proposal triage, the Publish Renderer), so the UI is tested against the behaviour the server has.
 import { http, HttpResponse } from 'msw'
+
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
@@ -10,6 +11,7 @@ import { render } from '#core/publish/publishRenderer.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { meta } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import { server } from '@test/mocks/server'
 
@@ -33,7 +35,10 @@ interface Options {
   otherDrafts?: DraftSummary[]
 }
 
-export function draftBackend(initial: Draft, { transcripts = [], liveSession: live = null, templates = [initial.template], otherDrafts = [] }: Options = {}) {
+export function draftBackend(
+  initial: Draft,
+  { transcripts = [], liveSession: live = null, templates = [initial.template], otherDrafts = [] }: Options = {},
+) {
   const state = { draft: initial, live, requests: [] as { method: string; path: string; body: unknown }[] }
   const { projectId, id: draftId } = initial
   const record = async (request: Request) => {
@@ -43,11 +48,15 @@ export function draftBackend(initial: Draft, { transcripts = [], liveSession: li
   }
 
   server.use(
-    http.get(url(endpoints.project(projectId)), () => HttpResponse.json({ id: projectId, name: 'Customer Portal', createdAt: '' })),
+    http.get(url(endpoints.project(projectId)), () =>
+      HttpResponse.json({ id: projectId, name: 'Customer Portal', createdAt: '' }),
+    ),
     http.get(url(endpoints.drafts(projectId)), () => HttpResponse.json(otherDrafts)),
     http.get(url(endpoints.glossary(projectId)), () => HttpResponse.json({ markdown: '', version: 'v0' })),
     http.get(url(endpoints.templates), () => HttpResponse.json(templates)),
-    http.get(url(endpoints.draft(projectId, draftId)), () => HttpResponse.json({ draft: state.draft, liveSession: state.live })),
+    http.get(url(endpoints.draft(projectId, draftId)), () =>
+      HttpResponse.json({ draft: state.draft, liveSession: state.live }),
+    ),
     http.get(url(endpoints.draftSessions(projectId, draftId)), () => HttpResponse.json(transcripts)),
     http.get(url(endpoints.render(projectId, draftId)), () => HttpResponse.json(render(state.draft))),
     http.post(url(endpoints.draftOps(projectId, draftId)), async ({ request }) => {
@@ -74,11 +83,18 @@ export function draftBackend(initial: Draft, { transcripts = [], liveSession: li
       state.live = liveSession(state.draft, { id: 'sess-new', kind: body.kind, status: 'starting' })
       return HttpResponse.json(state.live)
     }),
-    http.post(url(`${endpoints.draftSessions(projectId, draftId)}/:sessionId/continue`), async ({ request, params }) => {
-      await record(request)
-      state.live = liveSession(state.draft, { id: 'sess-new', status: 'starting', continues: String(params.sessionId) })
-      return HttpResponse.json(state.live)
-    }),
+    http.post(
+      url(`${endpoints.draftSessions(projectId, draftId)}/:sessionId/continue`),
+      async ({ request, params }) => {
+        await record(request)
+        state.live = liveSession(state.draft, {
+          id: 'sess-new',
+          status: 'starting',
+          continues: String(params.sessionId),
+        })
+        return HttpResponse.json(state.live)
+      },
+    ),
     http.delete(url(endpoints.draft(projectId, draftId)), async ({ request }) => {
       await record(request)
       return HttpResponse.json({ ok: true })

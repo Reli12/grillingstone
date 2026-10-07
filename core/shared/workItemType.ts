@@ -28,4 +28,5 @@ const TARGETS: Record<WorkItemType, SectionTarget[]> = {
 export const allowedTargets = (type: WorkItemType): SectionTarget[] => TARGETS[type]
 
 /** Where a Template's Iteration Log goes when it names no field — always one the type's form shows. */
-export const defaultIterationLogTarget = (type: WorkItemType): SectionTarget => (type === 'Bug' ? ADO_FIELDS.reproSteps : ADO_FIELDS.description)
+export const defaultIterationLogTarget = (type: WorkItemType): SectionTarget =>
+  type === 'Bug' ? ADO_FIELDS.reproSteps : ADO_FIELDS.description

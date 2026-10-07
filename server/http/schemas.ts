@@ -1,6 +1,7 @@
 // The shape of every request body the API accepts. Rules about meaning (a Template's Sections, a
 // Proposal's changes…) stay in core; these only make sure the JSON has the right fields and types.
 import { z } from 'zod'
+
 import { THEMES } from '#core/contract/apiTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
@@ -35,7 +36,13 @@ const entryId = z.string()
 export const humanOpBody: z.ZodType<HumanOp> = z.discriminatedUnion('op', [
   z.object({ op: z.literal('retitle'), title: z.string() }),
   z.object({ op: z.literal('editSection'), sectionId, body: z.string() }),
-  z.object({ op: z.literal('editEntry'), sectionId, entryId, title: z.string().optional(), body: z.string().optional() }),
+  z.object({
+    op: z.literal('editEntry'),
+    sectionId,
+    entryId,
+    title: z.string().optional(),
+    body: z.string().optional(),
+  }),
   z.object({ op: z.literal('addEntry'), sectionId, title: z.string(), body: z.string() }),
   z.object({ op: z.literal('moveSection'), sectionId, toIndex: z.number().int() }),
   z.object({ op: z.literal('moveEntry'), sectionId, entryId, toIndex: z.number().int() }),
@@ -68,7 +75,9 @@ export const templateSessionBody = z.object({
 })
 
 /** Only the envelope is checked here; the Template itself is validated by the store (core/template). */
-export const templateBody = z.object({ template: z.record(z.string(), z.unknown()) }).transform(({ template }) => template as unknown as Template)
+export const templateBody = z
+  .object({ template: z.record(z.string(), z.unknown()) })
+  .transform(({ template }) => template as unknown as Template)
 
 export const exportBody = z.object({ ids })
 export const importPreviewBody = z.object({ bundle: z.unknown() })

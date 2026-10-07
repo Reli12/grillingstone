@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
@@ -6,7 +7,12 @@ const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
 
 describe('Template Session seed', () => {
   it('tells Claude which Work Item Type the Template is for and what the human wants it for', () => {
-    const seed = buildTemplateSeed({ workItemType: 'PBI', purpose: 'Spike PBIs: timeboxed investigations ending in a recommendation', examples: '', submitCommand })
+    const seed = buildTemplateSeed({
+      workItemType: 'PBI',
+      purpose: 'Spike PBIs: timeboxed investigations ending in a recommendation',
+      examples: '',
+      submitCommand,
+    })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('PBI')
     expect(all).toContain('Spike PBIs: timeboxed investigations ending in a recommendation')
@@ -19,7 +25,9 @@ describe('Template Session seed', () => {
 
   it("offers only the Azure DevOps fields the type's form shows, and lets Claude place the Iteration Log", () => {
     const bug = seedText({ workItemType: 'Bug' })
-    expect(bug).toContain('"Microsoft.VSTS.TCM.ReproSteps" | "Microsoft.VSTS.TCM.SystemInfo" | "Microsoft.VSTS.Common.AcceptanceCriteria"')
+    expect(bug).toContain(
+      '"Microsoft.VSTS.TCM.ReproSteps" | "Microsoft.VSTS.TCM.SystemInfo" | "Microsoft.VSTS.Common.AcceptanceCriteria"',
+    )
     expect(bug).toContain('(Repro Steps, System Info or Acceptance Criteria)')
     expect(bug).not.toContain('System.Description')
     expect(bug).toMatch(/"iterationLogTarget": one of those fields/)
@@ -35,7 +43,14 @@ describe('Template Session seed', () => {
 
   it('walks the decision tree in the agreed order', () => {
     const all = seedText()
-    const order = ['purpose and audience', 'Section list', 'Locked', 'target field', 'rules and examples', 'guiding principle'].map((p) => all.indexOf(p))
+    const order = [
+      'purpose and audience',
+      'Section list',
+      'Locked',
+      'target field',
+      'rules and examples',
+      'guiding principle',
+    ].map((p) => all.indexOf(p))
     expect(order.every((i) => i >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
+
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { methodSkeleton, type TemplateContent, validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
-const content = (): TemplateContent => structuredClone({ workItemType: defaultPbiTemplate.workItemType, name: defaultPbiTemplate.name, sections: defaultPbiTemplate.sections, method: defaultPbiTemplate.method })
+const content = (): TemplateContent =>
+  structuredClone({
+    workItemType: defaultPbiTemplate.workItemType,
+    name: defaultPbiTemplate.name,
+    sections: defaultPbiTemplate.sections,
+    method: defaultPbiTemplate.method,
+  })
 const codes = (c: unknown, opts?: Parameters<typeof validateTemplate>[1]) => {
   const r = validateTemplate(c, opts)
   return r.ok ? [] : r.reasons.map((x) => `${x.code}${x.sectionKey ? `:${x.sectionKey}` : ''}`)
@@ -15,7 +22,11 @@ describe('Template Validator', () => {
   })
 
   it('needs a name, a method and at least one Section', () => {
-    expect(codes({ workItemType: 'PBI', name: ' ', sections: [], method: '' })).toEqual(['missing-name', 'no-sections', 'missing-method'])
+    expect(codes({ workItemType: 'PBI', name: ' ', sections: [], method: '' })).toEqual([
+      'missing-name',
+      'no-sections',
+      'missing-method',
+    ])
   })
 
   it('refuses malformed, duplicate or headless Section keys', () => {
@@ -40,7 +51,11 @@ describe('Template Validator', () => {
       c.sections[0] = { ...c.sections[0], target: ADO_FIELDS.reproSteps }
       const r = validateTemplate(c)
       expect(r.ok ? [] : r.reasons.map((x) => [x.code, x.sectionKey, x.message])).toEqual([
-        ['unknown-target', 'userStory', 'Section "userStory": a PBI can be Published only into Description, Acceptance Criteria.'],
+        [
+          'unknown-target',
+          'userStory',
+          'Section "userStory": a PBI can be Published only into Description, Acceptance Criteria.',
+        ],
       ])
     })
 
@@ -50,7 +65,11 @@ describe('Template Validator', () => {
     })
 
     it("refuses an Iteration Log published into a field the type's form hides, but accepts one it shows", () => {
-      const bug = { ...content(), workItemType: 'Bug', sections: content().sections.map((s) => ({ ...s, target: ADO_FIELDS.reproSteps })) }
+      const bug = {
+        ...content(),
+        workItemType: 'Bug',
+        sections: content().sections.map((s) => ({ ...s, target: ADO_FIELDS.reproSteps })),
+      }
       expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.description })).toEqual(['unknown-iteration-log-target'])
       expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.reproSteps })).toEqual([])
     })
@@ -63,7 +82,13 @@ describe('Template Validator', () => {
   })
 
   it('refuses input that is not a Template at all instead of crashing', () => {
-    for (const junk of [null, 'x', { name: 'x', sections: 'nope', method: 'm' }, { name: 'x', sections: [3], method: 'm' }]) expect(codes(junk)).toEqual(['malformed-template'])
+    for (const junk of [
+      null,
+      'x',
+      { name: 'x', sections: 'nope', method: 'm' },
+      { name: 'x', sections: [3], method: 'm' },
+    ])
+      expect(codes(junk)).toEqual(['malformed-template'])
   })
 
   describe('method skeleton', () => {
@@ -92,12 +117,16 @@ Bad example: "Investigate bulk archive."
       expect(codes(content(), { requireSkeleton: true })).toEqual(['method-missing-part'])
       const r = validateTemplate(content(), { requireSkeleton: true })
       expect(!r.ok && r.reasons[0].message).toContain('Purpose')
-      expect(validateTemplate({ ...content(), method: skeletonMethod }, { requireSkeleton: true })).toEqual({ ok: true })
+      expect(validateTemplate({ ...content(), method: skeletonMethod }, { requireSkeleton: true })).toEqual({
+        ok: true,
+      })
     })
 
     it('requires at least one good example in the method', () => {
       const noExamples = skeletonMethod.replace(/^(Good|Bad) example.*$/gm, '')
-      expect(codes({ ...content(), method: noExamples }, { requireSkeleton: true })).toEqual(['method-without-examples'])
+      expect(codes({ ...content(), method: noExamples }, { requireSkeleton: true })).toEqual([
+        'method-without-examples',
+      ])
     })
 
     it('is offered pre-filled for a Template built from nothing, where it passes the heading check', () => {

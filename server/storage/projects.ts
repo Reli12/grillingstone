@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+
 import type { Project, ProjectSummary } from '#core/contract/apiTypes.ts'
 import { newId } from '#core/shared/ids.ts'
+
 import { NotFound } from './errors.ts'
 import { isSafeId, readJson, writeJson } from './fsUtil.ts'
 import { draftsDir, projectFile, projectsDir, transcriptsDir } from './paths.ts'
@@ -16,7 +18,7 @@ const slug = (name: string) =>
     .slice(0, 40) || 'project'
 
 export async function listProjects(): Promise<ProjectSummary[]> {
-  let names: string[] = []
+  let names: string[]
   try {
     names = await fs.readdir(projectsDir)
   } catch {
@@ -26,7 +28,9 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     names.filter(isSafeId).map(async (n) => {
       const p = await readJson<Project>(path.join(projectsDir, n, 'project.json'))
       if (!p) return null
-      const drafts = (await fs.readdir(path.join(projectsDir, n, 'drafts')).catch(() => [])).filter((f) => f.endsWith('.json')).length
+      const drafts = (await fs.readdir(path.join(projectsDir, n, 'drafts')).catch(() => [])).filter((f) =>
+        f.endsWith('.json'),
+      ).length
       return { ...p, drafts }
     }),
   )

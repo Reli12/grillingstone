@@ -2,11 +2,19 @@
 // Editing a Template bumps its version; Drafts keep the snapshot they were written in.
 import fs from 'node:fs/promises'
 import path from 'node:path'
+
 import { newId } from '#core/shared/ids.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
-import { applyImport, type Bundle, exportBundle, type ImportItem, previewImport } from '#core/template/templateBundle.ts'
+import {
+  applyImport,
+  type Bundle,
+  exportBundle,
+  type ImportItem,
+  previewImport,
+} from '#core/template/templateBundle.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { validateTemplate } from '#core/template/templateValidator.ts'
+
 import { DEFAULT_TEMPLATES_DIR } from '../config.ts'
 import { NotFound } from './errors.ts'
 import { isSafeId, listJson, writeJson } from './fsUtil.ts'
@@ -16,7 +24,9 @@ import { userTemplatesDir as userDir } from './paths.ts'
 export class TemplateError extends Error {}
 
 const byTypeThenName = (a: Template, b: Template) =>
-  WORK_ITEM_TYPES.indexOf(a.workItemType) - WORK_ITEM_TYPES.indexOf(b.workItemType) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name)
+  WORK_ITEM_TYPES.indexOf(a.workItemType) - WORK_ITEM_TYPES.indexOf(b.workItemType) ||
+  Number(b.isDefault) - Number(a.isDefault) ||
+  a.name.localeCompare(b.name)
 
 export async function listTemplates(): Promise<Template[]> {
   const defaults = (await listJson<Template>(DEFAULT_TEMPLATES_DIR)).map((t) => ({ ...t, isDefault: true }))
@@ -39,20 +49,44 @@ function checkTemplate(t: Template) {
 const write = (t: Template) => writeJson(path.join(userDir, `${t.id}.json`), t)
 
 /** `origin` is set only by the server, when a Template Session made the Template. */
-export async function createTemplate({ origin: _ignored, ...input }: Template, now: string, origin?: Template['origin']): Promise<Template> {
+export async function createTemplate(
+  { origin: _ignored, ...input }: Template,
+  now: string,
+  origin?: Template['origin'],
+): Promise<Template> {
   const all = await listTemplates()
   let name = input.name.trim()
   while (all.some((t) => t.workItemType === input.workItemType && t.name === name)) name = `${name} (copy)`
-  const t: Template = { ...input, id: newId('t'), name, version: 1, isDefault: false, updatedAt: now, ...(origin ? { origin } : {}) }
+  const t: Template = {
+    ...input,
+    id: newId('t'),
+    name,
+    version: 1,
+    isDefault: false,
+    updatedAt: now,
+    ...(origin ? { origin } : {}),
+  }
   checkTemplate(t)
   await write(t)
   return t
 }
 
-export async function updateTemplate(id: string, { origin: _ignored, ...input }: Template, now: string): Promise<Template> {
+export async function updateTemplate(
+  id: string,
+  { origin: _ignored, ...input }: Template,
+  now: string,
+): Promise<Template> {
   const current = await getTemplate(id)
   if (current.isDefault) throw new TemplateError('Default Templates are read-only — duplicate it to customise.')
-  const t: Template = { ...input, id, isDefault: false, workItemType: current.workItemType, version: current.version + 1, updatedAt: now, ...(current.origin ? { origin: current.origin } : {}) }
+  const t: Template = {
+    ...input,
+    id,
+    isDefault: false,
+    workItemType: current.workItemType,
+    version: current.version + 1,
+    updatedAt: now,
+    ...(current.origin ? { origin: current.origin } : {}),
+  }
   checkTemplate(t)
   await write(t)
   return t
@@ -67,7 +101,10 @@ export async function deleteTemplate(id: string) {
 
 export async function exportTemplates(ids: string[], now: string): Promise<Bundle> {
   const all = await listTemplates()
-  return exportBundle(all.filter((t) => ids.includes(t.id)), now)
+  return exportBundle(
+    all.filter((t) => ids.includes(t.id)),
+    now,
+  )
 }
 
 export async function previewTemplateImport(bundle: unknown) {

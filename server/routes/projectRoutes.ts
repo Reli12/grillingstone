@@ -1,4 +1,5 @@
 import { startingGlossary } from '#core/glossary/glossary.ts'
+
 import { parse } from '../http/body.ts'
 import type { Router } from '../http/router.ts'
 import { glossaryBody, newProjectBody, projectNameBody } from '../http/schemas.ts'
@@ -17,7 +18,9 @@ export function projectRoutes(r: Router, { glossary }: AppDeps) {
     return project
   })
   r.get('/api/projects/:projectId', ({ params }) => getProject(params.projectId))
-  r.patch('/api/projects/:projectId', ({ params, body }) => renameProject(params.projectId, parse(projectNameBody, body).name))
+  r.patch('/api/projects/:projectId', ({ params, body }) =>
+    renameProject(params.projectId, parse(projectNameBody, body).name),
+  )
 
   r.get('/api/projects/:projectId/glossary', ({ params }) => getGlossary(params.projectId))
   r.put('/api/projects/:projectId/glossary', ({ params, body }) => {

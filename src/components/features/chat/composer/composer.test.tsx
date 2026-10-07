@@ -1,11 +1,20 @@
 import { createRef } from 'react'
+
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+
 import type { SessionBase } from '#core/session/sessionTypes.ts'
+
 import { Composer } from '@/components/features/chat/composer/composer'
 
-const session = (status: SessionBase['status']): SessionBase => ({ id: 's1', kind: 'first', status, writeConfirmed: false, startedAt: '' })
+const session = (status: SessionBase['status']): SessionBase => ({
+  id: 's1',
+  kind: 'first',
+  status,
+  writeConfirmed: false,
+  startedAt: '',
+})
 const handlers = () => ({ onSend: vi.fn(), onWriteNow: vi.fn(), onStop: vi.fn() })
 
 describe('Composer', () => {

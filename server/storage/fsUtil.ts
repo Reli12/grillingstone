@@ -39,7 +39,7 @@ export async function listJson<T>(dir: string): Promise<T[]> {
     throw e
   }
   const items = await Promise.all(names.filter((n) => n.endsWith('.json')).map((n) => readJson<T>(path.join(dir, n))))
-  return items.filter((x): x is Awaited<T> => x !== null) as T[]
+  return items.filter((x): x is Awaited<T> => x !== null)
 }
 
 /** Serialises async work per key (e.g. one Draft), so a submit and a UI edit never interleave. */

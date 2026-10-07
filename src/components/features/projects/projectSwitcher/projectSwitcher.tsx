@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Plus } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
+
+import { ChevronDown, Plus } from 'lucide-react'
+
 import { useProjects } from '@/api/hooks/projects/projectHooks'
 import { cn } from '@/lib/cn'
 import { lastProject, rememberProject } from '@/lib/lastProject'
@@ -47,18 +49,23 @@ export function ProjectSwitcher() {
               key={p.id}
               onClick={() => {
                 setOpen(false)
-                navigate(routesPaths.project(p.id))
+                void navigate(routesPaths.project(p.id))
               }}
-              className={cn('flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-fog', p.id === projectId && 'font-semibold')}
+              className={cn(
+                'flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm hover:bg-fog',
+                p.id === projectId && 'font-semibold',
+              )}
             >
               {p.name}
-              <span className="text-[13px] text-ink-faint">{p.drafts} Draft{p.drafts === 1 ? '' : 's'}</span>
+              <span className="text-[13px] text-ink-faint">
+                {p.drafts} Draft{p.drafts === 1 ? '' : 's'}
+              </span>
             </button>
           ))}
           <button
             onClick={() => {
               setOpen(false)
-              navigate(`${routesPaths.home}?newProject`)
+              void navigate(`${routesPaths.home}?newProject`)
             }}
             className="mt-1 flex w-full items-center gap-2 rounded-md border-t border-line-soft px-2.5 py-2 text-left text-sm text-claude hover:bg-fog"
           >

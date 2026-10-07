@@ -8,6 +8,7 @@ import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import { plural } from '#core/shared/plural.ts'
 import type { Template } from '#core/template/templateTypes.ts'
+
 import { SUBMIT_SCRIPT } from '../config.ts'
 import type { Hub } from '../hub.ts'
 import { iterationMeta, now } from '../services/clock.ts'
@@ -20,7 +21,7 @@ import { getProject } from '../storage/projects.ts'
 import { getTemplate } from '../storage/templates.ts'
 import { saveTranscript } from '../storage/transcripts.ts'
 import { SessionError } from './sessionError.ts'
-import { summaryOf, type PreparedSession } from './sessionScope.ts'
+import { type PreparedSession, summaryOf } from './sessionScope.ts'
 
 export interface StartArgs {
   projectId: string
@@ -38,33 +39,52 @@ export interface GrillingDeps {
   glossary: GlossaryService
 }
 
-export async function prepareGrillingSession(args: StartArgs, deps: GrillingDeps): Promise<PreparedSession<Transcript>> {
+export async function prepareGrillingSession(
+  args: StartArgs,
+  deps: GrillingDeps,
+): Promise<PreparedSession<Transcript>> {
   const { projectId, draftId, kind } = args
-  const [project, draft, glossary] = await Promise.all([getProject(projectId), getDraft(projectId, draftId), getGlossary(projectId)])
+  const [project, draft, glossary] = await Promise.all([
+    getProject(projectId),
+    getDraft(projectId, draftId),
+    getGlossary(projectId),
+  ])
 
-  if (kind === 'first' && draft.version !== 0) throw new SessionError('v1 already exists — start a Focused Session or a new Iteration instead.')
-  if (kind !== 'first' && draft.version === 0) throw new SessionError('There is no Draft yet — the first session writes v1.')
-  if (kind !== 'first' && draft.proposal) throw new SessionError('Triage the open Proposal before starting another session.')
+  if (kind === 'first' && draft.version !== 0)
+    throw new SessionError('v1 already exists — start a Focused Session or a new Iteration instead.')
+  if (kind !== 'first' && draft.version === 0)
+    throw new SessionError('There is no Draft yet — the first session writes v1.')
+  if (kind !== 'first' && draft.proposal)
+    throw new SessionError('Triage the open Proposal before starting another session.')
 
   let focus: SessionSummary['focus']
   if (kind === 'focused') {
     const section = draft.sections.find((s) => s.id === args.focus?.sectionId)
     if (!section) throw new SessionError('Choose the Section to grill.')
     const entry = section.entries.find((e) => e.id === args.focus?.entryId)
-    focus = { sectionId: section.id, ...(entry ? { entryId: entry.id } : {}), heading: entry ? `${section.heading} › ${entry.title}` : section.heading }
+    focus = {
+      sectionId: section.id,
+      ...(entry ? { entryId: entry.id } : {}),
+      heading: entry ? `${section.heading} › ${entry.title}` : section.heading,
+    }
   }
 
   let upgradeTo: Template | undefined
   if (kind === 'upgrade') {
     upgradeTo = await getTemplate(draft.template.id).catch(() => undefined)
-    if (!upgradeTo || upgradeTo.version <= draft.template.version) throw new SessionError('This Draft already uses the latest version of its Template.')
+    if (!upgradeTo || upgradeTo.version <= draft.template.version)
+      throw new SessionError('This Draft already uses the latest version of its Template.')
   }
 
   const references = (
     await Promise.all(
       draft.references.map((id) =>
         getDraft(projectId, id)
-          .then((r) => ({ title: r.title || r.requirement.slice(0, 60), workItemType: r.workItemType, markdown: draftMarkdown(r) }))
+          .then((r) => ({
+            title: r.title || r.requirement.slice(0, 60),
+            workItemType: r.workItemType,
+            markdown: draftMarkdown(r),
+          }))
           .catch(() => null),
       ),
     )
@@ -102,7 +122,14 @@ export async function prepareGrillingSession(args: StartArgs, deps: GrillingDeps
     // Decided inside the Draft's lock, so the Draft it checks is the one it writes.
     const decided: { outcome?: SubmissionOutcome } = {}
     await deps.drafts.update(projectId, draftId, (d) => {
-      const outcome = (decided.outcome = acceptSubmission(d, { kind, sessionId: transcript.id, payload, upgradeTo, meta, now: now() }))
+      const outcome = (decided.outcome = acceptSubmission(d, {
+        kind,
+        sessionId: transcript.id,
+        payload,
+        upgradeTo,
+        meta,
+        now: now(),
+      }))
       return outcome.ok ? outcome.draft : null
     })
     const outcome = decided.outcome!
@@ -111,7 +138,12 @@ export async function prepareGrillingSession(args: StartArgs, deps: GrillingDeps
 
   const terms = parseGlossary(glossary.markdown).length
   const context = `the Glossary (${plural(terms, 'term')})${references.length ? ` and ${plural(references.length, 'Reference')}` : ''}`
-  const what = kind === 'focused' ? `Focused Session on ${focus!.heading}` : kind === 'upgrade' ? `Template upgrade to ${upgradeTo!.name} v${upgradeTo!.version}` : 'New Iteration on the whole Draft'
+  const what =
+    kind === 'focused'
+      ? `Focused Session on ${focus!.heading}`
+      : kind === 'upgrade'
+        ? `Template upgrade to ${upgradeTo!.name} v${upgradeTo!.version}`
+        : 'New Iteration on the whole Draft'
   const intro = args.continues
     ? kind === 'first'
       ? `Continuing the earlier conversation. Claude remembers it, and has the requirement and ${context} as they are now.`
@@ -130,7 +162,8 @@ export async function prepareGrillingSession(args: StartArgs, deps: GrillingDeps
       guardMode: 'grilling',
       persist: true,
       save: (t) => saveTranscript(t as Transcript),
-      emitMessage: (t, message) => deps.hub.broadcast({ type: 'message', projectId, draftId, sessionId: t.id, message }),
+      emitMessage: (t, message) =>
+        deps.hub.broadcast({ type: 'message', projectId, draftId, sessionId: t.id, message }),
       emitSession: (t) => deps.hub.broadcast({ type: 'session', projectId, session: summaryOf(t as Transcript) }),
       submit,
       submitLabel: kind === 'first' ? 'Submitted the Draft for validation' : 'Submitted a Proposal for validation',

@@ -1,9 +1,11 @@
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { defaultBugTemplate, defaultPbiTemplate } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import TemplateEditorPage from '@/pages/TemplateEditorPage/TemplateEditorPage'
 import { server } from '@test/mocks/server'
@@ -17,13 +19,22 @@ const mine: Template = {
   origin: { sessionId: 'ts1', at: '2026-09-20T10:00:00Z' },
   sections: [
     { key: 'story', heading: 'Story', shape: 'prose', locked: true, guidance: '', target: 'System.Description' },
-    { key: 'acs', heading: 'ACs', shape: 'entries', locked: false, guidance: '', target: 'Microsoft.VSTS.Common.AcceptanceCriteria', entryFormat: 'gherkin' },
+    {
+      key: 'acs',
+      heading: 'ACs',
+      shape: 'entries',
+      locked: false,
+      guidance: '',
+      target: 'Microsoft.VSTS.Common.AcceptanceCriteria',
+      entryFormat: 'gherkin',
+    },
   ],
 }
 const teamBug: Template = { ...defaultBugTemplate, id: 'team-bug', name: 'Team Bug', isDefault: false }
 let saved: Template | undefined
 let deleted = false
-const renderPage = (id: string) => render(<TemplateEditorPage />, { route: `/templates/${id}`, path: '/templates/:templateId' })
+const renderPage = (id: string) =>
+  render(<TemplateEditorPage />, { route: `/templates/${id}`, path: '/templates/:templateId' })
 
 describe('TemplateEditorPage', () => {
   beforeEach(() => {
@@ -39,7 +50,9 @@ describe('TemplateEditorPage', () => {
         deleted = true
         return HttpResponse.json({ ok: true })
       }),
-      http.post(`*${endpoints.templates}`, async ({ request }) => HttpResponse.json({ ...((await request.json()) as { template: Template }).template, id: 'copy' })),
+      http.post(`*${endpoints.templates}`, async ({ request }) =>
+        HttpResponse.json({ ...((await request.json()) as { template: Template }).template, id: 'copy' }),
+      ),
     )
   })
 
@@ -55,7 +68,10 @@ describe('TemplateEditorPage', () => {
 
   it('edits, reorders and adds Sections, then saves as the next version', async () => {
     const { user } = renderPage('mine')
-    expect(await screen.findByRole('link', { name: 'Read the transcript' })).toHaveAttribute('href', '/templates/session/ts1')
+    expect(await screen.findByRole('link', { name: 'Read the transcript' })).toHaveAttribute(
+      'href',
+      '/templates/session/ts1',
+    )
     const save = screen.getByRole('button', { name: 'Save as v2' })
     expect(save).toBeDisabled()
 
@@ -77,7 +93,11 @@ describe('TemplateEditorPage', () => {
   it('offers only the fields a Bug can be Published into, and keeps them when saving', async () => {
     const { user } = renderPage('team-bug')
     const fields = (await screen.findAllByRole('combobox', { name: 'Azure DevOps field' }))[0]
-    expect(within(fields).getAllByRole('option').map((o) => o.textContent)).toEqual(['→ Repro Steps', '→ System Info', '→ Acceptance Criteria'])
+    expect(
+      within(fields)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['→ Repro Steps', '→ System Info', '→ Acceptance Criteria'])
     const log = screen.getByRole('combobox', { name: 'Iteration Log field' })
     expect(log).toHaveValue(ADO_FIELDS.reproSteps)
     await user.selectOptions(log, ADO_FIELDS.systemInfo)

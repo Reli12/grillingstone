@@ -1,9 +1,17 @@
 // Transcripts of Grilling Sessions (per Project) and Template Sessions (beside their working folders).
 import fs from 'node:fs/promises'
+
 import type { TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
+
 import { NotFound } from './errors.ts'
 import { listJson, readJson, writeJson } from './fsUtil.ts'
-import { templateSessionDir, templateSessionsDir, templateTranscriptFile, transcriptFile, transcriptsDir } from './paths.ts'
+import {
+  templateSessionDir,
+  templateSessionsDir,
+  templateTranscriptFile,
+  transcriptFile,
+  transcriptsDir,
+} from './paths.ts'
 
 export const saveTranscript = (t: Transcript) => writeJson(transcriptFile(t.projectId, t.id), t)
 

@@ -2,7 +2,9 @@
 // editor opens on it; afterwards this page is the session's read-only Transcript.
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+
 import { LIVE_STATUSES } from '#core/session/sessionTypes.ts'
+
 import { useSay, useStopSession, useWriteNow } from '@/api/hooks/drafts/draftHooks'
 import { useTemplateTranscript } from '@/api/hooks/templates/templateSessionHooks'
 import { Button } from '@/components/atoms/button/button'
@@ -27,7 +29,8 @@ export default function TemplateSessionPage() {
   // Seen running in this view, then saved: continue straight into the editor.
   useEffect(() => {
     if (live) wasLive.current = true
-    else if (wasLive.current && t?.status === 'finished' && t.templateId) navigate(routesPaths.template(t.templateId))
+    else if (wasLive.current && t?.status === 'finished' && t.templateId)
+      void navigate(routesPaths.template(t.templateId))
   }, [live, t?.status, t?.templateId, navigate])
 
   if (error) return <div className="p-10 text-center text-ink-soft">{error.message}</div>
@@ -41,7 +44,8 @@ export default function TemplateSessionPage() {
           <Link to={routesPaths.templates} className="hover:text-ink">
             Templates
           </Link>
-          , new {request.workItemType} Template{request.baseTemplateName ? `, starting from the ${request.baseTemplateName}` : ''}
+          , new {request.workItemType} Template
+          {request.baseTemplateName ? `, starting from the ${request.baseTemplateName}` : ''}
         </p>
         <p className="mt-0.5 line-clamp-2 font-serif text-[17px] text-ink">{request.purpose}</p>
       </header>
@@ -76,7 +80,9 @@ export default function TemplateSessionPage() {
             </>
           ) : (
             <>
-              <p className="text-sm text-ink-soft">The session ended without a Template. Sessions are never resumed — start a new one.</p>
+              <p className="text-sm text-ink-soft">
+                The session ended without a Template. Sessions are never resumed — start a new one.
+              </p>
               <Link to={routesPaths.newTemplate}>
                 <Button className="mt-2" variant="claude" tabIndex={-1}>
                   New Template

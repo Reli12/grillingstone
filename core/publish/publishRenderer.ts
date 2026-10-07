@@ -46,7 +46,9 @@ export function render(draft: Draft): Rendered {
     // The Description carries many Sections, so each keeps its heading; a field holding a single
     // Section (e.g. Acceptance Criteria) is already named by the field itself.
     const withHeadings = field === ADO_FIELDS.description || sections.length > 1
-    fields[field] = sections.map((s) => (withHeadings ? `<h2>${escapeHtml(s.heading)}</h2>\n` : '') + sectionBodyHtml(s)).join('\n')
+    fields[field] = sections
+      .map((s) => (withHeadings ? `<h2>${escapeHtml(s.heading)}</h2>\n` : '') + sectionBodyHtml(s))
+      .join('\n')
   }
 
   if (draft.iterationLog.length) {

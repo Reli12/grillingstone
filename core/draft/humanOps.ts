@@ -51,20 +51,37 @@ export function applyHumanOp(draft: Draft, op: HumanOp): Draft {
       next = withSection((s) => ({ ...s, body: op.body, humanEdited: true }))
       break
     case 'editEntry':
-      next = withEntry(op.entryId, (e) => ({ ...e, title: op.title ?? e.title, body: op.body ?? e.body, humanEdited: true }))
+      next = withEntry(op.entryId, (e) => ({
+        ...e,
+        title: op.title ?? e.title,
+        body: op.body ?? e.body,
+        humanEdited: true,
+      }))
       break
     case 'addEntry':
       if (section!.shape !== 'entries') throw new DraftOpError(`"${section!.heading}" holds prose, not Entries`)
-      next = withSection((s) => ({ ...s, entries: [...s.entries, { ...newEntry(op.title, op.body), humanEdited: true }] }))
+      next = withSection((s) => ({
+        ...s,
+        entries: [...s.entries, { ...newEntry(op.title, op.body), humanEdited: true }],
+      }))
       break
     case 'moveSection':
-      next = { ...draft, sections: moveTo(draft.sections, op.sectionId, op.toIndex, (s) => ({ ...s, humanMoved: true })) }
+      next = {
+        ...draft,
+        sections: moveTo(draft.sections, op.sectionId, op.toIndex, (s) => ({ ...s, humanMoved: true })),
+      }
       break
     case 'moveEntry':
-      next = withSection((s) => ({ ...s, entries: moveTo(s.entries, op.entryId, op.toIndex, (e) => ({ ...e, humanMoved: true })) }))
+      next = withSection((s) => ({
+        ...s,
+        entries: moveTo(s.entries, op.entryId, op.toIndex, (e) => ({ ...e, humanMoved: true })),
+      }))
       break
     case 'discardSection':
-      if (section!.locked) throw new DraftOpError(`"${section!.heading}" is a Locked Section — it can be edited and moved, never Discarded`)
+      if (section!.locked)
+        throw new DraftOpError(
+          `"${section!.heading}" is a Locked Section — it can be edited and moved, never Discarded`,
+        )
       next = withSection((s) => ({ ...s, discarded: true }))
       break
     case 'restoreSection':
@@ -77,7 +94,7 @@ export function applyHumanOp(draft: Draft, op: HumanOp): Draft {
       next = withEntry(op.entryId, (e) => ({ ...e, discarded: false }))
       break
     default:
-      throw new DraftOpError(`Unknown edit ${(op as { op?: unknown }).op}`)
+      throw new DraftOpError(`Unknown edit ${String((op as { op?: unknown }).op)}`)
   }
   return next
 }

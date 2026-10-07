@@ -3,7 +3,7 @@
 // No earlier Transcript is passed on: the Draft is the memory. A Continuation (ADR-0014) also has Claude
 // Code's own conversation, so its task says the Draft below wins over anything said there.
 import type { Draft, Section } from '#core/draft/draftTypes.ts'
-import { submitUsage, type Seed } from '#core/session/cardProtocol.ts'
+import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -146,7 +146,9 @@ function task(input: SeedInput): string {
       if (!to) return 'Template upgrade requested, but no target Template was given. Tell the human.'
       const have = new Set(draft.sections.map((s) => s.key))
       const added = to.sections.filter((s) => !have.has(s.key))
-      const addedList = added.length ? added.map((s) => `- key "${s.key}" — ${s.heading} (${s.shape}) — ${s.guidance}`).join('\n') : '- none'
+      const addedList = added.length
+        ? added.map((s) => `- key "${s.key}" — ${s.heading} (${s.shape}) — ${s.guidance}`).join('\n')
+        : '- none'
       return `Upgrade this Draft from ${draft.template.name} v${draft.template.version} to ${to.name} v${to.version}.
 Sections the newer version adds (propose each with an addSection change):
 ${addedList}
@@ -183,7 +185,9 @@ ${template.method}`
         .map((r) => `### ${r.workItemType}: ${r.title}\n${r.markdown.trim()}`)
         .join('\n\n')}`
     : ''
-  const current = first ? '' : `## Current Draft (v${draft.version})\n\`\`\`json\n${JSON.stringify(draftForClaude(draft), null, 2)}\n\`\`\``
+  const current = first
+    ? ''
+    : `## Current Draft (v${draft.version})\n\`\`\`json\n${JSON.stringify(draftForClaude(draft), null, 2)}\n\`\`\``
 
   const firstMessage = [
     `Project: ${input.projectName} · Work Item Type: ${draft.workItemType} · Template: ${template.name}`,

@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+
 import type { Project } from '#core/contract/apiTypes.ts'
+
 import { useRenameProject } from '@/api/hooks/projects/projectHooks'
 import { TextInput } from '@/components/atoms/textInput/textInput'
-import { projectNameSchema, type ProjectNameFormData } from '@/lib/formSchemas/projectSchema'
+import { type ProjectNameFormData, projectNameSchema } from '@/lib/formSchemas/projectSchema'
 
 interface ProjectTitleProps {
   project: Project
@@ -26,13 +29,22 @@ export function ProjectTitle({ project }: ProjectTitleProps) {
 
   if (!editing)
     return (
-      <h1 className="cursor-text font-serif text-[30px] leading-tight font-semibold tracking-tight" title="Rename" onDoubleClick={startEditing}>
+      <h1
+        className="cursor-text font-serif text-[30px] leading-tight font-semibold tracking-tight"
+        title="Rename"
+        onDoubleClick={startEditing}
+      >
         {project.name}
       </h1>
     )
   return (
     <form onSubmit={onSubmit}>
-      <TextInput autoFocus {...register('name', { onBlur: () => setEditing(false) })} className="h-11 font-serif text-2xl" aria-label="Project name" />
+      <TextInput
+        autoFocus
+        {...register('name', { onBlur: () => setEditing(false) })}
+        className="h-11 font-serif text-2xl"
+        aria-label="Project name"
+      />
     </form>
   )
 }

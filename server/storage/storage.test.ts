@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import { newDraft } from '#core/draft/draft.ts'
 import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
+
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, getDraft, updateDraft } from './drafts.ts'
 import { StaleWrite } from './errors.ts'
@@ -13,7 +15,15 @@ beforeEach(resetTestData)
 
 const draftIn = async () => {
   const project = await createProject('Ünïcode & Co!', meta.date)
-  return createDraft(newDraft({ projectId: project.id, workItemType: 'PBI', template: defaultPbiTemplate, requirement: 'x', now: meta.date }))
+  return createDraft(
+    newDraft({
+      projectId: project.id,
+      workItemType: 'PBI',
+      template: defaultPbiTemplate,
+      requirement: 'x',
+      now: meta.date,
+    }),
+  )
 }
 
 describe('storage', () => {
@@ -25,7 +35,7 @@ describe('storage', () => {
 
   it('serialises Draft updates and skips writes that change nothing', async () => {
     const draft = await draftIn()
-    const bump = () => updateDraft(draft.projectId, draft.id, async (d) => ({ ...d, references: [...d.references, 'r'] }))
+    const bump = () => updateDraft(draft.projectId, draft.id, (d) => ({ ...d, references: [...d.references, 'r'] }))
     await Promise.all([bump(), bump(), bump()])
     expect((await getDraft(draft.projectId, draft.id)).references).toEqual(['r', 'r', 'r'])
     const unchanged = await updateDraft(draft.projectId, draft.id, () => null)
@@ -41,7 +51,10 @@ describe('storage', () => {
   })
 
   it('cleans Settings on save', async () => {
-    expect(await saveSettings({ author: ' ', model: ' ', theme: 'neon' as never })).toMatchObject({ model: '', theme: 'system' })
+    expect(await saveSettings({ author: ' ', model: ' ', theme: 'neon' as never })).toMatchObject({
+      model: '',
+      theme: 'system',
+    })
     expect((await getSettings()).author).toBeTruthy()
   })
 })

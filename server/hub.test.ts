@@ -1,6 +1,8 @@
 import http from 'node:http'
+
 import { afterEach, describe, expect, it } from 'vitest'
 import { WebSocket } from 'ws'
+
 import { Hub } from './hub.ts'
 
 let server: http.Server
@@ -19,7 +21,9 @@ describe('Hub', () => {
     const url = await listen(hub)
     const ws = new WebSocket(`${url}/api/ws`)
     await new Promise((resolve) => ws.on('open', resolve))
-    const received = new Promise((resolve) => ws.on('message', (data) => resolve(JSON.parse(String(data)))))
+    const received = new Promise((resolve) =>
+      ws.on('message', (data) => resolve(JSON.parse((data as Buffer).toString()))),
+    )
     hub.broadcast({ type: 'templates' })
     expect(await received).toEqual({ type: 'templates' })
     ws.close()

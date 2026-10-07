@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import type { ChatMessage, TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
 import { v1Draft } from '#core/testing/fixtures.ts'
+
 import type { DraftWithSession } from '@/api/draftsApi'
 import { queryKeys } from '@/api/reactQueryKeys'
 import { applyServerEvent } from '@/api/serverEvents'
@@ -10,11 +12,19 @@ import { createTestQueryClient } from '@test/utils/testUtils'
 const draft = v1Draft()
 const P = draft.projectId
 const msg = (id: string, text = 'hi'): ChatMessage => ({ id, at: '', role: 'system', text })
-const invalidated = (qc: ReturnType<typeof createTestQueryClient>, key: readonly unknown[]) => qc.getQueryState(key)?.isInvalidated
+const invalidated = (qc: ReturnType<typeof createTestQueryClient>, key: readonly unknown[]) =>
+  qc.getQueryState(key)?.isInvalidated
 
 function seeded() {
   const qc = createTestQueryClient()
-  for (const key of [queryKeys.render(P, draft.id), queryKeys.drafts(P), queryKeys.projects, queryKeys.glossary(P), queryKeys.templates]) qc.setQueryData(key, {})
+  for (const key of [
+    queryKeys.render(P, draft.id),
+    queryKeys.drafts(P),
+    queryKeys.projects,
+    queryKeys.glossary(P),
+    queryKeys.templates,
+  ])
+    qc.setQueryData(key, {})
   return qc
 }
 
@@ -34,7 +44,8 @@ describe('applyServerEvent', () => {
     applyServerEvent(qc, { type: 'drafts', projectId: P })
     applyServerEvent(qc, { type: 'glossary', projectId: P })
     applyServerEvent(qc, { type: 'templates' })
-    for (const key of [queryKeys.drafts(P), queryKeys.projects, queryKeys.glossary(P), queryKeys.templates]) expect(invalidated(qc, key)).toBe(true)
+    for (const key of [queryKeys.drafts(P), queryKeys.projects, queryKeys.glossary(P), queryKeys.templates])
+      expect(invalidated(qc, key)).toBe(true)
   })
 
   it('tracks a session starting and ending on its Draft and Transcript', () => {
@@ -67,8 +78,17 @@ describe('applyServerEvent', () => {
     const t: Transcript = { ...liveSession(draft), messages: [msg('a')] }
     qc.setQueryData<Transcript[]>(queryKeys.transcripts(P, draft.id), [t])
     applyServerEvent(qc, { type: 'message', projectId: P, draftId: draft.id, sessionId: t.id, message: msg('b') })
-    applyServerEvent(qc, { type: 'message', projectId: P, draftId: draft.id, sessionId: t.id, message: msg('a', 'edited') })
-    expect(qc.getQueryData<Transcript[]>(queryKeys.transcripts(P, draft.id))?.[0].messages).toEqual([msg('a', 'edited'), msg('b')])
+    applyServerEvent(qc, {
+      type: 'message',
+      projectId: P,
+      draftId: draft.id,
+      sessionId: t.id,
+      message: msg('a', 'edited'),
+    })
+    expect(qc.getQueryData<Transcript[]>(queryKeys.transcripts(P, draft.id))?.[0].messages).toEqual([
+      msg('a', 'edited'),
+      msg('b'),
+    ])
 
     // A message for a session not yet in the list: refetch the list rather than guess its place.
     const invalidate = vi.spyOn(qc, 'invalidateQueries')
@@ -78,7 +98,14 @@ describe('applyServerEvent', () => {
 
   it('follows a Template Session', () => {
     const qc = seeded()
-    const session = { id: 'ts', kind: 'template' as const, status: 'waiting' as const, writeConfirmed: false, startedAt: '', request: { workItemType: 'PBI' as const, purpose: 'x', examples: '' } }
+    const session = {
+      id: 'ts',
+      kind: 'template' as const,
+      status: 'waiting' as const,
+      writeConfirmed: false,
+      startedAt: '',
+      request: { workItemType: 'PBI' as const, purpose: 'x', examples: '' },
+    }
     qc.setQueryData<TemplateTranscript>(queryKeys.templateSession('ts'), { ...session, messages: [msg('a')] })
 
     applyServerEvent(qc, { type: 'templateSession', session })
@@ -88,7 +115,11 @@ describe('applyServerEvent', () => {
     applyServerEvent(qc, { type: 'templateSession', session: { ...session, status: 'finished', templateId: 't1' } })
 
     expect(qc.getQueryData(queryKeys.liveTemplateSession)).toEqual({ session: null })
-    expect(qc.getQueryData<TemplateTranscript>(queryKeys.templateSession('ts'))).toMatchObject({ status: 'finished', templateId: 't1', messages: [msg('a', 'edited'), msg('b')] })
+    expect(qc.getQueryData<TemplateTranscript>(queryKeys.templateSession('ts'))).toMatchObject({
+      status: 'finished',
+      templateId: 't1',
+      messages: [msg('a', 'edited'), msg('b')],
+    })
     applyServerEvent(qc, { type: 'templateMessage', sessionId: 'unknown', message: msg('x') })
     expect(qc.getQueryData(queryKeys.templateSession('unknown'))).toBeUndefined()
   })

@@ -25,7 +25,9 @@ export function finalize(draft: Draft, meta: IterationMeta): Draft | null {
   if (accepted === 0 && !proposal.upgradeTo) return next
   const version = draft.version + 1
   const what = `${accepted} change${accepted === 1 ? '' : 's'} accepted from ${SESSION_NAMES[proposal.kind]}`
-  const note = proposal.upgradeTo ? `Upgraded to ${proposal.upgradeTo.name} v${proposal.upgradeTo.version}; ${what}` : what
+  const note = proposal.upgradeTo
+    ? `Upgraded to ${proposal.upgradeTo.name} v${proposal.upgradeTo.version}; ${what}`
+    : what
   return {
     ...next,
     version,
@@ -44,7 +46,14 @@ function adoptTemplate(draft: Draft, template: Template): Draft {
       const d = defs.get(s.key)
       if (!d) return s
       const { entryFormat: _drop, ...rest } = s
-      return { ...rest, heading: d.heading, locked: d.locked, target: d.target, guidance: d.guidance, ...(d.entryFormat ? { entryFormat: d.entryFormat } : {}) }
+      return {
+        ...rest,
+        heading: d.heading,
+        locked: d.locked,
+        target: d.target,
+        guidance: d.guidance,
+        ...(d.entryFormat ? { entryFormat: d.entryFormat } : {}),
+      }
     }),
   }
 }
@@ -66,6 +75,8 @@ export function acceptAllClean(draft: Draft, meta: IterationMeta): Draft {
   for (const c of draft.proposal.changes) {
     if (c.status === 'pending' && !c.conflict) next = applyChange(next, c)
   }
-  const changes = draft.proposal.changes.map((c) => (c.status === 'pending' && !c.conflict ? { ...c, status: 'accepted' as const } : c))
+  const changes = draft.proposal.changes.map((c) =>
+    c.status === 'pending' && !c.conflict ? { ...c, status: 'accepted' as const } : c,
+  )
   return settle(reclassify({ ...next, proposal: { ...draft.proposal, changes } }), meta)
 }

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+
 import { NewSessionComposer } from '@/components/features/chat/newSessionComposer/newSessionComposer'
 
 describe('NewSessionComposer', () => {
@@ -23,7 +24,15 @@ describe('NewSessionComposer', () => {
   })
 
   it('is blocked with a reason', () => {
-    render(<NewSessionComposer placeholder="Message" blockedReason="Triage first" hint="hidden" starting={false} onStart={() => {}} />)
+    render(
+      <NewSessionComposer
+        placeholder="Message"
+        blockedReason="Triage first"
+        hint="hidden"
+        starting={false}
+        onStart={() => {}}
+      />,
+    )
     expect(screen.getByRole('textbox')).toBeDisabled()
     expect(screen.getByPlaceholderText('Triage first')).toBeInTheDocument()
     expect(screen.queryByText('hidden')).not.toBeInTheDocument()

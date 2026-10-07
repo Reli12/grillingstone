@@ -1,8 +1,21 @@
 // Every session in view (all Grilling Sessions on a Draft, or one Template Session), oldest first. Finished sessions fold into a line and open as a
 // read-only Transcript; the live one shows question cards and the Ready Check. An ended one may offer Continue (ADR-0014).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { BookOpenText, ChevronRight, CornerDownRight, FileText, Globe, Search, Send, ShieldAlert, Wrench } from 'lucide-react'
+
+import {
+  BookOpenText,
+  ChevronRight,
+  CornerDownRight,
+  FileText,
+  Globe,
+  Search,
+  Send,
+  ShieldAlert,
+  Wrench,
+} from 'lucide-react'
+
 import type { ChatMessage, SessionBase } from '#core/session/sessionTypes.ts'
+
 import { RichText } from '@/components/atoms/richText/richText'
 import { Thinking } from '@/components/atoms/thinking/thinking'
 import { QuestionCard } from '@/components/features/chat/questionCard/questionCard'
@@ -24,7 +37,8 @@ const STATUS_TEXT: Record<SessionBase['status'], string> = {
   interrupted: 'interrupted',
 }
 
-const time = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const time = (iso: string) =>
+  new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 function toolIcon(m: Extract<ChatMessage, { role: 'tool' }>) {
   if (m.outcome === 'denied') return ShieldAlert
@@ -65,7 +79,14 @@ function Messages({ t, live, ...h }: MessagesProps) {
         if (m.role === 'human')
           return (
             <div key={m.id} className="flex justify-end">
-              <p className={cn('max-w-[85%] rounded-lg px-3.5 py-2 text-[15px] whitespace-pre-wrap', m.kind === 'write' ? 'bg-proof text-on-accent' : 'bg-ink text-on-ink')}>{m.text}</p>
+              <p
+                className={cn(
+                  'max-w-[85%] rounded-lg px-3.5 py-2 text-[15px] whitespace-pre-wrap',
+                  m.kind === 'write' ? 'bg-proof text-on-accent' : 'bg-ink text-on-ink',
+                )}
+              >
+                {m.text}
+              </p>
             </div>
           )
         if (m.role === 'system')
@@ -74,7 +95,11 @@ function Messages({ t, live, ...h }: MessagesProps) {
               key={m.id}
               className={cn(
                 'mx-auto max-w-[90%] text-center text-[13px]',
-                m.tone === 'success' ? 'font-medium text-proof' : m.tone === 'error' ? 'text-redpencil' : 'text-ink-faint',
+                m.tone === 'success'
+                  ? 'font-medium text-proof'
+                  : m.tone === 'error'
+                    ? 'text-redpencil'
+                    : 'text-ink-faint',
               )}
             >
               {m.text}
@@ -83,7 +108,13 @@ function Messages({ t, live, ...h }: MessagesProps) {
         if (m.role === 'tool') {
           const Icon = toolIcon(m)
           return (
-            <p key={m.id} className={cn('flex items-center gap-2 pl-3 text-[13px]', m.outcome === 'denied' || m.outcome === 'error' ? 'text-redpencil' : 'text-ink-faint')}>
+            <p
+              key={m.id}
+              className={cn(
+                'flex items-center gap-2 pl-3 text-[13px]',
+                m.outcome === 'denied' || m.outcome === 'error' ? 'text-redpencil' : 'text-ink-faint',
+              )}
+            >
               <Icon size={14} className="shrink-0" />
               <span className="truncate">{m.summary}</span>
               {m.outcome === 'denied' && <span className="shrink-0">(blocked by the session allowlist)</span>}
@@ -97,7 +128,8 @@ function Messages({ t, live, ...h }: MessagesProps) {
         return (
           <div key={m.id} className="space-y-3 border-l-2 border-claude/60 pl-3">
             {m.segments.map((s, k) => {
-              if (s.type === 'text') return <RichText key={k} text={s.text} className="text-[15px] leading-relaxed text-ink" />
+              if (s.type === 'text')
+                return <RichText key={k} text={s.text} className="text-[15px] leading-relaxed text-ink" />
               if (s.type === 'question')
                 return (
                   <QuestionCard
@@ -193,11 +225,18 @@ export function ChatThread({ transcripts, liveSessionId, canContinue, onContinue
       <div className="mx-auto max-w-[720px] space-y-6 px-4 py-6">
         {transcripts.map((t, index) => {
           const expanded = t.id === latest?.id || t.id === liveSessionId || openIds.has(t.id)
-          const continueButton = onContinue && canContinue?.(t) ? <ContinueButton t={t} onContinue={onContinue} /> : null
+          const continueButton =
+            onContinue && canContinue?.(t) ? <ContinueButton t={t} onContinue={onContinue} /> : null
           if (!expanded)
             return (
-              <div key={t.id} className="flex items-center gap-1 rounded-md border border-line-soft bg-sheet/60 pr-1.5 hover:border-line">
-                <button onClick={() => setOpenIds(new Set(openIds).add(t.id))} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-[13px]">
+              <div
+                key={t.id}
+                className="flex items-center gap-1 rounded-md border border-line-soft bg-sheet/60 pr-1.5 hover:border-line"
+              >
+                <button
+                  onClick={() => setOpenIds(new Set(openIds).add(t.id))}
+                  className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-[13px]"
+                >
                   <ChevronRight size={14} className="shrink-0 text-ink-faint" />
                   <span className="truncate">
                     <SessionHeading t={t} />
@@ -218,16 +257,24 @@ export function ChatThread({ transcripts, liveSessionId, canContinue, onContinue
                 <span className="h-px flex-1 bg-line" />
               </h3>
               {t.continues ? (
-                <p className="-mt-2 mb-4 text-center text-[12px] text-ink-faint">Claude continues an earlier conversation, with the current Draft in hand.</p>
+                <p className="-mt-2 mb-4 text-center text-[12px] text-ink-faint">
+                  Claude continues an earlier conversation, with the current Draft in hand.
+                </p>
               ) : (
-                index > 0 && <p className="-mt-2 mb-4 text-center text-[12px] text-ink-faint">Claude started fresh from the current Draft — it doesn’t see the chat above.</p>
+                index > 0 && (
+                  <p className="-mt-2 mb-4 text-center text-[12px] text-ink-faint">
+                    Claude started fresh from the current Draft — it doesn’t see the chat above.
+                  </p>
+                )
               )}
               <Messages t={t} live={t.id === liveSessionId} {...h} />
             </section>
           )
         })}
         {live && (live.status === 'thinking' || live.status === 'starting') && <Thinking className="pl-3" />}
-        {live?.status === 'writing' && <Thinking className="pl-3" label={`Claude is writing ${writeTarget(live.kind)}`} />}
+        {live?.status === 'writing' && (
+          <Thinking className="pl-3" label={`Claude is writing ${writeTarget(live.kind)}`} />
+        )}
       </div>
     </div>
   )

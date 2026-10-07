@@ -1,8 +1,11 @@
 // Pushes ServerEvents to every open browser tab. Single-user and local: every tab gets every event
 // and filters by Project / Draft itself.
 import type { IncomingMessage, Server } from 'node:http'
-import { WebSocketServer, type WebSocket } from 'ws'
+
+import { type WebSocket, WebSocketServer } from 'ws'
+
 import type { ServerEvent } from '#core/session/sessionTypes.ts'
+
 import { ALLOWED_ORIGINS } from './config.ts'
 
 export class Hub {

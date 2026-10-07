@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import HomePage from '@/pages/HomePage/HomePage'
 import { server } from '@test/mocks/server'
@@ -67,14 +68,21 @@ describe('HomePage', () => {
     expect(dialog.getByText(/1 term recognised/)).toBeInTheDocument()
     await user.click(dialog.getByRole('button', { name: 'Create Project' }))
 
-    await vi.waitFor(() => expect(sent).toEqual([{ name: 'Billing', glossary: '# Billing\n\n## Language\n\n**Invoice**:\nA request for payment.\n' }]))
+    await vi.waitFor(() =>
+      expect(sent).toEqual([
+        { name: 'Billing', glossary: '# Billing\n\n## Language\n\n**Invoice**:\nA request for payment.\n' },
+      ]),
+    )
   })
 
   it('starts as a copy of another Project’s Glossary', async () => {
     const sent = capture()
     server.use(
       http.get(`*${endpoints.glossary('customer-portal')}`, () =>
-        HttpResponse.json({ markdown: '# Customer Portal\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n', version: 'v1' }),
+        HttpResponse.json({
+          markdown: '# Customer Portal\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n',
+          version: 'v1',
+        }),
       ),
     )
     const { user } = render(<HomePage />, { path: '/' })
@@ -84,9 +92,15 @@ describe('HomePage', () => {
     await user.selectOptions(dialog.getByRole('combobox', { name: 'Copy from Project' }), 'customer-portal')
 
     expect(await dialog.findByText(/1 term recognised/)).toBeInTheDocument()
-    expect(dialog.getByRole('textbox', { name: 'Starting Glossary' })).toHaveValue('Devices.\n\n## Language\n\n**Site**:\nA place.\n')
+    expect(dialog.getByRole('textbox', { name: 'Starting Glossary' })).toHaveValue(
+      'Devices.\n\n## Language\n\n**Site**:\nA place.\n',
+    )
     await user.click(dialog.getByRole('button', { name: 'Create Project' }))
-    await vi.waitFor(() => expect(sent).toEqual([{ name: 'Billing', glossary: '# Billing\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n' }]))
+    await vi.waitFor(() =>
+      expect(sent).toEqual([
+        { name: 'Billing', glossary: '# Billing\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n' },
+      ]),
+    )
   })
 
   it('opens straight into the dialog from the header’s New Project link', async () => {

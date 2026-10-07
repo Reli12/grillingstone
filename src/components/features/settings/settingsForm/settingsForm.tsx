@@ -1,13 +1,16 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+
+import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+
 import type { Settings } from '#core/contract/apiTypes.ts'
+
 import { useSaveSettings } from '@/api/hooks/projects/projectHooks'
 import { Button } from '@/components/atoms/button/button'
 import { FieldError } from '@/components/atoms/fieldError/fieldError'
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { TextInput } from '@/components/atoms/textInput/textInput'
-import { settingsSchema, type SettingsFormData } from '@/lib/formSchemas/settingsSchema'
+import { type SettingsFormData, settingsSchema } from '@/lib/formSchemas/settingsSchema'
 
 interface SettingsFormProps {
   settings: Settings
@@ -16,7 +19,10 @@ interface SettingsFormProps {
 /** Author and model; saved together with the Save button. */
 export function SettingsForm({ settings }: SettingsFormProps) {
   const save = useSaveSettings()
-  const { register, handleSubmit, formState, reset } = useForm<SettingsFormData>({ resolver: zodResolver(settingsSchema), defaultValues: settings })
+  const { register, handleSubmit, formState, reset } = useForm<SettingsFormData>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: settings,
+  })
   return (
     <form
       className="space-y-6"

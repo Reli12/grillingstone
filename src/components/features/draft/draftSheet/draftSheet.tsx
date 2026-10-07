@@ -1,8 +1,18 @@
 // The live Draft as one sheet of paper: Title, Sections in the human's order, the Iteration Log,
 // and — while a Proposal is open — its changes inline where they would land.
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
+
 import { formatLogDate } from '#core/publish/publishRenderer.ts'
+
 import { ChangeCard } from '@/components/features/draft/changeCard/changeCard'
 import { EditableText } from '@/components/features/draft/editableText/editableText'
 import { Gutter } from '@/components/features/draft/gutter/gutter'
@@ -12,10 +22,17 @@ import { useDraftEditor } from '@/context/DraftEditor/DraftEditor'
 
 export function DraftSheet() {
   const { draft, pending, apply, decide, busy } = useDraftEditor()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
-    apply({ op: 'moveSection', sectionId: String(active.id), toIndex: draft.sections.findIndex((s) => s.id === over.id) })
+    apply({
+      op: 'moveSection',
+      sectionId: String(active.id),
+      toIndex: draft.sections.findIndex((s) => s.id === over.id),
+    })
   }
   const titleChanges = pending.filter((c) => c.kind === 'retitle')
   const newSections = pending.filter((c) => c.kind === 'addSection')
@@ -23,10 +40,19 @@ export function DraftSheet() {
   return (
     <article className="mx-auto w-full max-w-[860px]">
       <div className="flex gap-1">
-        <Gutter edited={draft.titleHumanEdited} moved={false} pending={titleChanges.length ? (titleChanges.some((c) => c.conflict) ? 'conflict' : 'clean') : undefined} />
+        <Gutter
+          edited={draft.titleHumanEdited}
+          moved={false}
+          pending={titleChanges.length ? (titleChanges.some((c) => c.conflict) ? 'conflict' : 'clean') : undefined}
+        />
         <div className="min-w-0 flex-1">
-          <EditableText value={draft.title} onSave={({ body }) => apply({ op: 'retitle', title: body.replace(/\s+/g, ' ') })}>
-            <h1 className="font-serif text-[28px] leading-tight font-semibold tracking-tight text-ink">{draft.title}</h1>
+          <EditableText
+            value={draft.title}
+            onSave={({ body }) => apply({ op: 'retitle', title: body.replace(/\s+/g, ' ') })}
+          >
+            <h1 className="font-serif text-[28px] leading-tight font-semibold tracking-tight text-ink">
+              {draft.title}
+            </h1>
           </EditableText>
           {titleChanges.map((c) => (
             <div key={c.id} className="mt-2">

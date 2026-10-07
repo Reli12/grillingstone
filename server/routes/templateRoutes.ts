@@ -9,7 +9,9 @@ export function templateRoutes(r: Router, { templates }: AppDeps) {
   r.get('/api/templates', () => listTemplates())
   r.get('/api/templates/:templateId', ({ params }) => getTemplate(params.templateId))
   r.post('/api/templates', ({ body }) => templates.create(parse(templateBody, body)))
-  r.put('/api/templates/:templateId', ({ params, body }) => templates.update(params.templateId, parse(templateBody, body)))
+  r.put('/api/templates/:templateId', ({ params, body }) =>
+    templates.update(params.templateId, parse(templateBody, body)),
+  )
   r.delete('/api/templates/:templateId', async ({ params }) => {
     await templates.delete(params.templateId)
     return { ok: true }

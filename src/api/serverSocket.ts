@@ -1,4 +1,5 @@
 import type { ServerEvent } from '#core/session/sessionTypes.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 
 interface ServerSocketHandlers {
@@ -24,7 +25,7 @@ export function connectServerSocket({ onOpen, onEvent, onClose }: ServerSocketHa
     }
     ws.onmessage = (msg) => {
       try {
-        onEvent(JSON.parse(msg.data) as ServerEvent)
+        onEvent(JSON.parse(String(msg.data)) as ServerEvent)
       } catch {
         /* ignore malformed events */
       }

@@ -1,5 +1,7 @@
-import { Plus } from 'lucide-react'
 import { Link, useParams } from 'react-router'
+
+import { Plus } from 'lucide-react'
+
 import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'
 import { Button } from '@/components/atoms/button/button'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
@@ -43,14 +45,17 @@ export default function ProjectPage() {
                   </Link>
                 }
               >
-                Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be written down.
+                Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be
+                written down.
               </EmptyState>
             )}
           </div>
         </section>
         <aside>
           <h2 className="font-serif text-lg font-semibold">Glossary</h2>
-          <p className="mb-4 text-[13px] text-ink-faint">Shared by every Draft in {project.name}. Every session is challenged against it.</p>
+          <p className="mb-4 text-[13px] text-ink-faint">
+            Shared by every Draft in {project.name}. Every session is challenged against it.
+          </p>
           <GlossaryPanel projectId={projectId} />
         </aside>
       </div>

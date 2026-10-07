@@ -1,12 +1,15 @@
-import { useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react'
+import { type ChangeEvent, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+
 import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
 import { allowedTargets, defaultIterationLogTarget } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
+
 import { useCreateTemplate, useDeleteTemplate, useUpdateTemplate } from '@/api/hooks/templates/templateHooks'
 import { Button } from '@/components/atoms/button/button'
 import { FieldError } from '@/components/atoms/fieldError/fieldError'
@@ -15,7 +18,7 @@ import { Tag } from '@/components/atoms/tag/tag'
 import { TextInput } from '@/components/atoms/textInput/textInput'
 import { Dialog } from '@/components/composite/dialog/dialog'
 import { cn } from '@/lib/cn'
-import { templateSchema, type TemplateFormData } from '@/lib/formSchemas/templateSchema'
+import { type TemplateFormData, templateSchema } from '@/lib/formSchemas/templateSchema'
 import { routesPaths } from '@/routes/routes'
 
 const toForm = (t: Template): TemplateFormData => ({
@@ -41,7 +44,10 @@ const fromForm = (base: Template, f: TemplateFormData): Template => ({
   iterationLogHeading: f.iterationLogHeading,
   iterationLogTarget: f.iterationLogTarget,
   method: f.method,
-  sections: f.sections.map(({ gherkin, ...s }) => ({ ...s, ...(gherkin && s.shape === 'entries' ? { entryFormat: 'gherkin' as const } : {}) })),
+  sections: f.sections.map(({ gherkin, ...s }) => ({
+    ...s,
+    ...(gherkin && s.shape === 'entries' ? { entryFormat: 'gherkin' as const } : {}),
+  })),
 })
 
 const keyFrom = (heading: string) =>
@@ -52,7 +58,8 @@ const keyFrom = (heading: string) =>
     .map((w, i) => (i === 0 ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()))
     .join('')
 
-const inputCls = 'h-8 rounded-md border border-line bg-sheet px-2 text-sm focus:border-claude focus:outline-none disabled:bg-fog disabled:text-ink-soft'
+const inputCls =
+  'h-8 rounded-md border border-line bg-sheet px-2 text-sm focus:border-claude focus:outline-none disabled:bg-fog disabled:text-ink-soft'
 
 interface TemplateEditorProps {
   template: Template
@@ -76,7 +83,10 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
     </option>
   ))
 
-  const { register, control, handleSubmit, watch, setValue, formState, reset } = useForm<TemplateFormData>({ resolver: zodResolver(templateSchema), defaultValues: toForm(template) })
+  const { register, control, handleSubmit, watch, setValue, formState, reset } = useForm<TemplateFormData>({
+    resolver: zodResolver(templateSchema),
+    defaultValues: toForm(template),
+  })
   const { fields, append, remove: removeSection, move } = useFieldArray({ control, name: 'sections' })
   const sections = watch('sections')
   const errors = formState.errors
@@ -104,7 +114,8 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
       </div>
       {template.origin && (
         <p className="mt-2 text-sm text-ink-soft">
-          Made in a Template Session on {new Date(template.origin.at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}.{' '}
+          Made in a Template Session on{' '}
+          {new Date(template.origin.at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}.{' '}
           <Link to={routesPaths.templateSession(template.origin.sessionId)} className="text-claude underline">
             Read the transcript
           </Link>
@@ -112,11 +123,18 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
       )}
       {readOnly && (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-line bg-sheet px-4 py-3 text-sm">
-          <span className="flex-1 text-ink-soft">Default Templates can’t be changed. Duplicate it to make your own version.</span>
+          <span className="flex-1 text-ink-soft">
+            Default Templates can’t be changed. Duplicate it to make your own version.
+          </span>
           <Button
             variant="ink"
             size="sm"
-            onClick={() => duplicate.mutate({ ...template, name: template.name.replace(/^Default /, 'My ') }, { onSuccess: (t) => navigate(routesPaths.template(t.id)) })}
+            onClick={() =>
+              duplicate.mutate(
+                { ...template, name: template.name.replace(/^Default /, 'My ') },
+                { onSuccess: (t) => void navigate(routesPaths.template(t.id)) },
+              )
+            }
           >
             <Copy size={14} /> Duplicate to customise
           </Button>
@@ -145,7 +163,10 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
 
       <section className="mt-10">
         <h2 className="font-serif text-xl font-semibold">Sections</h2>
-        <p className="mt-1 text-sm text-ink-soft">In this order Claude must write them — every one, with “N/A — reason” when empty. Locked Sections can never be discarded or left empty.</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          In this order Claude must write them — every one, with “N/A — reason” when empty. Locked Sections can never be
+          discarded or left empty.
+        </p>
         <FieldError message={errors.sections?.message ?? errors.sections?.root?.message} />
         <ol className="mt-4 space-y-2">
           {fields.map((f, i) => {
@@ -156,9 +177,10 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
                   <div>
                     <input
                       {...register(`sections.${i}.heading`, {
-                        onChange: (e) => {
+                        onChange: (e: ChangeEvent<HTMLInputElement>) => {
                           // A new Section's key follows its heading until it has been saved under a real name.
-                          const placeholder = !s?.key || /^section\d*$/.test(s.key) || !template.sections.some((t) => t.key === s.key)
+                          const placeholder =
+                            !s?.key || /^section\d*$/.test(s.key) || !template.sections.some((t) => t.key === s.key)
                           if (placeholder) setValue(`sections.${i}.key`, keyFrom(e.target.value) || 'section')
                         },
                       })}
@@ -172,21 +194,48 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
                     {targetOptions}
                   </select>
                   <span className="flex items-center gap-0.5">
-                    <Button size="sm" variant="quiet" aria-label="Move up" disabled={readOnly || i === 0} onClick={() => move(i, i - 1)}>
+                    <Button
+                      size="sm"
+                      variant="quiet"
+                      aria-label="Move up"
+                      disabled={readOnly || i === 0}
+                      onClick={() => move(i, i - 1)}
+                    >
                       <ArrowUp size={14} />
                     </Button>
-                    <Button size="sm" variant="quiet" aria-label="Move down" disabled={readOnly || i === fields.length - 1} onClick={() => move(i, i + 1)}>
+                    <Button
+                      size="sm"
+                      variant="quiet"
+                      aria-label="Move down"
+                      disabled={readOnly || i === fields.length - 1}
+                      onClick={() => move(i, i + 1)}
+                    >
                       <ArrowDown size={14} />
                     </Button>
-                    <Button size="sm" variant="danger" aria-label="Remove Section" disabled={readOnly || fields.length === 1} onClick={() => removeSection(i)}>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      aria-label="Remove Section"
+                      disabled={readOnly || fields.length === 1}
+                      onClick={() => removeSection(i)}
+                    >
                       <Trash2 size={14} />
                     </Button>
                   </span>
-                  <input {...register(`sections.${i}.guidance`)} aria-label="Guidance" placeholder="One line of guidance for Claude and for you" className={cn(inputCls, 'sm:col-span-3')} />
+                  <input
+                    {...register(`sections.${i}.guidance`)}
+                    aria-label="Guidance"
+                    placeholder="One line of guidance for Claude and for you"
+                    className={cn(inputCls, 'sm:col-span-3')}
+                  />
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm sm:col-span-3">
                     <label className="flex items-center gap-1.5">
                       <span className="text-ink-faint">Key</span>
-                      <input {...register(`sections.${i}.key`)} aria-label="Key" className={cn(inputCls, 'h-7 w-40 font-mono text-[13px]')} />
+                      <input
+                        {...register(`sections.${i}.key`)}
+                        aria-label="Key"
+                        className={cn(inputCls, 'h-7 w-40 font-mono text-[13px]')}
+                      />
                     </label>
                     <label className="flex items-center gap-1.5">
                       <span className="text-ink-faint">Shape</span>
@@ -200,7 +249,8 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
                     </label>
                     {s?.shape === 'entries' && (
                       <label className="flex items-center gap-1.5">
-                        <input type="checkbox" className="accent-claude" {...register(`sections.${i}.gherkin`)} /> Entries are Given / When / Then
+                        <input type="checkbox" className="accent-claude" {...register(`sections.${i}.gherkin`)} />{' '}
+                        Entries are Given / When / Then
                       </label>
                     )}
                   </div>
@@ -215,7 +265,17 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
             size="sm"
             variant="quiet"
             className="mt-2"
-            onClick={() => append({ key: `section${fields.length + 1}`, heading: '', shape: 'prose', locked: false, guidance: '', target: targets[0], gherkin: false })}
+            onClick={() =>
+              append({
+                key: `section${fields.length + 1}`,
+                heading: '',
+                shape: 'prose',
+                locked: false,
+                guidance: '',
+                target: targets[0],
+                gherkin: false,
+              })
+            }
           >
             <Plus size={14} /> Add Section
           </Button>
@@ -224,7 +284,9 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
 
       <section className="mt-10">
         <h2 className="font-serif text-xl font-semibold">Writing method</h2>
-        <p className="mt-1 text-sm text-ink-soft">The instructions Claude follows for content, in markdown. They travel with the Template when you share it.</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          The instructions Claude follows for content, in markdown. They travel with the Template when you share it.
+        </p>
         <textarea
           {...register('method')}
           disabled={readOnly}
@@ -261,7 +323,10 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
             <Button variant="quiet" onClick={() => setConfirmDelete(false)}>
               Keep it
             </Button>
-            <Button variant="destructive" onClick={() => remove.mutate(template.id, { onSuccess: () => navigate(routesPaths.templates) })}>
+            <Button
+              variant="destructive"
+              onClick={() => remove.mutate(template.id, { onSuccess: () => void navigate(routesPaths.templates) })}
+            >
               Delete Template
             </Button>
           </>

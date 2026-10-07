@@ -14,7 +14,8 @@ export const endpoints = {
   acceptClean: (projectId: string, draftId: string) => `${d(projectId, draftId)}/proposal/accept-clean`,
   render: (projectId: string, draftId: string) => `${d(projectId, draftId)}/render`,
   draftSessions: (projectId: string, draftId: string) => `${d(projectId, draftId)}/sessions`,
-  continueSession: (projectId: string, draftId: string, sessionId: string) => `${d(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,
+  continueSession: (projectId: string, draftId: string, sessionId: string) =>
+    `${d(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,
   sessionMessages: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
   sessionWrite: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/write`,
   sessionStop: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/stop`,

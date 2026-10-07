@@ -1,6 +1,7 @@
 // What the Draft sheet's Sections and Entries need from the page: human edits, Proposal decisions and
 // starting a Focused Session ("Grill this").
 import { createContext, useContext } from 'react'
+
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { Change } from '#core/proposal/proposalTypes.ts'

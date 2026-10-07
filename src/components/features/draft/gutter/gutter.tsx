@@ -2,7 +2,9 @@
 // edits are a highlighter stroke; a Section or Entry you moved carries an arrow. These are exactly the
 // marks that turn a later change into a Conflict.
 import type { HTMLAttributes } from 'react'
+
 import { ArrowUpDown, GripVertical } from 'lucide-react'
+
 import { cn } from '@/lib/cn'
 
 interface GutterProps {

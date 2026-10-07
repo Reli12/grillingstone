@@ -1,8 +1,11 @@
 // Importing a colleague's bundle: every Template is marked new, changed or identical by meaning; only new
 // ones are selected by default, and an import never deletes anything.
 import { useState } from 'react'
+
 import { toast } from 'sonner'
+
 import type { ImportStatus } from '#core/template/templateBundle.ts'
+
 import { useImportPreview, useImportTemplates } from '@/api/hooks/templates/templateHooks'
 import { Button } from '@/components/atoms/button/button'
 import { Tag } from '@/components/atoms/tag/tag'
@@ -15,7 +18,7 @@ const STATUS: Record<ImportStatus, { tone: 'proof' | 'mark' | 'neutral'; text: s
 }
 
 interface ImportDialogProps {
-  bundle: unknown | null
+  bundle: unknown
   onClose: () => void
 }
 
@@ -27,7 +30,9 @@ export function ImportDialog({ bundle, onClose }: ImportDialogProps) {
   const importMutation = useImportTemplates()
 
   const preview = error ? { ok: false as const, reason: error.message } : data
-  const defaults = preview?.ok ? new Set(preview.items.flatMap((item, i) => (item.selected ? [i] : []))) : new Set<number>()
+  const defaults = preview?.ok
+    ? new Set(preview.items.flatMap((item, i) => (item.selected ? [i] : [])))
+    : new Set<number>()
   const selected = ticked && ticked.bundle === bundle ? ticked.indexes : defaults
   const setSelected = (indexes: Set<number>) => setTicked({ bundle, indexes })
 
@@ -66,7 +71,8 @@ export function ImportDialog({ bundle, onClose }: ImportDialogProps) {
       {preview?.ok && (
         <>
           <p className="mb-3 text-sm text-ink-soft">
-            Changed Templates of yours are replaced only if you tick them; a changed Default arrives as a copy. Nothing you have is deleted.
+            Changed Templates of yours are replaced only if you tick them; a changed Default arrives as a copy. Nothing
+            you have is deleted.
           </p>
           <ul className="space-y-1.5">
             {preview.items.map((item, i) => (

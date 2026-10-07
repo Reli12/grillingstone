@@ -1,6 +1,7 @@
 // The HTTP API. Local-only (127.0.0.1, no auth); browser requests must come from the Vite origin and carry
 // JSON, so another website open in the same browser cannot drive the tool.
 import type { IncomingMessage, ServerResponse } from 'node:http'
+
 import { ALLOWED_ORIGINS } from './config.ts'
 import { readBody } from './http/body.ts'
 import { HttpError, knownError } from './http/errors.ts'
@@ -20,7 +21,7 @@ export function createApp(deps: AppDeps) {
   sessionRoutes(router, deps)
   templateRoutes(router, deps)
 
-  return async function handle(req: IncomingMessage, res: ServerResponse) {
+  async function handle(req: IncomingMessage, res: ServerResponse) {
     const send = (status: number, data: unknown) => {
       res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify(data))
@@ -44,4 +45,7 @@ export function createApp(deps: AppDeps) {
       send(500, { error: e instanceof Error ? e.message : 'Unexpected error' })
     }
   }
+
+  // handle() answers every error itself, so the returned promise never rejects.
+  return (req: IncomingMessage, res: ServerResponse) => void handle(req, res)
 }

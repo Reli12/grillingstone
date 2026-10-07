@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { classify } from '#core/proposal/classify.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acOf, rewriteAc02, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
@@ -12,14 +13,28 @@ describe('Proposal Engine — classify', () => {
 
   it('makes a change to a hand-edited Entry a Conflict, showing the human version as before', () => {
     let draft = v1Draft()
-    draft = applyHumanEdit(draft, { op: 'editEntry', sectionId: acOf(draft).id, entryId: acOf(draft).entries[1].id, body: 'Given my wording\nThen mine' })
+    draft = applyHumanEdit(draft, {
+      op: 'editEntry',
+      sectionId: acOf(draft).id,
+      entryId: acOf(draft).entries[1].id,
+      body: 'Given my wording\nThen mine',
+    })
     const [change] = classify(draft, [rewriteAc02(draft)])
-    expect(change).toMatchObject({ conflict: true, conflictReason: 'You hand-edited this', before: expect.stringContaining('Given my wording') })
+    expect(change).toMatchObject({
+      conflict: true,
+      conflictReason: 'You hand-edited this',
+      before: expect.stringContaining('Given my wording'),
+    })
   })
 
   it('makes a change to an Entry the human moved a Conflict', () => {
     let draft = v1Draft()
-    draft = applyHumanEdit(draft, { op: 'moveEntry', sectionId: acOf(draft).id, entryId: acOf(draft).entries[1].id, toIndex: 0 })
+    draft = applyHumanEdit(draft, {
+      op: 'moveEntry',
+      sectionId: acOf(draft).id,
+      entryId: acOf(draft).entries[1].id,
+      toIndex: 0,
+    })
     const change = { ...rewriteAc02(draft), entryId: acOf(draft).entries[0].id }
     expect(classify(draft, [change])[0]).toMatchObject({ conflict: true, conflictReason: 'You moved this' })
   })
@@ -31,7 +46,12 @@ describe('Proposal Engine — classify', () => {
     draft = applyHumanEdit(draft, { op: 'discardEntry', sectionId: oq.id, entryId: oq.entries[1].id })
     draft = applyHumanEdit(draft, { op: 'discardSection', sectionId: deps.id })
     const changes = classify(draft, [
-      { kind: 'replaceEntry', sectionId: oq.id, entryId: oq.entries[1].id, body: 'Why it matters: bulk archive\nStatus: Open' },
+      {
+        kind: 'replaceEntry',
+        sectionId: oq.id,
+        entryId: oq.entries[1].id,
+        body: 'Why it matters: bulk archive\nStatus: Open',
+      },
       { kind: 'addEntry', sectionId: deps.id, title: 'Backend API must provide', body: 'POST /devices/archive' },
     ])
     expect(changes.map((c) => [c.conflict, c.conflictReason])).toEqual([

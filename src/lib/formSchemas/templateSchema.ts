@@ -1,4 +1,5 @@
 import { z } from 'zod'
+
 import { SECTION_TARGETS } from '#core/shared/adoFields.ts'
 import { allowedTargets, WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
@@ -9,7 +10,7 @@ export const templateSectionSchema = z.object({
   key: z
     .string()
     .trim()
-    .regex(/^[A-Za-z][A-Za-z0-9_]*$/, 'Letters and digits, starting with a letter'),
+    .regex(/^[A-Za-z]\w*$/, 'Letters and digits, starting with a letter'),
   heading: z.string().trim().min(1, 'Give the Section a heading'),
   shape: z.enum(['prose', 'entries']),
   locked: z.boolean(),
@@ -30,12 +31,15 @@ export const templateSchema = z
   .superRefine((t, ctx) => {
     const allowed: string[] = allowedTargets(t.workItemType)
     const notAllowed = `A ${t.workItemType} can't be Published into this field`
-    if (!allowed.includes(t.iterationLogTarget)) ctx.addIssue({ code: 'custom', path: ['iterationLogTarget'], message: notAllowed })
+    if (!allowed.includes(t.iterationLogTarget))
+      ctx.addIssue({ code: 'custom', path: ['iterationLogTarget'], message: notAllowed })
     const seen = new Set<string>()
     t.sections.forEach((s, i) => {
-      if (seen.has(s.key)) ctx.addIssue({ code: 'custom', path: ['sections', i, 'key'], message: 'Each key must be unique' })
+      if (seen.has(s.key))
+        ctx.addIssue({ code: 'custom', path: ['sections', i, 'key'], message: 'Each key must be unique' })
       seen.add(s.key)
-      if (!allowed.includes(s.target)) ctx.addIssue({ code: 'custom', path: ['sections', i, 'target'], message: notAllowed })
+      if (!allowed.includes(s.target))
+        ctx.addIssue({ code: 'custom', path: ['sections', i, 'target'], message: notAllowed })
     })
   })
 

@@ -1,10 +1,12 @@
-import { useEffect, type KeyboardEvent } from 'react'
+import { type KeyboardEvent, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CornerDownRight, X } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+
 import { Button } from '@/components/atoms/button/button'
 import { cn } from '@/lib/cn'
-import { messageSchema, type MessageFormData } from '@/lib/formSchemas/messageSchema'
+import { type MessageFormData, messageSchema } from '@/lib/formSchemas/messageSchema'
 
 interface Props {
   placeholder: string
@@ -24,8 +26,20 @@ interface Props {
  * The message box when no session is running: sending starts a new session with the message as its first
  * words, or continues the ended one the human picked. Either way Claude gets the current Draft.
  */
-export function NewSessionComposer({ placeholder, hint, blockedReason, starting, onStart, continuing, onContinueLatest }: Props) {
-  const { register, handleSubmit, reset, setFocus, formState } = useForm<MessageFormData>({ resolver: zodResolver(messageSchema), mode: 'onChange', defaultValues: { text: '' } })
+export function NewSessionComposer({
+  placeholder,
+  hint,
+  blockedReason,
+  starting,
+  onStart,
+  continuing,
+  onContinueLatest,
+}: Props) {
+  const { register, handleSubmit, reset, setFocus, formState } = useForm<MessageFormData>({
+    resolver: zodResolver(messageSchema),
+    mode: 'onChange',
+    defaultValues: { text: '' },
+  })
 
   const continuingLabel = continuing?.label
   useEffect(() => {
@@ -42,7 +56,7 @@ export function NewSessionComposer({ placeholder, hint, blockedReason, starting,
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
-      send()
+      void send()
     }
   }
 
@@ -52,7 +66,11 @@ export function NewSessionComposer({ placeholder, hint, blockedReason, starting,
         {continuing ? (
           <p className="mb-2 flex items-center gap-1.5 text-[13px] text-claude">
             <span className="truncate">Continuing {continuing.label}</span>
-            <button onClick={continuing.onCancel} aria-label="Start a new session instead" className="shrink-0 rounded p-0.5 text-ink-faint hover:bg-fog-deep hover:text-ink">
+            <button
+              onClick={continuing.onCancel}
+              aria-label="Start a new session instead"
+              className="shrink-0 rounded p-0.5 text-ink-faint hover:bg-fog-deep hover:text-ink"
+            >
               <X size={13} />
             </button>
           </p>
@@ -68,7 +86,12 @@ export function NewSessionComposer({ placeholder, hint, blockedReason, starting,
             </button>
           )
         )}
-        <div className={cn('rounded-lg border bg-sheet transition-colors', disabled ? 'border-line-soft' : 'border-line focus-within:border-claude')}>
+        <div
+          className={cn(
+            'rounded-lg border bg-sheet transition-colors',
+            disabled ? 'border-line-soft' : 'border-line focus-within:border-claude',
+          )}
+        >
           <textarea
             rows={2}
             {...register('text')}

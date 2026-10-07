@@ -67,7 +67,14 @@ const meaning = (t: Template) =>
 
 const isSection = (s: unknown): s is TemplateSection => {
   const r = s as Record<string, unknown>
-  return !!r && typeof r.key === 'string' && typeof r.heading === 'string' && (r.shape === 'prose' || r.shape === 'entries') && typeof r.locked === 'boolean' && typeof r.target === 'string'
+  return (
+    !!r &&
+    typeof r.key === 'string' &&
+    typeof r.heading === 'string' &&
+    (r.shape === 'prose' || r.shape === 'entries') &&
+    typeof r.locked === 'boolean' &&
+    typeof r.target === 'string'
+  )
 }
 
 const isTemplate = (t: unknown): t is Template => {
@@ -84,10 +91,15 @@ const isTemplate = (t: unknown): t is Template => {
   )
 }
 
-export function previewImport(bundle: unknown, existing: Template[]): { ok: true; items: ImportItem[] } | { ok: false; reason: string } {
+export function previewImport(
+  bundle: unknown,
+  existing: Template[],
+): { ok: true; items: ImportItem[] } | { ok: false; reason: string } {
   const b = bundle as Partial<Bundle> | null
-  if (!b || b.format !== BUNDLE_FORMAT || !Array.isArray(b.templates)) return { ok: false, reason: 'This file is not a Whetstone Template bundle.' }
-  if (!b.templates.every(isTemplate)) return { ok: false, reason: 'The bundle contains a Template that is incomplete or malformed.' }
+  if (!b || b.format !== BUNDLE_FORMAT || !Array.isArray(b.templates))
+    return { ok: false, reason: 'This file is not a Whetstone Template bundle.' }
+  if (!b.templates.every(isTemplate))
+    return { ok: false, reason: 'The bundle contains a Template that is incomplete or malformed.' }
 
   const items = b.templates.map((raw): ImportItem => {
     const template = pickTemplate({
@@ -96,7 +108,8 @@ export function previewImport(bundle: unknown, existing: Template[]): { ok: true
       sections: raw.sections.map((s) => ({ ...s, guidance: s.guidance ?? '' })),
     })
     const match =
-      existing.find((e) => e.id === template.id) ?? existing.find((e) => e.workItemType === template.workItemType && norm(e.name) === norm(template.name))
+      existing.find((e) => e.id === template.id) ??
+      existing.find((e) => e.workItemType === template.workItemType && norm(e.name) === norm(template.name))
     if (!match) return { template, status: 'new', selected: true }
     const status = meaning(match) === meaning(template) ? 'identical' : 'changed'
     return { template, status, matchId: match.id, selected: false }

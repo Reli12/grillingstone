@@ -1,5 +1,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
+
 import { type Settings, type Theme, THEMES } from '#core/contract/apiTypes.ts'
+
 import { useSaveSettings } from '@/api/hooks/projects/projectHooks'
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { applyTheme } from '@/context/Theme/Theme'
@@ -24,7 +26,9 @@ export function ThemeChoice({ settings }: ThemeChoiceProps) {
   }
   return (
     <fieldset>
-      <FieldLabel hint="System follows your computer’s light or dark appearance. Saved with the tool’s settings.">Theme</FieldLabel>
+      <FieldLabel hint="System follows your computer’s light or dark appearance. Saved with the tool’s settings.">
+        Theme
+      </FieldLabel>
       <div className="grid grid-cols-3 rounded-lg bg-fog-deep p-1" role="radiogroup" aria-label="Theme">
         {THEMES.map((t) => {
           const { label, icon: Icon } = THEME_OPTIONS[t]
@@ -36,7 +40,10 @@ export function ThemeChoice({ settings }: ThemeChoiceProps) {
               role="radio"
               aria-checked={on}
               onClick={() => choose(t)}
-              className={cn('flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium', on ? 'bg-sheet text-ink shadow-sm' : 'text-ink-soft hover:text-ink')}
+              className={cn(
+                'flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium',
+                on ? 'bg-sheet text-ink shadow-sm' : 'text-ink-soft hover:text-ink',
+              )}
             >
               <Icon size={15} /> {label}
             </button>

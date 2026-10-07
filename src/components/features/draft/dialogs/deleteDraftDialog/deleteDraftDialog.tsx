@@ -24,7 +24,9 @@ export function DeleteDraftDialog({ open, onClose, onDelete }: DeleteDraftDialog
         </>
       }
     >
-      <p className="text-sm text-ink-soft">The Draft and its markdown are removed from the Project. Transcripts and the Glossary stay.</p>
+      <p className="text-sm text-ink-soft">
+        The Draft and its markdown are removed from the Project. Transcripts and the Glossary stay.
+      </p>
     </Dialog>
   )
 }

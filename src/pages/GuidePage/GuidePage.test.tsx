@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+
 import GuidePage from '@/pages/GuidePage/GuidePage'
 import { render } from '@test/utils/testUtils'
 

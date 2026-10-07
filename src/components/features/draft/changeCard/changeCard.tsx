@@ -1,6 +1,7 @@
 // One change of a Proposal, shown inline where it would land. Clean Changes read as a proofreader's
 // diff; Conflicts put the human's version beside Claude's and always need their own decision.
 import type { Change } from '#core/proposal/proposalTypes.ts'
+
 import { Button } from '@/components/atoms/button/button'
 import { cn } from '@/lib/cn'
 import { wordDiff } from '@/lib/wordDiff'
@@ -40,12 +41,17 @@ export function ChangeCard({ change, busy, onDecide }: ChangeCardProps) {
   const showBefore = change.before !== undefined && change.before !== '(Discarded by you)'
   return (
     <div
-      className={cn('rounded-md border-l-[3px] py-2.5 pr-3 pl-3.5', change.conflict ? 'border-redpencil bg-redpencil-wash' : 'border-proof bg-proof-wash')}
+      className={cn(
+        'rounded-md border-l-[3px] py-2.5 pr-3 pl-3.5',
+        change.conflict ? 'border-redpencil bg-redpencil-wash' : 'border-proof bg-proof-wash',
+      )}
       role="group"
       aria-label={`${change.conflict ? 'Conflict' : 'Clean Change'}: ${change.label}`}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className={cn('text-[13px] font-semibold', change.conflict ? 'text-redpencil' : 'text-proof')}>{change.conflict ? 'Conflict' : 'Clean Change'}</span>
+        <span className={cn('text-[13px] font-semibold', change.conflict ? 'text-redpencil' : 'text-proof')}>
+          {change.conflict ? 'Conflict' : 'Clean Change'}
+        </span>
         <span className="min-w-0 flex-1 text-[13px] font-medium text-ink">{change.label}</span>
         {change.conflictReason && <span className="text-[13px] text-redpencil">{change.conflictReason}</span>}
       </div>
@@ -63,8 +69,14 @@ export function ChangeCard({ change, busy, onDecide }: ChangeCardProps) {
         </div>
       ) : (
         <div className="mt-2 rounded border border-line bg-sheet px-3 py-2">
-          {change.before === '(Discarded by you)' && <p className="mb-1 text-[12px] font-medium text-redpencil">Brings back something you discarded</p>}
-          {showBefore ? <Diff before={change.before!} after={change.after} /> : <p className="font-serif text-[15px] leading-7 whitespace-pre-wrap text-proof">{change.after}</p>}
+          {change.before === '(Discarded by you)' && (
+            <p className="mb-1 text-[12px] font-medium text-redpencil">Brings back something you discarded</p>
+          )}
+          {showBefore ? (
+            <Diff before={change.before!} after={change.after} />
+          ) : (
+            <p className="font-serif text-[15px] leading-7 whitespace-pre-wrap text-proof">{change.after}</p>
+          )}
         </div>
       )}
 

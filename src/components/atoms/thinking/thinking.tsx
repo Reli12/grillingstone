@@ -11,7 +11,11 @@ export function Thinking({ className, label = 'Claude is thinking' }: ThinkingPr
     <span className={cn('inline-flex items-center gap-2 text-sm text-claude', className)} role="status">
       <span className="inline-flex gap-1" aria-hidden>
         {[0, 1, 2].map((i) => (
-          <span key={i} className="size-1.5 animate-pulse rounded-full bg-claude" style={{ animationDelay: `${i * 180}ms` }} />
+          <span
+            key={i}
+            className="size-1.5 animate-pulse rounded-full bg-claude"
+            style={{ animationDelay: `${i * 180}ms` }}
+          />
         ))}
       </span>
       {label}

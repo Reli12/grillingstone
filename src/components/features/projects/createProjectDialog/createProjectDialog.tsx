@@ -1,10 +1,13 @@
-import { useEffect, type ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router'
+
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BookOpenText, ClipboardPaste, Copy, FilePlus2, Upload } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+
 import { parseGlossary, startingGlossary, withoutTitle } from '#core/glossary/glossary.ts'
+
 import { useCreateProject, useProjects } from '@/api/hooks/projects/projectHooks'
 import { projectsApi } from '@/api/projectsApi'
 import { queryKeys } from '@/api/reactQueryKeys'
@@ -12,7 +15,7 @@ import { Button } from '@/components/atoms/button/button'
 import { TextInput } from '@/components/atoms/textInput/textInput'
 import { Dialog } from '@/components/composite/dialog/dialog'
 import { cn } from '@/lib/cn'
-import { newProjectSchema, type NewProjectFormData } from '@/lib/formSchemas/projectSchema'
+import { type NewProjectFormData, newProjectSchema } from '@/lib/formSchemas/projectSchema'
 import { routesPaths } from '@/routes/routes'
 
 type Source = NewProjectFormData['source']
@@ -48,7 +51,10 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
   const setBody = (text: string) => setValue('body', text, { shouldDirty: true })
   const copy = async (projectId: string) => {
     setValue('copyFrom', projectId)
-    const doc = await qc.fetchQuery({ queryKey: queryKeys.glossary(projectId), queryFn: () => projectsApi.getGlossary(projectId) })
+    const doc = await qc.query({
+      queryKey: queryKeys.glossary(projectId),
+      queryFn: () => projectsApi.getGlossary(projectId),
+    })
     setBody(withoutTitle(doc.markdown))
   }
   const pick = (s: Source) => {
@@ -59,12 +65,26 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
 
   const onSubmit = handleSubmit(({ name, source, body }) => {
     const start = source === 'empty' ? '' : startingGlossary(name, body)
-    create.mutate({ name, ...(start ? { glossary: start } : {}) }, { onSuccess: (p) => navigate(routesPaths.project(p.id)) })
+    create.mutate(
+      { name, ...(start ? { glossary: start } : {}) },
+      { onSuccess: (p) => void navigate(routesPaths.project(p.id)) },
+    )
   })
 
   const choice = (s: Source, icon: ReactNode, label: string, hint: string) => (
-    <label className={cn('flex cursor-pointer gap-2.5 rounded-md border p-2.5', source === s ? 'border-claude bg-claude-wash' : 'border-line hover:border-ink-faint')}>
-      <input type="radio" checked={source === s} onChange={() => pick(s)} className="mt-1 accent-(--color-claude)" aria-label={`${label}. ${hint}`} />
+    <label
+      className={cn(
+        'flex cursor-pointer gap-2.5 rounded-md border p-2.5',
+        source === s ? 'border-claude bg-claude-wash' : 'border-line hover:border-ink-faint',
+      )}
+    >
+      <input
+        type="radio"
+        checked={source === s}
+        onChange={() => pick(s)}
+        className="mt-1 accent-(--color-claude)"
+        aria-label={`${label}. ${hint}`}
+      />
       <span>
         <span className="flex items-center gap-1.5 text-sm font-medium">
           {icon} {label}
@@ -101,7 +121,8 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
             <p className="text-sm font-medium">Glossary starts…</p>
             {choice('empty', <FilePlus2 size={14} />, 'Empty', 'Claude adds terms as you grill.')}
             {choice('paste', <ClipboardPaste size={14} />, 'From text I have', 'Paste or upload any glossary.')}
-            {projects.length > 0 && choice('copy', <Copy size={14} />, 'As a copy of a Project', 'Copied once, then independent.')}
+            {projects.length > 0 &&
+              choice('copy', <Copy size={14} />, 'As a copy of a Project', 'Copied once, then independent.')}
           </div>
         </div>
 
@@ -149,13 +170,20 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
                 )}
               </div>
               <div className="overflow-hidden rounded-md border border-line bg-fog/40 focus-within:border-claude">
-                <p className="border-b border-line-soft px-3 py-1.5 font-mono text-[13px] text-ink-soft" title="Always the Project name">
+                <p
+                  className="border-b border-line-soft px-3 py-1.5 font-mono text-[13px] text-ink-soft"
+                  title="Always the Project name"
+                >
                   # {name.trim() || 'Project name'}
                 </p>
                 <textarea
                   {...register('body')}
                   rows={14}
-                  placeholder={source === 'paste' ? 'Paste your glossary here, in any format. A # Title line is replaced by the Project name.' : ''}
+                  placeholder={
+                    source === 'paste'
+                      ? 'Paste your glossary here, in any format. A # Title line is replaced by the Project name.'
+                      : ''
+                  }
                   aria-label="Starting Glossary"
                   className="block w-full resize-y bg-transparent px-3 py-2 font-mono text-[13px] leading-relaxed focus:outline-none"
                 />
@@ -165,14 +193,19 @@ export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps)
                   <p className="text-[13px] text-proof">
                     {terms.length} term{terms.length === 1 ? '' : 's'} recognised
                     <span className="text-ink-faint">
-                      : {terms.slice(0, 6).map((t) => t.term).join(', ')}
+                      :{' '}
+                      {terms
+                        .slice(0, 6)
+                        .map((t) => t.term)
+                        .join(', ')}
                       {terms.length > 6 ? ', …' : ''}
                     </span>
                   </p>
                 ) : (
                   <p className="flex items-start gap-2 text-[13px] text-mark-ink">
                     <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-                    No terms in the Glossary format were found. Claude will still read it, but the Glossary panel won’t list its terms.
+                    No terms in the Glossary format were found. Claude will still read it, but the Glossary panel won’t
+                    list its terms.
                   </p>
                 ))}
             </>

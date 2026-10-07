@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
+
 import { markdownToHtml } from '#core/shared/markdownHtml.ts'
+
 import { cn } from '@/lib/cn'
 
 interface RichTextProps {

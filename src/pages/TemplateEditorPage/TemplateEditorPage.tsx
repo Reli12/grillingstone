@@ -1,4 +1,5 @@
 import { useParams } from 'react-router'
+
 import { useTemplates } from '@/api/hooks/templates/templateHooks'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
 import { TemplateEditor } from '@/components/features/templates/templateEditor/templateEditor'

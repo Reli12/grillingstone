@@ -1,7 +1,9 @@
 import { createRef } from 'react'
+
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+
 import { TextArea } from '@/components/atoms/textArea/textArea'
 
 describe('TextArea', () => {

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+
 import { QuestionCard } from '@/components/features/chat/questionCard/questionCard'
 
 const q = { type: 'question' as const, question: 'Keep telemetry?', recommended: 'Yes, alerts muted', options: ['No'] }

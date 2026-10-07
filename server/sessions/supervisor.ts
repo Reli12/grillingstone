@@ -4,23 +4,38 @@
 // runs and what its submission means — comes from grillingSession.ts and templateSession.ts.
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+
 import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
-import { LIVE_STATUSES, type ChatMessage, type SessionStatus, type SessionSummary, type TemplateRequest, type TemplateSessionSummary } from '#core/session/sessionTypes.ts'
+import {
+  type ChatMessage,
+  LIVE_STATUSES,
+  type SessionStatus,
+  type SessionSummary,
+  type TemplateRequest,
+  type TemplateSessionSummary,
+} from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import type { Reason } from '#core/shared/validation.ts'
+
 import { CLAUDE_BIN } from '../config.ts'
 import { now } from '../services/clock.ts'
+import { getDraft } from '../storage/drafts.ts'
 import { allProjectIds } from '../storage/projects.ts'
 import { getSettings } from '../storage/settings.ts'
-import { getDraft } from '../storage/drafts.ts'
 import { getTemplate } from '../storage/templates.ts'
-import { getTranscript, listTemplateTranscripts, listTranscripts, saveTemplateTranscript, saveTranscript } from '../storage/transcripts.ts'
+import {
+  getTranscript,
+  listTemplateTranscripts,
+  listTranscripts,
+  saveTemplateTranscript,
+  saveTranscript,
+} from '../storage/transcripts.ts'
 import { jsonLines, sendMessage, spawnClaude } from './claudeProcess.ts'
-import { prepareGrillingSession, type GrillingDeps, type StartArgs } from './grillingSession.ts'
+import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
 import { SessionError } from './sessionError.ts'
-import { summaryOf, type AnyTranscript, type PreparedSession, type Scope, type SubmitResult } from './sessionScope.ts'
-import { readStreamEvent, type KnownTool } from './streamEvents.ts'
+import { type AnyTranscript, type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
+import { type KnownTool, readStreamEvent } from './streamEvents.ts'
 import { prepareTemplateSession, type TemplateSessionDeps } from './templateSession.ts'
 
 interface Live {
@@ -37,7 +52,13 @@ interface Live {
   queue: Promise<void>
 }
 
-const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage => ({ id: newId('m'), at: now(), role: 'system', ...(tone ? { tone } : {}), text })
+const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage => ({
+  id: newId('m'),
+  at: now(),
+  role: 'system',
+  ...(tone ? { tone } : {}),
+  text,
+})
 
 export class Supervisor {
   private live = new Map<string, Live>()
@@ -52,15 +73,22 @@ export class Supervisor {
     const interrupt = async <T extends AnyTranscript>(t: T, save: (t: T) => Promise<void>) => {
       if (!LIVE_STATUSES.includes(t.status)) return
       Object.assign(t, { status: 'interrupted', endedAt: now() })
-      t.messages.push(systemMessage('The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.', 'error'))
+      t.messages.push(
+        systemMessage(
+          'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.',
+          'error',
+        ),
+      )
       await save(t)
     }
-    for (const projectId of await allProjectIds()) for (const t of await listTranscripts(projectId)) await interrupt(t, saveTranscript)
+    for (const projectId of await allProjectIds())
+      for (const t of await listTranscripts(projectId)) await interrupt(t, saveTranscript)
     for (const t of await listTemplateTranscripts()) await interrupt(t, saveTemplateTranscript)
   }
 
   liveForDraft(draftId: string): SessionSummary | undefined {
-    for (const l of this.live.values()) if (l.transcript.kind !== 'template' && l.transcript.draftId === draftId) return summaryOf(l.transcript)
+    for (const l of this.live.values())
+      if (l.transcript.kind !== 'template' && l.transcript.draftId === draftId) return summaryOf(l.transcript)
     return undefined
   }
 
@@ -79,7 +107,8 @@ export class Supervisor {
   // ── Starting ────────────────────────────────────────────────────────────
 
   async start(args: StartArgs): Promise<SessionSummary> {
-    if (this.liveForDraft(args.draftId)) throw new SessionError('A session is already running on this Draft — finish or stop it first.')
+    if (this.liveForDraft(args.draftId))
+      throw new SessionError('A session is already running on this Draft — finish or stop it first.')
     return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
   }
 
@@ -87,31 +116,65 @@ export class Supervisor {
   async continue(projectId: string, draftId: string, sessionId: string, humanNote?: string): Promise<SessionSummary> {
     const earlier = await getTranscript(projectId, sessionId)
     if (earlier.draftId !== draftId) throw new SessionError('This session belongs to another Draft.')
-    if (this.liveForDraft(draftId)) throw new SessionError('A session is already running on this Draft — finish or stop it first.')
+    if (this.liveForDraft(draftId))
+      throw new SessionError('A session is already running on this Draft — finish or stop it first.')
     const draft = await getDraft(projectId, draftId)
     const latest = await getTemplate(draft.template.id).catch(() => undefined)
     const next = continuation(summaryOf(earlier), draft, latest?.version)
     if (!next.ok) throw new SessionError(next.reason)
-    return this.start({ projectId, draftId, kind: next.kind, focus: next.focus, humanNote, continues: summaryOf(earlier) })
+    return this.start({
+      projectId,
+      draftId,
+      kind: next.kind,
+      focus: next.focus,
+      humanNote,
+      continues: summaryOf(earlier),
+    })
   }
 
   async startTemplate(request: TemplateRequest): Promise<TemplateSessionSummary> {
-    if (this.liveTemplateSession()) throw new SessionError('A Template Session is already running — continue or stop it first.')
+    if (this.liveTemplateSession())
+      throw new SessionError('A Template Session is already running — continue or stop it first.')
     return summaryOf(await this.launch(await prepareTemplateSession(request, this.deps)))
   }
 
-  private async launch<T extends AnyTranscript>({ transcript, scope, seed, intro, resume }: PreparedSession<T>): Promise<T> {
+  private async launch<T extends AnyTranscript>({
+    transcript,
+    scope,
+    seed,
+    intro,
+    resume,
+  }: PreparedSession<T>): Promise<T> {
     const token = randomUUID()
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
-    const child = spawnClaude({ sessionId: transcript.id, token, scope, seed, model: (await getSettings()).model, conversation })
-    const live: Live = { transcript, scope, child, token, stderrTail: '', tools: new Map(), accepted: false, stopping: false, queue: Promise.resolve() }
+    const child = spawnClaude({
+      sessionId: transcript.id,
+      token,
+      scope,
+      seed,
+      model: (await getSettings()).model,
+      conversation,
+    })
+    const live: Live = {
+      transcript,
+      scope,
+      child,
+      token,
+      stderrTail: '',
+      tools: new Map(),
+      accepted: false,
+      stopping: false,
+      queue: Promise.resolve(),
+    }
     this.live.set(transcript.id, live)
 
     child.stdout!.setEncoding('utf8')
     child.stdout!.on(
       'data',
       jsonLines((event) => {
-        live.queue = live.queue.then(() => this.onEvent(live, event)).catch((e) => console.error('[supervisor] event handling failed', e))
+        live.queue = live.queue
+          .then(() => this.onEvent(live, event))
+          .catch((e) => console.error('[supervisor] event handling failed', e))
       }),
     )
     child.stderr!.setEncoding('utf8')
@@ -122,7 +185,8 @@ export class Supervisor {
     child.on('exit', (code, signal) => void this.onExit(live, code, signal))
 
     await this.push(live, systemMessage(intro))
-    if (transcript.humanNote) await this.push(live, { id: newId('m'), at: now(), role: 'human', kind: 'message', text: transcript.humanNote })
+    if (transcript.humanNote)
+      await this.push(live, { id: newId('m'), at: now(), role: 'human', kind: 'message', text: transcript.humanNote })
     sendMessage(child, seed.firstMessage)
     await this.setStatus(live, 'thinking')
     return transcript
@@ -150,14 +214,15 @@ export class Supervisor {
   async writeNow(sessionId: string) {
     const l = this.get(sessionId)
     if (l.transcript.status === 'writing') return
-    if (l.transcript.status !== 'waiting') throw new SessionError('Claude is still replying — wait for its turn to finish, then press write.')
+    if (l.transcript.status !== 'waiting')
+      throw new SessionError('Claude is still replying — wait for its turn to finish, then press write.')
     l.transcript.writeConfirmed = true
     await this.push(l, { id: newId('m'), at: now(), role: 'human', kind: 'write', text: WRITE_NOW_MESSAGE })
     sendMessage(l.child, WRITE_NOW_MESSAGE)
     await this.setStatus(l, 'writing')
   }
 
-  async stop(sessionId: string) {
+  stop(sessionId: string) {
     const l = this.get(sessionId)
     l.stopping = true
     l.child.kill('SIGTERM')
@@ -189,14 +254,21 @@ export class Supervisor {
 
   async submit(sessionId: string, token: string, payload: unknown): Promise<SubmitResult> {
     const l = this.live.get(sessionId)
-    if (!l || l.token !== token) return { ok: false, reasons: [{ code: 'unknown-session', message: 'This session is not running.' }] }
+    if (!l || l.token !== token)
+      return { ok: false, reasons: [{ code: 'unknown-session', message: 'This session is not running.' }] }
     const refuse = async (reasons: Reason[]) => {
       await this.push(l, systemMessage(`Submission refused — ${reasons.map((r) => r.message).join(' · ')}`, 'error'))
       return { ok: false as const, reasons }
     }
     if (!l.transcript.writeConfirmed)
-      return refuse([{ code: 'not-confirmed', message: `The human has not confirmed yet. Run the Ready Check and wait for "${WRITE_NOW_MESSAGE}".` }])
-    if (l.accepted) return refuse([{ code: 'already-submitted', message: 'This session already submitted successfully. Stop here.' }])
+      return refuse([
+        {
+          code: 'not-confirmed',
+          message: `The human has not confirmed yet. Run the Ready Check and wait for "${WRITE_NOW_MESSAGE}".`,
+        },
+      ])
+    if (l.accepted)
+      return refuse([{ code: 'already-submitted', message: 'This session already submitted successfully. Stop here.' }])
 
     const result = await l.scope.submit(payload)
     if (!result.ok) return refuse(result.reasons)

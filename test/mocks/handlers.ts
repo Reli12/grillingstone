@@ -1,12 +1,16 @@
 // Default MSW handlers: a quiet backend with one Project and default Settings. Tests override
 // individual routes with `server.use(...)`.
 import { http, HttpResponse } from 'msw'
+
 import type { ProjectSummary, Settings } from '#core/contract/apiTypes.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 
 export const settingsFixture: Settings = { author: 'dorijan', model: '', theme: 'system' }
-export const projectsFixture: ProjectSummary[] = [{ id: 'customer-portal', name: 'Customer Portal', createdAt: '2026-09-22', drafts: 2 }]
+export const projectsFixture: ProjectSummary[] = [
+  { id: 'customer-portal', name: 'Customer Portal', createdAt: '2026-09-22', drafts: 2 },
+]
 
 const url = (path: string) => `*${path}`
 

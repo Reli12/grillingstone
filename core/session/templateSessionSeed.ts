@@ -19,7 +19,18 @@ export interface TemplateSeedInput {
 
 const templateJson = (t: Pick<Template, 'name' | 'sections'>) =>
   JSON.stringify(
-    { name: t.name, sections: t.sections.map(({ key, heading, shape, locked, guidance, target, entryFormat }) => ({ key, heading, shape, locked, guidance, target, ...(entryFormat ? { entryFormat } : {}) })) },
+    {
+      name: t.name,
+      sections: t.sections.map(({ key, heading, shape, locked, guidance, target, entryFormat }) => ({
+        key,
+        heading,
+        shape,
+        locked,
+        guidance,
+        target,
+        ...(entryFormat ? { entryFormat } : {}),
+      })),
+    },
     null,
     2,
   )
@@ -28,7 +39,8 @@ export function buildTemplateSeed(input: TemplateSeedInput): Seed {
   const { workItemType } = input
   const targets = allowedTargets(workItemType)
   const targetNames = targets.map((t) => ADO_FIELD_LABELS[t])
-  const fieldChoice = targetNames.length > 1 ? `${targetNames.slice(0, -1).join(', ')} or ${targetNames.at(-1)}` : targetNames[0]
+  const fieldChoice =
+    targetNames.length > 1 ? `${targetNames.slice(0, -1).join(', ')} or ${targetNames.at(-1)}` : targetNames[0]
   const targetValues = targets.map((t) => `"${t}"`).join(' | ')
   const example = `{"name": "Spike ${workItemType}", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "${targets[0]}"}], "method": "# Spike ${workItemType} Guide\\n\\n## Purpose\\n…"}`
 

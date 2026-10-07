@@ -1,4 +1,5 @@
 import type { Proposal } from '#core/proposal/proposalTypes.ts'
+
 import { Button } from '@/components/atoms/button/button'
 import { SESSION_TITLES } from '@/constants/SessionConstants'
 
@@ -28,7 +29,9 @@ export function ProposalBar({ proposal, busy, onAcceptClean }: ProposalBarProps)
           {decided > 0 && <span className="text-ink-faint">, {decided} decided</span>}
         </p>
         <span className="ml-auto" />
-        {conflicts > 0 && <span className="text-[13px] text-ink-faint">Conflicts touch your edits — decide each in place.</span>}
+        {conflicts > 0 && (
+          <span className="text-[13px] text-ink-faint">Conflicts touch your edits — decide each in place.</span>
+        )}
         <Button size="sm" variant="proof" disabled={!clean || busy} onClick={onAcceptClean}>
           Accept all clean ({clean})
         </Button>

@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import ProjectPage from '@/pages/ProjectPage/ProjectPage'
 import { server } from '@test/mocks/server'
@@ -52,7 +53,11 @@ describe('ProjectPage', () => {
   })
 
   it('shows a load error', async () => {
-    server.use(http.get(`*${endpoints.project('customer-portal')}`, () => HttpResponse.json({ error: 'No such Project' }, { status: 404 })))
+    server.use(
+      http.get(`*${endpoints.project('customer-portal')}`, () =>
+        HttpResponse.json({ error: 'No such Project' }, { status: 404 }),
+      ),
+    )
     renderPage()
     expect(await screen.findByText('No such Project')).toBeInTheDocument()
   })

@@ -17,7 +17,9 @@ export function NumberedStep({ n, id, title, children }: NumberedStepProps) {
         </span>
         <h2 className="font-serif text-[24px] leading-tight font-semibold tracking-tight">{title}</h2>
       </div>
-      <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">{children}</div>
+      <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
+        {children}
+      </div>
     </section>
   )
 }

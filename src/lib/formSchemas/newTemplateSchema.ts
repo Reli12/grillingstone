@@ -1,4 +1,5 @@
 import { z } from 'zod'
+
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 
 export const newTemplateSchema = z.object({

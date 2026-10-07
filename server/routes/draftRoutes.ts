@@ -1,4 +1,5 @@
 import { render } from '#core/publish/publishRenderer.ts'
+
 import { parse } from '../http/body.ts'
 import { HttpError } from '../http/errors.ts'
 import type { Router } from '../http/router.ts'
@@ -24,7 +25,9 @@ export function draftRoutes(r: Router, { drafts, supervisor }: AppDeps) {
     await drafts.delete(params.projectId, params.draftId)
     return { ok: true }
   })
-  r.patch(`${DRAFT}/references`, ({ params, body }) => drafts.setReferences(params.projectId, params.draftId, parse(referencesBody, body).references))
+  r.patch(`${DRAFT}/references`, ({ params, body }) =>
+    drafts.setReferences(params.projectId, params.draftId, parse(referencesBody, body).references),
+  )
   r.post(`${DRAFT}/ops`, ({ params, body }) => drafts.edit(params.projectId, params.draftId, parse(humanOpBody, body)))
   r.post(`${DRAFT}/proposal/decide`, ({ params, body }) => {
     const { changeId, accept } = parse(decideBody, body)

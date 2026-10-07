@@ -1,11 +1,27 @@
 import { useState } from 'react'
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Lock, MessageCircleQuestion, Plus, Undo2, X } from 'lucide-react'
+
 import type { Entry, Section } from '#core/draft/draftTypes.ts'
 import type { Change } from '#core/proposal/proposalTypes.ts'
 import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+
 import { Button } from '@/components/atoms/button/button'
 import { RichText } from '@/components/atoms/richText/richText'
 import { Tag } from '@/components/atoms/tag/tag'
@@ -16,7 +32,8 @@ import { Gutter } from '@/components/features/draft/gutter/gutter'
 import { useDraftEditor } from '@/context/DraftEditor/DraftEditor'
 import { cn } from '@/lib/cn'
 
-const pendingTone = (changes: Change[]) => (changes.some((c) => c.conflict) ? 'conflict' : changes.length ? 'clean' : undefined)
+const pendingTone = (changes: Change[]) =>
+  changes.some((c) => c.conflict) ? 'conflict' : changes.length ? 'clean' : undefined
 
 interface ChangesProps {
   changes: Change[]
@@ -46,16 +63,30 @@ function RowActions({ onGrill, onDiscard, grillDisabled, entry = false }: RowAct
     <span
       className={cn(
         'flex shrink-0 items-center gap-0.5 opacity-0',
-        entry ? 'group-focus-within/entry:opacity-100 group-hover/entry:opacity-100' : 'group-focus-within/head:opacity-100 group-hover/head:opacity-100',
+        entry
+          ? 'group-focus-within/entry:opacity-100 group-hover/entry:opacity-100'
+          : 'group-focus-within/head:opacity-100 group-hover/head:opacity-100',
       )}
     >
       {onGrill && (
-        <Button size="sm" variant="quiet" className="text-claude" onClick={onGrill} disabled={grillDisabled} title={grillDisabled ? 'A session is running on this Draft' : 'Start a Focused Session on this part'}>
+        <Button
+          size="sm"
+          variant="quiet"
+          className="text-claude"
+          onClick={onGrill}
+          disabled={grillDisabled}
+          title={grillDisabled ? 'A session is running on this Draft' : 'Start a Focused Session on this part'}
+        >
           <MessageCircleQuestion size={14} /> Grill this
         </Button>
       )}
       {onDiscard && (
-        <Button size="sm" variant="quiet" onClick={onDiscard} title="Discard — hidden and not published, restorable any time">
+        <Button
+          size="sm"
+          variant="quiet"
+          onClick={onDiscard}
+          title="Discard — hidden and not published, restorable any time"
+        >
           <X size={14} /> Discard
         </Button>
       )}
@@ -98,20 +129,37 @@ function EntryRow({ section, entry, changes }: EntryRowProps) {
   if (entry.discarded)
     return (
       <li ref={setNodeRef} style={style}>
-        <DiscardedLine label={entry.title} changes={changes} onRestore={() => apply({ op: 'restoreEntry', sectionId: section.id, entryId: entry.id })} />
+        <DiscardedLine
+          label={entry.title}
+          changes={changes}
+          onRestore={() => apply({ op: 'restoreEntry', sectionId: section.id, entryId: entry.id })}
+        />
       </li>
     )
 
   return (
-    <li ref={setNodeRef} style={style} className={cn('group/entry flex gap-1.5', isDragging && 'relative z-20 rounded bg-sheet shadow-lg')}>
-      <Gutter size="entry" group="entry" edited={entry.humanEdited} moved={entry.humanMoved} pending={pendingTone(changes)} handleProps={{ ...attributes, ...listeners }} />
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn('group/entry flex gap-1.5', isDragging && 'relative z-20 rounded bg-sheet shadow-lg')}
+    >
+      <Gutter
+        size="entry"
+        group="entry"
+        edited={entry.humanEdited}
+        moved={entry.humanMoved}
+        pending={pendingTone(changes)}
+        handleProps={{ ...attributes, ...listeners }}
+      />
       <div className="min-w-0 flex-1 pb-1">
         <div className="flex items-start gap-2">
           <EditableText
             className="min-w-0 flex-1"
             value={entry.body}
             title={entry.title}
-            onSave={({ body, title }) => apply({ op: 'editEntry', sectionId: section.id, entryId: entry.id, body, title })}
+            onSave={({ body, title }) =>
+              apply({ op: 'editEntry', sectionId: section.id, entryId: entry.id, body, title })
+            }
           >
             <p className="font-serif text-[15px] leading-7 font-semibold text-ink">{entry.title}</p>
             <RichText text={entry.body} className="font-serif text-[15px] leading-7 text-ink" />
@@ -119,7 +167,9 @@ function EntryRow({ section, entry, changes }: EntryRowProps) {
           <RowActions
             entry
             grillDisabled={sessionRunning}
-            onGrill={() => grill({ sectionId: section.id, entryId: entry.id, heading: `${section.heading} › ${entry.title}` })}
+            onGrill={() =>
+              grill({ sectionId: section.id, entryId: entry.id, heading: `${section.heading} › ${entry.title}` })
+            }
             onDiscard={() => apply({ op: 'discardEntry', sectionId: section.id, entryId: entry.id })}
           />
         </div>
@@ -162,7 +212,10 @@ interface EntriesProps {
 
 function Entries({ section, pending }: EntriesProps) {
   const { apply } = useDraftEditor()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
     const toIndex = section.entries.findIndex((e) => e.id === over.id)
@@ -171,7 +224,9 @@ function Entries({ section, pending }: EntriesProps) {
   const live = section.entries.filter((e) => !e.discarded)
   return (
     <>
-      {live.length === 0 && section.body && <RichText text={section.body} className="ml-6 font-serif text-[15px] leading-7 text-ink-soft italic" />}
+      {live.length === 0 && section.body && (
+        <RichText text={section.body} className="ml-6 font-serif text-[15px] leading-7 text-ink-soft italic" />
+      )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={section.entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <ul className="space-y-2">
@@ -200,13 +255,27 @@ export function SectionBlock({ section }: SectionBlockProps) {
   if (section.discarded)
     return (
       <section ref={setNodeRef} style={style} className="pl-7">
-        <DiscardedLine label={section.heading} changes={pending} onRestore={() => apply({ op: 'restoreSection', sectionId: section.id })} />
+        <DiscardedLine
+          label={section.heading}
+          changes={pending}
+          onRestore={() => apply({ op: 'restoreSection', sectionId: section.id })}
+        />
       </section>
     )
 
   return (
-    <section ref={setNodeRef} style={style} aria-label={section.heading} className={cn('group/section flex gap-1', isDragging && 'relative z-20 rounded-md bg-sheet shadow-xl')}>
-      <Gutter edited={section.humanEdited} moved={section.humanMoved} pending={pendingTone(pending)} handleProps={{ ...attributes, ...listeners }} />
+    <section
+      ref={setNodeRef}
+      style={style}
+      aria-label={section.heading}
+      className={cn('group/section flex gap-1', isDragging && 'relative z-20 rounded-md bg-sheet shadow-xl')}
+    >
+      <Gutter
+        edited={section.humanEdited}
+        moved={section.humanMoved}
+        pending={pendingTone(pending)}
+        handleProps={{ ...attributes, ...listeners }}
+      />
       <div className="min-w-0 flex-1">
         <header className="group/head flex min-h-8 flex-wrap items-center gap-x-2 gap-y-1">
           <h2 className="font-serif text-[19px] font-semibold tracking-tight text-ink">{section.heading}</h2>
@@ -227,7 +296,10 @@ export function SectionBlock({ section }: SectionBlockProps) {
         </header>
         <div className="mt-1.5">
           {section.shape === 'prose' ? (
-            <EditableText value={section.body} onSave={({ body }) => apply({ op: 'editSection', sectionId: section.id, body })}>
+            <EditableText
+              value={section.body}
+              onSave={({ body }) => apply({ op: 'editSection', sectionId: section.id, body })}
+            >
               <RichText text={section.body} className="font-serif text-[15px] leading-7 text-ink" />
             </EditableText>
           ) : (

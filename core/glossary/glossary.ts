@@ -28,9 +28,13 @@ function locate(md: string): { lines: string[]; terms: Located[]; range: [number
   const range = languageRange(lines)
   const terms: Located[] = []
   if (!range) return { lines, terms, range }
-  for (let i = range[0]; i < range[1]; i++) {
+  let i = range[0]
+  while (i < range[1]) {
     const m = TERM.exec(lines[i])
-    if (!m) continue
+    if (!m) {
+      i++
+      continue
+    }
     let j = i + 1
     const definition: string[] = m[2].trim() ? [m[2].trim()] : []
     let avoid = ''
@@ -41,14 +45,19 @@ function locate(md: string): { lines: string[]; terms: Located[]; range: [number
       j++
     }
     terms.push({ term: m[1].trim(), definition: definition.join(' '), avoid, start: i, end: j })
-    i = j - 1
+    i = j
   }
   return { lines, terms, range }
 }
 
-export const parseGlossary = (md: string): GlossaryTerm[] => locate(md).terms.map(({ term, definition, avoid }) => ({ term, definition, avoid }))
+export const parseGlossary = (md: string): GlossaryTerm[] =>
+  locate(md).terms.map(({ term, definition, avoid }) => ({ term, definition, avoid }))
 
-const termLines = (t: GlossaryTerm) => [`**${t.term.trim()}**:`, t.definition.trim() || '…', ...(t.avoid.trim() ? [`_Avoid_: ${t.avoid.trim()}`] : [])]
+const termLines = (t: GlossaryTerm) => [
+  `**${t.term.trim()}**:`,
+  t.definition.trim() || '…',
+  ...(t.avoid.trim() ? [`_Avoid_: ${t.avoid.trim()}`] : []),
+]
 
 export function updateTerm(md: string, index: number, t: GlossaryTerm): string {
   const { lines, terms } = locate(md)

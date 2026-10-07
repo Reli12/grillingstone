@@ -1,6 +1,6 @@
 // What a Grilling Session's submission does to its Draft (ADR-0004, ADR-0005): the first session writes v1
 // once the content passes the Template; a later one opens a Proposal once every change checks out.
-import { writeV1, type IterationMeta } from '#core/draft/draft.ts'
+import { type IterationMeta, writeV1 } from '#core/draft/draft.ts'
 import type { Draft, DraftContent } from '#core/draft/draftTypes.ts'
 import { validate } from '#core/draft/draftValidator.ts'
 import { checkProposal } from '#core/proposal/checkProposal.ts'
@@ -30,13 +30,27 @@ export function acceptSubmission(draft: Draft, s: Submission): SubmissionOutcome
     const result = validate(draft.template, s.payload as DraftContent)
     if (!result.ok) return { ok: false, reasons: result.reasons }
     const next = writeV1(draft, s.payload as DraftContent, s.meta)
-    return { ok: true, draft: next, message: `Draft v1 written and validated against the ${draft.template.name} (${next.sections.length} Sections).` }
+    return {
+      ok: true,
+      draft: next,
+      message: `Draft v1 written and validated against the ${draft.template.name} (${next.sections.length} Sections).`,
+    }
   }
-  if (draft.proposal) return { ok: false, reasons: [{ code: 'proposal-open', message: 'The Draft already has an open Proposal.' }] }
+  if (draft.proposal)
+    return { ok: false, reasons: [{ code: 'proposal-open', message: 'The Draft already has an open Proposal.' }] }
   const changes = (s.payload as { changes?: unknown } | null)?.changes
   const reasons = checkProposal(draft, changes, s.upgradeTo ?? draft.template)
   if (reasons.length) return { ok: false, reasons }
-  const next = openProposal(draft, changes as ProposedChange[], { sessionId: s.sessionId, kind: s.kind, now: s.now, upgradeTo: s.upgradeTo })
+  const next = openProposal(draft, changes as ProposedChange[], {
+    sessionId: s.sessionId,
+    kind: s.kind,
+    now: s.now,
+    upgradeTo: s.upgradeTo,
+  })
   const conflicts = next.proposal!.changes.filter((c) => c.conflict).length
-  return { ok: true, draft: next, message: `Proposal written: ${plural(next.proposal!.changes.length - conflicts, 'Clean Change')}, ${plural(conflicts, 'Conflict')}.` }
+  return {
+    ok: true,
+    draft: next,
+    message: `Proposal written: ${plural(next.proposal!.changes.length - conflicts, 'Clean Change')}, ${plural(conflicts, 'Conflict')}.`,
+  }
 }

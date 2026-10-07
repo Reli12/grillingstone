@@ -37,4 +37,4 @@ export interface PreparedSession<T extends AnyTranscript> {
   resume?: string
 }
 
-export const summaryOf = <T extends AnyTranscript>({ messages: _m, ...s }: T) => s as Omit<T, 'messages'>
+export const summaryOf = <T extends AnyTranscript>({ messages: _m, ...s }: T) => s

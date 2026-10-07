@@ -1,7 +1,9 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import type { TemplateTranscript } from '#core/session/sessionTypes.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import { queryKeys } from '@/api/reactQueryKeys'
 import TemplateSessionPage from '@/pages/TemplateSessionPage/TemplateSessionPage'
@@ -15,12 +17,21 @@ const transcript = (patch: Partial<TemplateTranscript> = {}): TemplateTranscript
   writeConfirmed: false,
   startedAt: '',
   request: { workItemType: 'PBI', purpose: 'Spike PBIs', examples: '', baseTemplateName: 'Default PBI Template' },
-  messages: [{ id: 'm1', at: '', role: 'claude', segments: [{ type: 'question', question: 'Timebox?', recommended: '2 days', options: [] }] }],
+  messages: [
+    {
+      id: 'm1',
+      at: '',
+      role: 'claude',
+      segments: [{ type: 'question', question: 'Timebox?', recommended: '2 days', options: [] }],
+    },
+  ],
   ...patch,
 })
 
-const serve = (t: TemplateTranscript) => server.use(http.get(`*${endpoints.templateSession('ts')}`, () => HttpResponse.json(t)))
-const renderPage = () => render(<TemplateSessionPage />, { route: '/templates/session/ts', path: '/templates/session/:sessionId' })
+const serve = (t: TemplateTranscript) =>
+  server.use(http.get(`*${endpoints.templateSession('ts')}`, () => HttpResponse.json(t)))
+const renderPage = () =>
+  render(<TemplateSessionPage />, { route: '/templates/session/ts', path: '/templates/session/:sessionId' })
 
 describe('TemplateSessionPage', () => {
   it('runs a live Template Session', async () => {
@@ -38,7 +49,9 @@ describe('TemplateSessionPage', () => {
     await user.type(screen.getByRole('textbox', { name: 'Message Claude' }), 'And a spike label{Enter}')
     await user.click(screen.getByRole('button', { name: 'Enough — write it' }))
     await user.click(screen.getByRole('button', { name: /Stop/ }))
-    await vi.waitFor(() => expect(sent.map((s) => (s as string[])[0])).toEqual(['messages', 'messages', 'write', 'stop']))
+    await vi.waitFor(() =>
+      expect(sent.map((s) => (s as string[])[0])).toEqual(['messages', 'messages', 'write', 'stop']),
+    )
   })
 
   it('opens the editor once the session saves its Template', async () => {
@@ -62,7 +75,11 @@ describe('TemplateSessionPage', () => {
   })
 
   it('shows a load error', async () => {
-    server.use(http.get(`*${endpoints.templateSession('ts')}`, () => HttpResponse.json({ error: 'Unknown session' }, { status: 404 })))
+    server.use(
+      http.get(`*${endpoints.templateSession('ts')}`, () =>
+        HttpResponse.json({ error: 'Unknown session' }, { status: 404 }),
+      ),
+    )
     renderPage()
     expect(await screen.findByText('Unknown session')).toBeInTheDocument()
   })

@@ -1,4 +1,5 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, type TextareaHTMLAttributes, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+
 import { fieldClass } from '@/components/atoms/textInput/textInput'
 import { cn } from '@/lib/cn'
 
@@ -7,7 +8,10 @@ interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 }
 
 /** A textarea that grows with its content — controlled (`value`) or registered with React Hook Form. */
-export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea({ className, value, minRows = 3, onInput, ...rest }, ref) {
+export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
+  { className, value, minRows = 3, onInput, ...rest },
+  ref,
+) {
   const inner = useRef<HTMLTextAreaElement>(null)
   useImperativeHandle(ref, () => inner.current!, [])
 

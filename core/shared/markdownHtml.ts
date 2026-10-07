@@ -2,7 +2,12 @@
 // Everything is escaped first; only paragraphs, line breaks, lists, tables, **bold**, `code` and http(s) links survive.
 
 export const escapeHtml = (s: string) =>
-  s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+  s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 
 export function inlineHtml(text: string): string {
   return escapeHtml(text)
@@ -24,8 +29,17 @@ const isSeparatorRow = (row: string) => /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*
 function tableHtml(lines: string[]): string {
   const [head, ...rest] = lines
   const body = rest.filter((l) => !isSeparatorRow(l))
-  const th = cells(head).map((c) => `<th>${inlineHtml(c)}</th>`).join('')
-  const trs = body.map((l) => `<tr>${cells(l).map((c) => `<td>${inlineHtml(c)}</td>`).join('')}</tr>`).join('')
+  const th = cells(head)
+    .map((c) => `<th>${inlineHtml(c)}</th>`)
+    .join('')
+  const trs = body
+    .map(
+      (l) =>
+        `<tr>${cells(l)
+          .map((c) => `<td>${inlineHtml(c)}</td>`)
+          .join('')}</tr>`,
+    )
+    .join('')
   return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`
 }
 
@@ -34,7 +48,8 @@ const NUMBERED = /^\s*\d+[.)]\s+/
 
 function blockHtml(lines: string[]): string {
   if (lines.every((l) => l.trim().startsWith('|'))) return tableHtml(lines)
-  if (lines.every((l) => BULLET.test(l))) return `<ul>${lines.map((l) => `<li>${inlineHtml(l.replace(BULLET, ''))}</li>`).join('')}</ul>`
+  if (lines.every((l) => BULLET.test(l)))
+    return `<ul>${lines.map((l) => `<li>${inlineHtml(l.replace(BULLET, ''))}</li>`).join('')}</ul>`
   if (lines.length > 1 && lines.every((l) => NUMBERED.test(l)))
     return `<ol>${lines.map((l) => `<li>${inlineHtml(l.replace(NUMBERED, ''))}</li>`).join('')}</ol>`
   return `<p>${lines.map(inlineHtml).join('<br>')}</p>`

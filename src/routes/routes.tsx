@@ -1,5 +1,6 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, type ReactNode, Suspense } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router'
+
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
 import AppLayout from '@/pages/AppLayout'
 

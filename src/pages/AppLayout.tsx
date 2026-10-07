@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useParams } from 'react-router'
+
 import { Wordmark } from '@/components/atoms/wordmark/wordmark'
 import { ProjectSwitcher } from '@/components/features/projects/projectSwitcher/projectSwitcher'
 import { useBackendConnection } from '@/context/ServerEvents/ServerEvents'
@@ -7,7 +8,10 @@ import { lastProject } from '@/lib/lastProject'
 import { routesPaths } from '@/routes/routes'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  cn('rounded-md px-2.5 py-1.5 text-sm text-ink-soft hover:bg-fog-deep hover:text-ink', isActive && 'bg-fog-deep text-ink font-medium')
+  cn(
+    'rounded-md px-2.5 py-1.5 text-sm text-ink-soft hover:bg-fog-deep hover:text-ink',
+    isActive && 'bg-fog-deep text-ink font-medium',
+  )
 
 export default function AppLayout() {
   const connection = useBackendConnection()

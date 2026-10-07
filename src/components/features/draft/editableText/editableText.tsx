@@ -1,11 +1,13 @@
-import { useState, type ReactNode } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { type ReactNode, useState } from 'react'
 import { useForm } from 'react-hook-form'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+
 import { Button } from '@/components/atoms/button/button'
 import { TextArea } from '@/components/atoms/textArea/textArea'
 import { TextInput } from '@/components/atoms/textInput/textInput'
 import { cn } from '@/lib/cn'
-import { editTextSchema, type EditTextFormData } from '@/lib/formSchemas/editTextSchema'
+import { type EditTextFormData, editTextSchema } from '@/lib/formSchemas/editTextSchema'
 
 interface EditableTextProps {
   value: string
@@ -31,7 +33,8 @@ export function EditableText({ value, title, onSave, children, className, placeh
   }
   const save = handleSubmit(
     (next) => {
-      if (next.body !== value || next.title !== title) onSave(title === undefined ? { body: next.body } : { body: next.body, title: next.title })
+      if (next.body !== value || next.title !== title)
+        onSave(title === undefined ? { body: next.body } : { body: next.body, title: next.title })
       setEditing(false)
     },
     () => setEditing(false),
@@ -56,11 +59,20 @@ export function EditableText({ value, title, onSave, children, className, placeh
       className="space-y-2 py-1"
       onKeyDown={(e) => {
         if (e.key === 'Escape') setEditing(false)
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save()
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void save()
       }}
     >
-      {title !== undefined && <TextInput autoFocus {...register('title')} aria-label="Entry title" className="font-serif font-semibold" />}
-      <TextArea autoFocus={title === undefined} minRows={3} {...register('body')} placeholder={placeholder} aria-label="Text" className="font-serif text-[15px] leading-7" />
+      {title !== undefined && (
+        <TextInput autoFocus {...register('title')} aria-label="Entry title" className="font-serif font-semibold" />
+      )}
+      <TextArea
+        autoFocus={title === undefined}
+        minRows={3}
+        {...register('body')}
+        placeholder={placeholder}
+        aria-label="Text"
+        className="font-serif text-[15px] leading-7"
+      />
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ink" onClick={save}>
           Save

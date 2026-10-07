@@ -10,9 +10,15 @@ export function wordDiff(before: string, after: string): DiffPart[] {
   const a = tokenize(before)
   const b = tokenize(after)
   // Guard against quadratic blow-up on very long texts: fall back to replace-all.
-  if (a.length * b.length > 400_000) return [...(before ? [{ op: 'del' as const, text: before }] : []), ...(after ? [{ op: 'add' as const, text: after }] : [])]
+  if (a.length * b.length > 400_000)
+    return [
+      ...(before ? [{ op: 'del' as const, text: before }] : []),
+      ...(after ? [{ op: 'add' as const, text: after }] : []),
+    ]
   const lcs = Array.from({ length: a.length + 1 }, () => new Uint32Array(b.length + 1))
-  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
 
   const parts: DiffPart[] = []
   const push = (op: DiffPart['op'], text: string) => {

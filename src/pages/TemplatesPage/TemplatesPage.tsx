@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
-import { Copy, Download, MessageCircleQuestion, Plus, Upload } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
+
+import { Copy, Download, MessageCircleQuestion, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
+
 import { useCreateTemplate, useExportTemplates, useTemplates } from '@/api/hooks/templates/templateHooks'
 import { useLiveTemplateSession } from '@/api/hooks/templates/templateSessionHooks'
 import { Button } from '@/components/atoms/button/button'
@@ -18,7 +21,7 @@ export default function TemplatesPage() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bundle, setBundle] = useState<unknown | null>(null)
+  const [bundle, setBundle] = useState<unknown>(null)
 
   const { data: templates } = useTemplates()
   const { data: live } = useLiveTemplateSession()
@@ -28,7 +31,10 @@ export default function TemplatesPage() {
   if (!templates) return <PageLoading />
 
   const onDuplicate = (t: Template) =>
-    duplicate.mutate({ ...t, name: t.isDefault ? t.name.replace(/^Default /, 'My ') : `${t.name} (copy)` }, { onSuccess: (copy) => navigate(routesPaths.template(copy.id)) })
+    duplicate.mutate(
+      { ...t, name: t.isDefault ? t.name.replace(/^Default /, 'My ') : `${t.name} (copy)` },
+      { onSuccess: (copy) => void navigate(routesPaths.template(copy.id)) },
+    )
 
   return (
     <div className="h-full overflow-y-auto">
@@ -36,7 +42,10 @@ export default function TemplatesPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1">
             <h1 className="font-serif text-[30px] leading-tight font-semibold tracking-tight">Templates</h1>
-            <p className="mt-1 max-w-xl text-ink-soft">A Template fixes the Sections a Draft must have and carries the method Claude writes them with. Editing one affects only new Drafts.</p>
+            <p className="mt-1 max-w-xl text-ink-soft">
+              A Template fixes the Sections a Draft must have and carries the method Claude writes them with. Editing
+              one affects only new Drafts.
+            </p>
           </div>
           <input
             ref={fileInput}
@@ -60,7 +69,11 @@ export default function TemplatesPage() {
           <Button
             variant="outline"
             disabled={selected.size === 0 || exportBundle.isPending}
-            onClick={() => exportBundle.mutate([...selected], { onSuccess: (b) => downloadJson(`templates-${new Date().toISOString().slice(0, 10)}.json`, b) })}
+            onClick={() =>
+              exportBundle.mutate([...selected], {
+                onSuccess: (b) => downloadJson(`templates-${new Date().toISOString().slice(0, 10)}.json`, b),
+              })
+            }
           >
             <Download size={15} /> Export {selected.size ? `${selected.size} ` : ''}selected
           </Button>
@@ -75,7 +88,8 @@ export default function TemplatesPage() {
           <div className="mt-6 flex flex-wrap items-center gap-3 rounded-md border border-claude/30 bg-claude-wash px-4 py-3 text-sm">
             <MessageCircleQuestion size={16} className="text-claude" />
             <span className="flex-1">
-              Template Session for a new {live.session.request.workItemType} Template is running{live.session.status === 'waiting' ? ' — your turn' : ''}.
+              Template Session for a new {live.session.request.workItemType} Template is running
+              {live.session.status === 'waiting' ? ' — your turn' : ''}.
             </span>
             <Link to={routesPaths.templateSession(live.session.id)}>
               <Button size="sm" variant="claude" tabIndex={-1}>

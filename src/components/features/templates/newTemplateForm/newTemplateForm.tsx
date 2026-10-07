@@ -1,12 +1,15 @@
 // One start step for both ways of creating a Template: "Grill it with Claude" (a Template Session) or
 // "Build it myself" (an editable Template right away, from nothing or as a copy of a base).
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { methodSkeleton } from '#core/template/templateValidator.ts'
+
 import { useCreateTemplate } from '@/api/hooks/templates/templateHooks'
 import { useLiveTemplateSession, useStartTemplateSession } from '@/api/hooks/templates/templateSessionHooks'
 import { Button } from '@/components/atoms/button/button'
@@ -14,7 +17,7 @@ import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { Tag } from '@/components/atoms/tag/tag'
 import { TextArea } from '@/components/atoms/textArea/textArea'
 import { cn } from '@/lib/cn'
-import { newTemplateSchema, templateSessionSchema, type NewTemplateFormData } from '@/lib/formSchemas/newTemplateSchema'
+import { type NewTemplateFormData, newTemplateSchema, templateSessionSchema } from '@/lib/formSchemas/newTemplateSchema'
 import { routesPaths } from '@/routes/routes'
 
 /** A Template built by hand from nothing: one Section and the method skeleton as a nudge. `purpose` is trimmed. */
@@ -29,7 +32,16 @@ function blankTemplate(workItemType: WorkItemType, purpose: string): Template {
     name,
     version: 1,
     isDefault: false,
-    sections: [{ key: 'section1', heading: 'New Section', shape: 'prose', locked: false, guidance: '', target: ADO_FIELDS.description }],
+    sections: [
+      {
+        key: 'section1',
+        heading: 'New Section',
+        shape: 'prose',
+        locked: false,
+        guidance: '',
+        target: ADO_FIELDS.description,
+      },
+    ],
     method,
     iterationLogHeading: `${workItemType} Iteration Log`,
     updatedAt: '',
@@ -64,13 +76,15 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
     setValue('baseId', '')
   }
   const buildMyself = handleSubmit(({ purpose }) => {
-    const t = base ? { ...base, name: `${base.name.replace(/^Default /, 'My ')}`, isDefault: false } : blankTemplate(type, purpose)
-    create.mutate(t, { onSuccess: (saved) => navigate(routesPaths.template(saved.id)) })
+    const t = base
+      ? { ...base, name: `${base.name.replace(/^Default /, 'My ')}`, isDefault: false }
+      : blankTemplate(type, purpose)
+    create.mutate(t, { onSuccess: (saved) => void navigate(routesPaths.template(saved.id)) })
   })
   const grill = handleSubmit(({ workItemType, purpose, examples }) =>
     start.mutate(
       { workItemType, purpose, examples, ...(base ? { baseTemplateId: base.id } : {}) },
-      { onSuccess: (s) => navigate(routesPaths.templateSession(s.id)) },
+      { onSuccess: (s) => void navigate(routesPaths.templateSession(s.id)) },
     ),
   )
 
@@ -81,8 +95,13 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
           <Link to={routesPaths.templates} className="text-sm text-ink-faint hover:text-ink">
             Templates
           </Link>
-          <h1 className="mt-1 font-serif text-[30px] leading-tight font-semibold tracking-tight">What is this Template for?</h1>
-          <p className="mt-2 max-w-lg text-ink-soft">Describe the kind of work item and who reads it. Claude grills this into Sections and a writing method — or it seeds the Purpose if you build it yourself.</p>
+          <h1 className="mt-1 font-serif text-[30px] leading-tight font-semibold tracking-tight">
+            What is this Template for?
+          </h1>
+          <p className="mt-2 max-w-lg text-ink-soft">
+            Describe the kind of work item and who reads it. Claude grills this into Sections and a writing method — or
+            it seeds the Purpose if you build it yourself.
+          </p>
           <TextArea
             autoFocus
             minRows={6}
@@ -93,10 +112,18 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
           />
 
           <div className="mt-6">
-            <FieldLabel htmlFor="examples" hint="Paste one or more real work items written the way you like. Claude learns the house style from them. Leave out client names — Templates are shared.">
+            <FieldLabel
+              htmlFor="examples"
+              hint="Paste one or more real work items written the way you like. Claude learns the house style from them. Leave out client names — Templates are shared."
+            >
               Example work items (optional)
             </FieldLabel>
-            <TextArea id="examples" minRows={5} {...register('examples')} className="font-serif text-[15px] leading-7" />
+            <TextArea
+              id="examples"
+              minRows={5}
+              {...register('examples')}
+              className="font-serif text-[15px] leading-7"
+            />
           </div>
         </section>
 
@@ -111,7 +138,10 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
                   role="radio"
                   aria-checked={type === t}
                   onClick={() => chooseType(t)}
-                  className={cn('h-8 rounded-md text-sm font-medium', type === t ? 'bg-sheet text-ink shadow-sm' : 'text-ink-soft hover:text-ink')}
+                  className={cn(
+                    'h-8 rounded-md text-sm font-medium',
+                    type === t ? 'bg-sheet text-ink shadow-sm' : 'text-ink-soft hover:text-ink',
+                  )}
                 >
                   {t}
                 </button>
@@ -120,11 +150,27 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
           </fieldset>
 
           <fieldset>
-            <FieldLabel hint="Read as a starting point. It is never changed — you always get a new Template.">Start from</FieldLabel>
+            <FieldLabel hint="Read as a starting point. It is never changed — you always get a new Template.">
+              Start from
+            </FieldLabel>
             <div className="space-y-1.5">
               {[{ id: '', name: 'Nothing', isDefault: false }, ...forType].map((t) => (
-                <label key={t.id || 'nothing'} className={cn('flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm', values.baseId === t.id ? 'border-claude bg-claude-wash' : 'border-line bg-sheet hover:border-ink-faint')}>
-                  <input type="radio" name="base" className="accent-claude" checked={values.baseId === t.id} onChange={() => setValue('baseId', t.id)} />
+                <label
+                  key={t.id || 'nothing'}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm',
+                    values.baseId === t.id
+                      ? 'border-claude bg-claude-wash'
+                      : 'border-line bg-sheet hover:border-ink-faint',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="base"
+                    className="accent-claude"
+                    checked={values.baseId === t.id}
+                    onChange={() => setValue('baseId', t.id)}
+                  />
                   <span className="flex-1 font-medium">{t.name}</span>
                   {t.isDefault && <Tag>Default</Tag>}
                 </label>
@@ -141,7 +187,13 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
                 </Link>
               </div>
             ) : (
-              <Button variant="claude" size="lg" className="w-full" disabled={!canGrill || start.isPending} onClick={grill}>
+              <Button
+                variant="claude"
+                size="lg"
+                className="w-full"
+                disabled={!canGrill || start.isPending}
+                onClick={grill}
+              >
                 {start.isPending ? 'Starting…' : 'Grill it with Claude'}
               </Button>
             )}
@@ -149,7 +201,9 @@ export function NewTemplateForm({ templates }: NewTemplateFormProps) {
               Build it myself
             </Button>
             <p className="text-[13px] text-ink-faint">
-              {canGrill ? 'Claude asks one question at a time and writes nothing until you confirm.' : 'Describe what the Template is for to grill it with Claude.'}
+              {canGrill
+                ? 'Claude asks one question at a time and writes nothing until you confirm.'
+                : 'Describe what the Template is for to grill it with Claude.'}
             </p>
           </div>
         </aside>

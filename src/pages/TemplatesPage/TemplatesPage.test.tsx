@@ -1,14 +1,22 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { Template } from '#core/template/templateTypes.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import TemplatesPage from '@/pages/TemplatesPage/TemplatesPage'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
-const mine: Template = { ...defaultPbiTemplate, id: 'mine', name: 'Team PBI', isDefault: false, sections: defaultPbiTemplate.sections.slice(0, 1) }
+const mine: Template = {
+  ...defaultPbiTemplate,
+  id: 'mine',
+  name: 'Team PBI',
+  isDefault: false,
+  sections: defaultPbiTemplate.sections.slice(0, 1),
+}
 let created: Template | undefined
 const renderPage = () => render(<TemplatesPage />, { route: '/templates', path: '/templates' })
 
@@ -87,7 +95,16 @@ describe('TemplatesPage', () => {
   it('points to a running Template Session', async () => {
     server.use(
       http.get(`*${endpoints.liveTemplateSession}`, () =>
-        HttpResponse.json({ session: { id: 'ts', kind: 'template', status: 'waiting', writeConfirmed: false, startedAt: '', request: { workItemType: 'Feature', purpose: '', examples: '' } } }),
+        HttpResponse.json({
+          session: {
+            id: 'ts',
+            kind: 'template',
+            status: 'waiting',
+            writeConfirmed: false,
+            startedAt: '',
+            request: { workItemType: 'Feature', purpose: '', examples: '' },
+          },
+        }),
       ),
     )
     renderPage()

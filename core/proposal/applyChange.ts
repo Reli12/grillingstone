@@ -21,7 +21,12 @@ export function applyChange(draft: Draft, c: ProposedChange): Draft {
       return mapSection(draft, c.sectionId, (s) => ({ ...s, body: c.body ?? s.body, humanEdited: false }))
     case 'replaceEntry':
       return mapSection(draft, c.sectionId, (s) =>
-        mapEntry(s, c.entryId, (e) => ({ ...e, title: c.title ?? e.title, body: c.body ?? e.body, humanEdited: false })),
+        mapEntry(s, c.entryId, (e) => ({
+          ...e,
+          title: c.title ?? e.title,
+          body: c.body ?? e.body,
+          humanEdited: false,
+        })),
       )
     case 'addEntry':
       return mapSection(draft, c.sectionId, (s) => {
@@ -33,7 +38,12 @@ export function applyChange(draft: Draft, c: ProposedChange): Draft {
     case 'restore':
       return mapSection(draft, c.sectionId, (s) => {
         if (!c.entryId) return { ...s, discarded: false, body: c.body ?? s.body }
-        return mapEntry(s, c.entryId, (e) => ({ ...e, discarded: false, title: c.title ?? e.title, body: c.body ?? e.body }))
+        return mapEntry(s, c.entryId, (e) => ({
+          ...e,
+          discarded: false,
+          title: c.title ?? e.title,
+          body: c.body ?? e.body,
+        }))
       })
     case 'addSection': {
       const template = draft.proposal?.upgradeTo ?? draft.template

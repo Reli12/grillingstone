@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import { applyTheme, THEME_STORAGE_KEY, ThemeProvider } from '@/context/Theme/Theme'
 import { settingsFixture } from '@test/mocks/handlers'

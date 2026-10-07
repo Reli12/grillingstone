@@ -1,9 +1,12 @@
 // "Copy for Azure DevOps": the Publish Renderer's exact field values (ADR-0008), one button per field.
 // Rich HTML goes to the clipboard so it pastes cleanly into ADO's rich-text boxes.
 import { useState } from 'react'
+
 import { Check, Copy } from 'lucide-react'
 import { toast } from 'sonner'
+
 import { ADO_FIELD_LABELS, ADO_FIELDS } from '#core/shared/adoFields.ts'
+
 import { useRendered } from '@/api/hooks/drafts/draftHooks'
 import { Button } from '@/components/atoms/button/button'
 import { Thinking } from '@/components/atoms/thinking/thinking'
@@ -12,7 +15,10 @@ import { Dialog } from '@/components/composite/dialog/dialog'
 async function copy(html: string | null, text: string) {
   if (html !== null && 'ClipboardItem' in window) {
     await navigator.clipboard.write([
-      new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) }),
+      new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+      }),
     ])
   } else await navigator.clipboard.writeText(text)
 }
@@ -39,14 +45,18 @@ export function CopyForAdo({ projectId, draftId, open, onClose }: CopyForAdoProp
     ? [
         { key: ADO_FIELDS.title, label: 'Title', html: null as string | null, text: data.title },
         ...Object.entries(data.fields)
-          .sort(([a], [b]) => (a === ADO_FIELDS.description ? -1 : b === ADO_FIELDS.description ? 1 : a.localeCompare(b)))
+          .sort(([a], [b]) =>
+            a === ADO_FIELDS.description ? -1 : b === ADO_FIELDS.description ? 1 : a.localeCompare(b),
+          )
           .map(([key, html]) => ({ key, label: ADO_FIELD_LABELS[key] ?? key, html, text: plain(html) })),
       ]
     : []
 
   return (
     <Dialog open={open} onClose={onClose} title="Copy for Azure DevOps" className="w-[min(860px,calc(100vw-32px))]">
-      <p className="mb-4 text-sm text-ink-soft">Paste each field into its box on the work item. Discarded content is left out and your order is kept.</p>
+      <p className="mb-4 text-sm text-ink-soft">
+        Paste each field into its box on the work item. Discarded content is left out and your order is kept.
+      </p>
       {!data ? (
         <Thinking label="Rendering" />
       ) : (
@@ -68,7 +78,8 @@ export function CopyForAdo({ projectId, draftId, open, onClose }: CopyForAdoProp
                     }
                   }}
                 >
-                  {copied === f.key ? <Check size={14} /> : <Copy size={14} />} {copied === f.key ? 'Copied' : `Copy ${f.label}`}
+                  {copied === f.key ? <Check size={14} /> : <Copy size={14} />}{' '}
+                  {copied === f.key ? 'Copied' : `Copy ${f.label}`}
                 </Button>
               </div>
               {f.html === null ? (
