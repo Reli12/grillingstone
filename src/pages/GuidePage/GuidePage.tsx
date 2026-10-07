@@ -87,12 +87,27 @@ function Intro() {
         then writes it as an Epic, Feature, PBI, Task or Bug in your Template. You edit the result like a document, ask
         Claude to rework any part, and copy it into Azure DevOps. Claude writes the copy — you stay the editor.
       </p>
-      <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-        <strong className="text-ink">Why “Whetstone”?</strong> A whetstone doesn’t cut anything itself; you sharpen your
-        own blade against it. Here the blade is your requirement and Claude’s questions are the stone. The edge you end
-        up with is yours.
-      </p>
     </header>
+  )
+}
+
+/** The name, explained once at the top: grilling is the sharpening. */
+function WhyWhetstone() {
+  return (
+    <section
+      aria-labelledby="why-whetstone"
+      className="mb-12 rounded-lg border border-line bg-sheet p-5 text-[15px] leading-relaxed text-ink-soft"
+    >
+      <h2 id="why-whetstone" className="font-serif text-xl font-semibold text-ink">
+        Why “Whetstone”?
+      </h2>
+      <p className="mt-2">
+        A whetstone doesn’t cut anything itself; you sharpen your own blade against it. Here the blade is your
+        requirement and Claude’s questions are the stone. That is what <strong className="text-ink">grilling</strong>{' '}
+        means in this tool: every vague word meets resistance until the requirement holds an edge. The edge you end up
+        with is yours.
+      </p>
+    </section>
   )
 }
 
@@ -149,8 +164,13 @@ function StepStart() {
     <NumberedStep n={2} id="start" title={STEPS[1].title}>
       <p>
         Press <strong>New Draft</strong>, pick the <strong>Work Item Type</strong> (Epic, Feature, PBI, Task or Bug) and
-        a <strong>Template</strong> — the Default one is preselected — then describe the requirement in your own words.
-        A sentence is enough; paste the BA’s Feature text or business rules if you have them.
+        a <strong>Template</strong> — the Default one is preselected — then describe the requirement, or the bug you
+        saw, in your own words. A sentence is enough; paste the BA’s Feature text or business rules if you have them.
+      </p>
+      <p>
+        A <strong>Bug</strong> is grilled on what you observed: Claude never invents a step or result, and anything you
+        don’t know becomes an Open Question. A <strong>Task</strong> is light — Reference its PBI or Bug and Claude asks
+        only what that doesn’t already settle.
       </p>
       <p>
         Optionally tick <strong>References</strong>: other Drafts in the Project Claude may read as context, such as the
@@ -184,7 +204,7 @@ function StepGrill() {
       <p>
         When Claude thinks it knows enough it runs a <strong>Ready Check</strong>: “anything to add before I write it?”.
         Nothing is written until you confirm. You can also cut grilling short at any moment with{' '}
-        <strong>Enough — write it</strong>; open points then land in Open Questions / Risks with Claude’s proposed
+        <strong>Enough — write it</strong>; open points then land in the Draft’s Open Questions with Claude’s proposed
         default.
       </p>
       <p>
@@ -211,9 +231,10 @@ function StepDraft() {
       </p>
       <p>
         Sections marked <Lock size={13} className="inline -translate-y-px" aria-label="Locked" /> are{' '}
-        <strong>Locked</strong> — for a PBI, User Story and Acceptance Criteria. You can edit and move them but never
-        discard them. The small tag beside each heading, like <Tag tone="claude">Acceptance Criteria</Tag>, says which
-        Azure DevOps field the Section goes into.
+        <strong>Locked</strong> — for a PBI, User Story and Acceptance Criteria; for a Bug, Steps to Reproduce, Expected
+        and Actual Result; for a Task, Goal and Done When. You can edit and move them but never discard them. The small
+        tag beside each heading, like <Tag tone="claude">Acceptance Criteria</Tag>, says which Azure DevOps field the
+        Section goes into.
       </p>
       <p>
         The margin beside every Section and Entry shows who wrote it. That is not decoration: it decides what happens
@@ -273,9 +294,11 @@ function StepPublish() {
   return (
     <NumberedStep n={6} id="publish" title={STEPS[5].title}>
       <p>
-        Press <strong>Copy for Azure DevOps</strong>. Each field — Title, Description, Acceptance Criteria — has its own
-        copy button and pastes as formatted text into the matching box on the work item. Discarded content is left out
-        and your order is kept. (Publishing straight to Azure DevOps is planned for a later version.)
+        Press <strong>Copy for Azure DevOps</strong>. Each field has its own copy button and pastes as formatted text
+        into the matching box on the work item: the Title, then the fields its type uses — Description and Acceptance
+        Criteria for an Epic, Feature or PBI; Repro Steps, System Info and Acceptance Criteria for a Bug; Description
+        alone for a Task. The Iteration Log goes along in Description — in Repro Steps for a Bug. Discarded content is
+        left out and your order is kept. (Publishing straight to Azure DevOps is planned for a later version.)
       </p>
     </NumberedStep>
   )
@@ -287,9 +310,9 @@ function StepTemplates() {
     <NumberedStep n={7} id="templates" title={STEPS[6].title}>
       <p>
         A <strong>Template</strong> decides which Sections a Draft must have and holds the writing method Claude
-        follows. The Default Templates are read-only; to change one, <strong>Duplicate</strong> it and edit your copy.
-        Edits only affect new Drafts — existing ones get an <strong>Upgrade this Draft</strong> offer, which arrives as
-        a Proposal.
+        follows, and each Section names the Azure DevOps field it goes into — only fields its Work Item Type has. The
+        Default Templates are read-only; to change one, <strong>Duplicate</strong> it and edit your copy. Edits only
+        affect new Drafts — existing ones get an <strong>Upgrade this Draft</strong> offer, which arrives as a Proposal.
       </p>
       <p>
         <strong>New Template</strong> offers two ways: <strong>Build it myself</strong>, or{' '}
@@ -311,6 +334,7 @@ export default function GuidePage() {
         <StepNav />
         <article className="max-w-[680px]">
           <Intro />
+          <WhyWhetstone />
           <div className="space-y-12">
             <StepProject />
             <StepStart />

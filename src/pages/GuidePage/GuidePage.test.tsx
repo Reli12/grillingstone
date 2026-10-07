@@ -13,4 +13,11 @@ describe('GuidePage', () => {
     await user.click(screen.getAllByRole('button', { name: /Recommended/ })[0])
     expect(await screen.findByText('Example only — in a real session this goes to Claude.')).toBeInTheDocument()
   })
+
+  it('explains the name in its own section at the top', () => {
+    render(<GuidePage />)
+    const nameSection = screen.getByRole('region', { name: 'Why “Whetstone”?' })
+    const firstStep = screen.getByRole('heading', { name: 'Create a Project' })
+    expect(nameSection.compareDocumentPosition(firstStep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
