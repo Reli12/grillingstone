@@ -50,7 +50,8 @@ export async function startBackend() {
   }
 
   const close = async () => {
-    supervisor.stopAll()
+    // Wait for every session to save, so the next test's reset cannot delete data-test/ under a late write.
+    await supervisor.stopAll()
     await new Promise((resolve) => server.close(resolve))
   }
   return { call, events, supervisor, close }

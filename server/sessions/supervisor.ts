@@ -50,6 +50,9 @@ interface Live {
   stopping: boolean
   /** Stream events are handled one at a time, in order. */
   queue: Promise<void>
+  /** Settles once the session has ended and its Transcript is saved. */
+  ended: Promise<void>
+  markEnded: () => void
 }
 
 /** How much of Claude Code's stderr is kept, so a crash can be explained without holding all of it. */
@@ -64,6 +67,33 @@ const INTERRUPTED_BY_RESTART =
   'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.'
 /** While Claude is in one of these, the human waits for its turn to finish. */
 const REPLYING_STATUSES: SessionStatus[] = ['thinking', 'writing', 'starting']
+
+/** A just-spawned session's in-memory state; `markEnded` settles `ended` once its Transcript is saved. */
+function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, token: string): Live {
+  let markEnded = () => {}
+  const ended = new Promise<void>((resolve) => (markEnded = resolve))
+  return {
+    transcript,
+    scope,
+    child,
+    token,
+    stderrTail: '',
+    tools: new Map(),
+    accepted: false,
+    stopping: false,
+    queue: Promise.resolve(),
+    ended,
+    markEnded,
+  }
+}
+
+/** Asks the session's Claude Code to exit, and kills it if it is still running after the grace period. */
+function requestStop(live: Live) {
+  live.stopping = true
+  live.child.kill('SIGTERM')
+  const killIfStillRunning = () => live.child.exitCode === null && live.child.kill('SIGKILL')
+  setTimeout(killIfStillRunning, STOP_GRACE_MS).unref()
+}
 
 const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage => ({
   id: newId('m'),
@@ -99,6 +129,8 @@ function crashError(stderrTail: string, code: number | null, signal: NodeJS.Sign
 
 export class Supervisor {
   private live = new Map<string, Live>()
+  /** `ended` promises of sessions whose Transcript is not saved yet — they may already be out of `live`. */
+  private unsaved = new Set<Promise<void>>()
   private deps: GrillingDeps & TemplateSessionDeps
 
   constructor(deps: GrillingDeps & TemplateSessionDeps) {
@@ -124,11 +156,10 @@ export class Supervisor {
     return undefined
   }
 
-  stopAll() {
-    for (const live of this.live.values()) {
-      live.stopping = true
-      live.child.kill('SIGTERM')
-    }
+  /** Stops every running session; resolves once each one, including any already ending, has saved its Transcript. */
+  async stopAll() {
+    for (const live of this.live.values()) requestStop(live)
+    await Promise.all(this.unsaved)
   }
 
   // ── Starting ────────────────────────────────────────────────────────────
@@ -181,18 +212,10 @@ export class Supervisor {
       model: (await getSettings()).model,
       conversation,
     })
-    const live: Live = {
-      transcript,
-      scope,
-      child,
-      token,
-      stderrTail: '',
-      tools: new Map(),
-      accepted: false,
-      stopping: false,
-      queue: Promise.resolve(),
-    }
+    const live = newLive(transcript, scope, child, token)
     this.live.set(transcript.id, live)
+    this.unsaved.add(live.ended)
+    void live.ended.then(() => this.unsaved.delete(live.ended))
     this.watch(live)
 
     await this.push(live, systemMessage(intro))
@@ -222,7 +245,8 @@ export class Supervisor {
     child.on('error', (error) => {
       void this.end(live, 'failed', `Could not start Claude Code (${CLAUDE_BIN}): ${error.message}`)
     })
-    child.on('exit', (code, signal) => void this.onExit(live, code, signal))
+    // 'close', not 'exit': it fires only after stdout is fully read, so no stream event lands after the session ended.
+    child.on('close', (code, signal) => void this.onExit(live, code, signal))
   }
 
   // ── Human input ─────────────────────────────────────────────────────────
@@ -257,11 +281,7 @@ export class Supervisor {
   }
 
   stop(sessionId: string) {
-    const live = this.get(sessionId)
-    live.stopping = true
-    live.child.kill('SIGTERM')
-    const killIfStillRunning = () => live.child.exitCode === null && live.child.kill('SIGKILL')
-    setTimeout(killIfStillRunning, STOP_GRACE_MS).unref()
+    requestStop(this.get(sessionId))
   }
 
   // ── Claude's output ─────────────────────────────────────────────────────
@@ -359,6 +379,15 @@ export class Supervisor {
 
   private async end(live: Live, status: SessionStatus, error?: string) {
     if (!this.live.has(live.transcript.id)) return
+    try {
+      await this.saveEnd(live, status, error)
+    } finally {
+      live.markEnded()
+    }
+  }
+
+  private async saveEnd(live: Live, status: SessionStatus, error?: string) {
+    // Out of `live` first, so an exit racing a stop cannot end the session twice.
     this.live.delete(live.transcript.id)
     if (live.child.exitCode === null) live.child.kill('SIGTERM')
     const transcript = live.transcript

@@ -21,13 +21,13 @@ afterEach(() => backend.close())
 
 const newProject = async () => (await call('POST', '/api/projects', { name: 'Customer Portal' })).body as { id: string }
 
-/** A Draft whose first session is running and waiting for the human. */
 const waitForStatus = (projectId: string, draftId: string, status: string) =>
   vi.waitFor(async () => expect((await transcripts(projectId, draftId)).at(-1)?.status).toBe(status), {
     timeout: 8000,
     interval: 50,
   })
 
+/** A Draft whose first session is running and waiting for the human. */
 async function grillingDraft() {
   const project = await newProject()
   const created = await call('POST', `/api/projects/${project.id}/drafts`, {
@@ -207,6 +207,12 @@ describe('Drafts and Grilling Sessions', () => {
     expect(again.status).toBe(200)
     await waitForStatus(grilled.projectId, grilled.draftId, 'failed')
     expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.error).toContain('fake claude crashed')
+  })
+
+  it('stopAll resolves only once every running session has saved its Transcript', async () => {
+    const grilled = await grillingDraft()
+    await backend.supervisor.stopAll()
+    expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.status).toBe('stopped')
   })
 
   it('edits a written Draft, sets References and deletes it', async () => {
@@ -423,8 +429,7 @@ describe('Templates', () => {
 describe('restart', () => {
   it('marks sessions that were running as interrupted', async () => {
     const grilled = await grillingDraft()
-    backend.supervisor.stopAll()
-    await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+    await backend.supervisor.stopAll()
     const transcript = (await transcripts(grilled.projectId, grilled.draftId))[0]
     // Simulate a crash: the Transcript on disk still says it is running.
     const { saveTranscript } = await import('./storage/transcripts.ts')

@@ -6,8 +6,8 @@ import { SERVER_PORT } from './config.ts'
 import { Hub } from './hub.ts'
 import { createServices } from './services/createServices.ts'
 
-/** How long running sessions get to end and save their Transcripts before the process exits. */
-const SHUTDOWN_GRACE_MS = 500
+/** Upper bound on waiting for sessions to save at shutdown: just past the Supervisor's 3 s SIGTERM→SIGKILL grace. */
+const SHUTDOWN_GRACE_MS = 4000
 
 const hub = new Hub()
 const deps = createServices(hub)
@@ -18,9 +18,10 @@ hub.attach(server)
 server.listen(SERVER_PORT, '127.0.0.1', () => console.log(`[whetstone] backend on http://127.0.0.1:${SERVER_PORT}`))
 
 const shutdown = () => {
-  deps.supervisor.stopAll()
   server.close()
+  // Exit as soon as every session has saved its Transcript, or at the grace limit if one hangs.
   setTimeout(() => process.exit(0), SHUTDOWN_GRACE_MS).unref()
+  void deps.supervisor.stopAll().finally(() => process.exit(0))
 }
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
