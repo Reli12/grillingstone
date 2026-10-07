@@ -1,3 +1,4 @@
+// Tests for the exact Azure DevOps field values a Draft Publishes as.
 import { describe, expect, it } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
@@ -32,10 +33,10 @@ describe('Publish Renderer', () => {
     const ac = sectionByKey(draft, 'acceptanceCriteria')
     draft = applyHumanOp(draft, { op: 'moveEntry', sectionId: ac.id, entryId: ac.entries[1].id, toIndex: 0 })
     const out = render(draft)
-    const d = out.fields[ADO_FIELDS.description]
-    expect(d.indexOf('Technical Notes')).toBeLessThan(d.indexOf('User Story'))
-    const a = out.fields[ADO_FIELDS.acceptanceCriteria]
-    expect(a.indexOf('AC02')).toBeLessThan(a.indexOf('AC01'))
+    const description = out.fields[ADO_FIELDS.description]
+    expect(description.indexOf('Technical Notes')).toBeLessThan(description.indexOf('User Story'))
+    const acceptanceCriteria = out.fields[ADO_FIELDS.acceptanceCriteria]
+    expect(acceptanceCriteria.indexOf('AC02')).toBeLessThan(acceptanceCriteria.indexOf('AC01'))
   })
 
   it('escapes the text people and Claude wrote', () => {
@@ -55,30 +56,30 @@ describe('Publish Renderer', () => {
   })
 
   it('renders Section headings, markdown tables and lists as rich-text HTML', () => {
-    const d = render(v1Draft()).fields[ADO_FIELDS.description]
-    expect(d).toContain('<h2>Roles</h2>')
-    expect(d).toMatch(/<table>.*<th>Action<\/th>.*<td>Archive device<\/td>.*<\/table>/s)
+    const description = render(v1Draft()).fields[ADO_FIELDS.description]
+    expect(description).toContain('<h2>Roles</h2>')
+    expect(description).toMatch(/<table>.*<th>Action<\/th>.*<td>Archive device<\/td>.*<\/table>/s)
   })
 
   it('appends the Iteration Log to the Description under the Template heading', () => {
-    const d = render(v1Draft()).fields[ADO_FIELDS.description]
-    expect(d.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
+    const description = render(v1Draft()).fields[ADO_FIELDS.description]
+    expect(description.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
   })
 
   describe('a Bug', () => {
     /** The fixture Draft, published the way a Bug is: everything but Acceptance Criteria into Repro Steps. */
     const bugDraft = (iterationLogTarget?: SectionTarget): Draft => {
-      const d = v1Draft()
-      const toReproSteps = <T extends { target: SectionTarget }>(s: T) =>
-        s.target === ADO_FIELDS.description ? { ...s, target: ADO_FIELDS.reproSteps } : s
+      const draft = v1Draft()
+      const toReproSteps = <T extends { target: SectionTarget }>(section: T) =>
+        section.target === ADO_FIELDS.description ? { ...section, target: ADO_FIELDS.reproSteps } : section
       return {
-        ...d,
+        ...draft,
         workItemType: 'Bug',
-        sections: d.sections.map(toReproSteps),
+        sections: draft.sections.map(toReproSteps),
         template: {
-          ...d.template,
+          ...draft.template,
           workItemType: 'Bug',
-          sections: d.template.sections.map(toReproSteps),
+          sections: draft.template.sections.map(toReproSteps),
           ...(iterationLogTarget ? { iterationLogTarget } : {}),
         },
       }
@@ -91,8 +92,8 @@ describe('Publish Renderer', () => {
     })
 
     it('appends the Iteration Log to the field the Template names', () => {
-      const r = render(bugDraft(ADO_FIELDS.reproSteps)).fields[ADO_FIELDS.reproSteps]
-      expect(r.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
+      const reproSteps = render(bugDraft(ADO_FIELDS.reproSteps)).fields[ADO_FIELDS.reproSteps]
+      expect(reproSteps.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
     })
 
     it('appends the Iteration Log to Repro Steps when its Template names no field', () => {

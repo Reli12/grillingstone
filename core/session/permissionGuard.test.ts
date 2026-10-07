@@ -1,3 +1,4 @@
+// Tests for the Permission Guard: what a headless session may read, write and run.
 import { describe, expect, it } from 'vitest'
 
 import { decide, type GuardContext } from '#core/session/permissionGuard.ts'
@@ -13,10 +14,10 @@ const links: Record<string, string> = {
 const ctx: GuardContext = {
   projectDir: project,
   submitScript: script,
-  realpath: (p) => {
+  realpath: (filePath) => {
     for (const [link, target] of Object.entries(links))
-      if (p === link || p.startsWith(`${link}/`)) return target + p.slice(link.length)
-    return p
+      if (filePath === link || filePath.startsWith(`${link}/`)) return target + filePath.slice(link.length)
+    return filePath
   },
 }
 const submit = (body: string, first = `node "${script}" <<'WHETSTONE_JSON'`) => ({
@@ -107,14 +108,19 @@ describe('Permission Guard', () => {
     ['an unknown MCP tool', 'mcp__github__create_issue', {}],
     ['an arbitrary skill', 'Skill', { skill: 'deploy' }],
   ])('denies %s', (_name, tool, input) => {
-    const d = decide(tool, input, ctx)
-    expect(d.allow).toBe(false)
-    if (!d.allow) expect(d.reason.length).toBeGreaterThan(10)
+    const decision = decide(tool, input, ctx)
+    expect(decision.allow).toBe(false)
+    if (!decision.allow) expect(decision.reason.length).toBeGreaterThan(10)
   })
 
   describe('in a Template Session', () => {
     const work = '/data/template-sessions/sess-1'
-    const tctx: GuardContext = { projectDir: work, submitScript: script, realpath: (p) => p, mode: 'template' }
+    const tctx: GuardContext = {
+      projectDir: work,
+      submitScript: script,
+      realpath: (filePath) => filePath,
+      mode: 'template',
+    }
 
     it.each([
       ['Read', { file_path: `${work}/notes.md` }],

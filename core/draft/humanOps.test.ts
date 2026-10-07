@@ -1,3 +1,4 @@
+// Tests for human edits to a Draft and the human-edit markers each edit sets.
 import { describe, expect, it } from 'vitest'
 
 import { applyHumanOp, DraftOpError } from '#core/draft/humanOps.ts'

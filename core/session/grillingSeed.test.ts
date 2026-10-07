@@ -1,3 +1,4 @@
+// Tests for the seed a Grilling Session starts from: Template, Draft, Glossary, References and Discarded content.
 import { describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'

@@ -1,5 +1,6 @@
 // Realistic fixtures for core tests: a PBI "Archive device from device list".
-import type { DraftContent } from '#core/draft/draftTypes.ts'
+import { newDraft, writeV1 } from '#core/draft/draft.ts'
+import type { Draft, DraftContent } from '#core/draft/draftTypes.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
 import bugTemplate from '../../defaults/templates/bug.json' with { type: 'json' }
@@ -10,6 +11,7 @@ export const defaultPbiTemplate = pbiTemplate as Template
 export const defaultBugTemplate = bugTemplate as Template
 export const defaultTaskTemplate = taskTemplate as Template
 
+// A fresh copy on every call, so a test that mutates its content never leaks into another.
 export const validPbiContent = (): DraftContent => ({
   title: 'Archive device from device list',
   sections: [
@@ -64,9 +66,6 @@ export const validPbiContent = (): DraftContent => ({
   ],
 })
 
-import { newDraft, writeV1 } from '#core/draft/draft.ts'
-import type { Draft } from '#core/draft/draftTypes.ts'
-
 export const meta = { date: '2026-09-22', author: 'dorijan' }
 
 /** A freshly written v1: nothing touched by the human yet. */
@@ -83,14 +82,14 @@ export const v1Draft = (): Draft =>
     meta,
   )
 
-export const sectionByKey = (d: Draft, key: string) => d.sections.find((s) => s.key === key)!
+export const sectionByKey = (draft: Draft, key: string) => draft.sections.find((section) => section.key === key)!
 
 /** The Acceptance Criteria Section of the fixture PBI. */
-export const acOf = (d: Draft) => sectionByKey(d, 'acceptanceCriteria')
+export const acOf = (draft: Draft) => sectionByKey(draft, 'acceptanceCriteria')
 /** A Proposal change rewriting AC02 (billing) — a Conflict once the human has edited AC02. */
-export const rewriteAc02 = (d: Draft) => ({
+export const rewriteAc02 = (draft: Draft) => ({
   kind: 'replaceEntry' as const,
-  sectionId: acOf(d).id,
-  entryId: acOf(d).entries[1].id,
+  sectionId: acOf(draft).id,
+  entryId: acOf(draft).entries[1].id,
   body: 'Given one or more devices were archived\nWhen invoiced\nThen usage up to each archive timestamp is billed',
 })

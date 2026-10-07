@@ -7,24 +7,26 @@ export type Segment =
   | { type: 'question'; question: string; recommended: string; options: string[] }
   | { type: 'ready'; summary: string }
 
+// A fenced ```pbi-<kind> block on its own lines, capturing the kind and the JSON between the fences.
 const BLOCK = /```[ \t]*(pbi-[\w-]+)[ \t]*\n([\s\S]*?)\n[ \t]*```[ \t]*(?:\n|$)/g
 
-const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim() !== ''
 
 function parseBlock(kind: string, json: string): Segment | null {
   let data: unknown
   try {
     data = JSON.parse(json)
   } catch {
+    // Broken JSON is not a card: returning null keeps the block visible as plain text.
     return null
   }
   if (!data || typeof data !== 'object') return null
-  const d = data as Record<string, unknown>
-  if (kind === QUESTION_FENCE && nonEmpty(d.question) && nonEmpty(d.recommended)) {
-    const options = Array.isArray(d.options) ? d.options.filter(nonEmpty).map((o) => o.trim()) : []
-    return { type: 'question', question: d.question.trim(), recommended: d.recommended.trim(), options }
+  const fields = data as Record<string, unknown>
+  if (kind === QUESTION_FENCE && nonEmpty(fields.question) && nonEmpty(fields.recommended)) {
+    const options = Array.isArray(fields.options) ? fields.options.filter(nonEmpty).map((option) => option.trim()) : []
+    return { type: 'question', question: fields.question.trim(), recommended: fields.recommended.trim(), options }
   }
-  if (kind === READY_FENCE) return { type: 'ready', summary: nonEmpty(d.summary) ? d.summary.trim() : '' }
+  if (kind === READY_FENCE) return { type: 'ready', summary: nonEmpty(fields.summary) ? fields.summary.trim() : '' }
   return null
 }
 
@@ -36,14 +38,15 @@ export function extractBlocks(text: string): Segment[] {
     if (pending.trim()) segments.push({ type: 'text', text: pending.trim() })
     pending = ''
   }
-  for (const m of text.matchAll(BLOCK)) {
-    const block = parseBlock(m[1], m[2])
-    pending += text.slice(last, m.index)
+  for (const match of text.matchAll(BLOCK)) {
+    const [whole, kind, json] = match
+    const block = parseBlock(kind, json)
+    pending += text.slice(last, match.index)
     if (block) {
       flush()
       segments.push(block)
-    } else pending += m[0]
-    last = m.index + m[0].length
+    } else pending += whole
+    last = match.index + whole.length
   }
   pending += text.slice(last)
   flush()

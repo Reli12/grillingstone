@@ -1,3 +1,4 @@
+// The Azure DevOps fields this tool Publishes into, with their display labels.
 /** Azure DevOps field reference names a Section can be Published into (ADR-0008). */
 export const ADO_FIELDS = {
   title: 'System.Title',

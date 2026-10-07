@@ -1,3 +1,4 @@
+// Tests for accepting and rejecting Proposal changes and closing the Proposal into the next Iteration.
 import { describe, expect, it } from 'vitest'
 
 import { openProposal } from '#core/proposal/classify.ts'
@@ -38,8 +39,10 @@ describe('Proposal Engine — triage', () => {
   it('accepts every Clean Change in one go and leaves Conflicts pending', () => {
     const { draft, conflict } = triageScenario()
     const next = acceptAllClean(draft, meta)
-    expect(next.proposal!.changes.map((c) => c.status)).toEqual(['accepted', 'accepted', 'pending'])
-    expect(sectionByKey(next, 'dependencies').entries.map((e) => e.body)).toContain('POST /devices/archive (bulk)')
+    expect(next.proposal!.changes.map((change) => change.status)).toEqual(['accepted', 'accepted', 'pending'])
+    expect(sectionByKey(next, 'dependencies').entries.map((entry) => entry.body)).toContain(
+      'POST /devices/archive (bulk)',
+    )
     expect(acOf(next).entries[0].body).toContain('one or more')
     expect(acOf(next).entries[1].body).toBe('Given my wording\nThen mine')
     expect(next.version).toBe(1)
@@ -98,7 +101,7 @@ describe('Proposal Engine — triage', () => {
       entryId: ac.entries[0].id,
       body: 'Given I changed my mind\nThen mine',
     })
-    expect(next.proposal!.changes.find((c) => c.id === cleanRewrite.id)).toMatchObject({
+    expect(next.proposal!.changes.find((change) => change.id === cleanRewrite.id)).toMatchObject({
       conflict: true,
       before: expect.stringContaining('I changed my mind'),
     })

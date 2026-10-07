@@ -1,3 +1,4 @@
+// Tests for what a Continuation of an ended session becomes on the Draft as it is now.
 import { describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'

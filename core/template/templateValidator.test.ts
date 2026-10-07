@@ -1,3 +1,4 @@
+// Tests for the Template Validator, the gate every saved Template passes.
 import { describe, expect, it } from 'vitest'
 
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
@@ -11,9 +12,13 @@ const content = (): TemplateContent =>
     sections: defaultPbiTemplate.sections,
     method: defaultPbiTemplate.method,
   })
-const codes = (c: unknown, opts?: Parameters<typeof validateTemplate>[1]) => {
-  const r = validateTemplate(c, opts)
-  return r.ok ? [] : r.reasons.map((x) => `${x.code}${x.sectionKey ? `:${x.sectionKey}` : ''}`)
+const codes = (candidate: unknown, opts?: Parameters<typeof validateTemplate>[1]) => {
+  const result = validateTemplate(candidate, opts)
+  if (result.ok) return []
+  return result.reasons.map((reason) => {
+    const where = reason.sectionKey ? `:${reason.sectionKey}` : ''
+    return `${reason.code}${where}`
+  })
 }
 
 describe('Template Validator', () => {
@@ -30,33 +35,39 @@ describe('Template Validator', () => {
   })
 
   it('refuses malformed, duplicate or headless Section keys', () => {
-    const c = content()
-    c.sections[1] = { ...c.sections[1], key: 'user story' }
-    c.sections[2] = { ...c.sections[2], key: 'userStory' }
-    c.sections[3] = { ...c.sections[3], heading: '' }
-    expect(codes(c)).toEqual(['bad-key:user story', 'duplicate-key:userStory', 'missing-heading:reusedPatterns'])
+    const candidate = content()
+    candidate.sections[1] = { ...candidate.sections[1], key: 'user story' }
+    candidate.sections[2] = { ...candidate.sections[2], key: 'userStory' }
+    candidate.sections[3] = { ...candidate.sections[3], heading: '' }
+    expect(codes(candidate)).toEqual([
+      'bad-key:user story',
+      'duplicate-key:userStory',
+      'missing-heading:reusedPatterns',
+    ])
   })
 
   it('refuses unknown target fields and shapes, and Given/When/Then on prose', () => {
-    const c = content()
-    c.sections[0] = { ...c.sections[0], target: 'System.History' as never }
-    c.sections[1] = { ...c.sections[1], shape: 'table' as never }
-    c.sections[6] = { ...c.sections[6], entryFormat: 'gherkin' }
-    expect(codes(c)).toEqual(['unknown-target:userStory', 'bad-shape:roles', 'gherkin-on-prose:technicalNotes'])
+    const candidate = content()
+    candidate.sections[0] = { ...candidate.sections[0], target: 'System.History' as never }
+    candidate.sections[1] = { ...candidate.sections[1], shape: 'table' as never }
+    candidate.sections[6] = { ...candidate.sections[6], entryFormat: 'gherkin' }
+    expect(codes(candidate)).toEqual(['unknown-target:userStory', 'bad-shape:roles', 'gherkin-on-prose:technicalNotes'])
   })
 
   describe('fields per Work Item Type', () => {
     it('refuses a PBI Section published into Repro Steps, naming the fields a PBI may use', () => {
-      const c = { ...content(), workItemType: 'PBI' }
-      c.sections[0] = { ...c.sections[0], target: ADO_FIELDS.reproSteps }
-      const r = validateTemplate(c)
-      expect(r.ok ? [] : r.reasons.map((x) => [x.code, x.sectionKey, x.message])).toEqual([
+      const candidate = { ...content(), workItemType: 'PBI' }
+      candidate.sections[0] = { ...candidate.sections[0], target: ADO_FIELDS.reproSteps }
+      const result = validateTemplate(candidate)
+      expect(result.ok ? [] : result.reasons.map((reason) => [reason.code, reason.sectionKey, reason.message])).toEqual(
         [
-          'unknown-target',
-          'userStory',
-          'Section "userStory": a PBI can be Published only into Description, Acceptance Criteria.',
+          [
+            'unknown-target',
+            'userStory',
+            'Section "userStory": a PBI can be Published only into Description, Acceptance Criteria.',
+          ],
         ],
-      ])
+      )
     })
 
     it("checks a Template Session's submission against the session's type: a Task has no Acceptance Criteria", () => {
@@ -68,7 +79,7 @@ describe('Template Validator', () => {
       const bug = {
         ...content(),
         workItemType: 'Bug',
-        sections: content().sections.map((s) => ({ ...s, target: ADO_FIELDS.reproSteps })),
+        sections: content().sections.map((section) => ({ ...section, target: ADO_FIELDS.reproSteps })),
       }
       expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.description })).toEqual(['unknown-iteration-log-target'])
       expect(codes({ ...bug, iterationLogTarget: ADO_FIELDS.reproSteps })).toEqual([])
@@ -115,8 +126,8 @@ Bad example: "Investigate bulk archive."
 
     it('is required for Template Session output: Purpose, Guiding principle, Sections and Working process', () => {
       expect(codes(content(), { requireSkeleton: true })).toEqual(['method-missing-part'])
-      const r = validateTemplate(content(), { requireSkeleton: true })
-      expect(!r.ok && r.reasons[0].message).toContain('Purpose')
+      const result = validateTemplate(content(), { requireSkeleton: true })
+      expect(!result.ok && result.reasons[0].message).toContain('Purpose')
       expect(validateTemplate({ ...content(), method: skeletonMethod }, { requireSkeleton: true })).toEqual({
         ok: true,
       })
@@ -130,8 +141,9 @@ Bad example: "Investigate bulk archive."
     })
 
     it('is offered pre-filled for a Template built from nothing, where it passes the heading check', () => {
-      const m = methodSkeleton('Spike PBI')
-      for (const h of ['Purpose', 'Guiding principle', 'Sections', 'Working process']) expect(m).toContain(`## ${h}`)
+      const method = methodSkeleton('Spike PBI')
+      for (const heading of ['Purpose', 'Guiding principle', 'Sections', 'Working process'])
+        expect(method).toContain(`## ${heading}`)
     })
   })
 })

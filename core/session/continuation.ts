@@ -20,9 +20,10 @@ export function continuation(
   if (draft.proposal) return { ok: false, reason: 'Triage the open Proposal before continuing a session.' }
 
   if (earlier.kind === 'focused' && earlier.focus) {
-    const section = draft.sections.find((s) => s.id === earlier.focus!.sectionId && !s.discarded)
+    const focusedSectionId = earlier.focus.sectionId
+    const section = draft.sections.find((candidate) => candidate.id === focusedSectionId && !candidate.discarded)
     const entryId = earlier.focus.entryId
-    const entryLive = !entryId || section?.entries.some((e) => e.id === entryId && !e.discarded)
+    const entryLive = !entryId || section?.entries.some((entry) => entry.id === entryId && !entry.discarded)
     if (section && entryLive)
       return { ok: true, kind: 'focused', focus: { sectionId: section.id, ...(entryId ? { entryId } : {}) } }
   }

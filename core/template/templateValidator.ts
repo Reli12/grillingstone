@@ -17,7 +17,13 @@ export interface TemplateContent {
   iterationLogTarget?: string
 }
 
+// A Section key: a letter, then letters, digits or underscores.
 const KEY = /^[A-Za-z]\w*$/
+// The words "good example" anywhere in the method.
+const GOOD_EXAMPLE = /\bgood example\b/i
+
+const MALFORMED_TEMPLATE_MESSAGE =
+  'Expected { "name": string, "sections": [{ "key", "heading", "shape": "prose"|"entries", "locked": boolean, "guidance", "target", "entryFormat"?: "gherkin" }], "method": string }.'
 
 const isSectionShape = (section: unknown): boolean => {
   if (!section || typeof section !== 'object') return false
@@ -25,9 +31,9 @@ const isSectionShape = (section: unknown): boolean => {
   return typeof key === 'string' && typeof heading === 'string'
 }
 
-const isContent = (c: unknown): c is TemplateContent => {
-  if (!c || typeof c !== 'object') return false
-  const { name, sections, method } = c as Record<string, unknown>
+const isContent = (content: unknown): content is TemplateContent => {
+  if (!content || typeof content !== 'object') return false
+  const { name, sections, method } = content as Record<string, unknown>
   return (
     typeof name === 'string' &&
     typeof method === 'string' &&
@@ -39,6 +45,7 @@ const isContent = (c: unknown): c is TemplateContent => {
 /** The parts every method written by a Template Session must have, as markdown headings, in this order. */
 export const SKELETON_PARTS = ['Purpose', 'Guiding principle', 'Sections', 'Working process'] as const
 
+/** A markdown heading (# to ####) naming `part`, optionally numbered ("## 2. Sections"). */
 const hasHeading = (method: string, part: string) =>
   new RegExp(`^#{1,4}\\s+(\\d+[.)]\\s*)?${part}\\b`, 'im').test(method)
 
@@ -62,7 +69,7 @@ Bad example: … (and why it is wrong)
 `
 
 function skeletonReasons(method: string): Reason[] {
-  const missing = SKELETON_PARTS.filter((p) => !hasHeading(method, p))
+  const missing = SKELETON_PARTS.filter((part) => !hasHeading(method, part))
   if (missing.length)
     return [
       {
@@ -70,7 +77,7 @@ function skeletonReasons(method: string): Reason[] {
         message: `The method must have these markdown headings: ${SKELETON_PARTS.join(', ')}. Missing: ${missing.join(', ')}.`,
       },
     ]
-  if (!/\bgood example\b/i.test(method))
+  if (!GOOD_EXAMPLE.test(method))
     return [
       {
         code: 'method-without-examples',
@@ -81,21 +88,69 @@ function skeletonReasons(method: string): Reason[] {
   return []
 }
 
+/** Which Azure DevOps fields Sections may target; `known` is false when the Work Item Type is unknown. */
+interface TargetRule {
+  known: boolean
+  type: unknown
+  targets: string[]
+  fieldNames: string
+}
+
+/** The checks for one Section whose key is valid and not a duplicate. */
+function checkTemplateSection(section: TemplateSection, rule: TargetRule): Reason[] {
+  const at = { sectionKey: section.key }
+  const reasons: Reason[] = []
+  if (!section.heading.trim())
+    reasons.push({ code: 'missing-heading', ...at, message: `Section "${section.key}" needs a heading.` })
+  if (section.shape !== 'prose' && section.shape !== 'entries')
+    reasons.push({ code: 'bad-shape', ...at, message: `Section "${section.key}": shape must be "prose" or "entries".` })
+  else if (section.entryFormat === 'gherkin' && section.shape !== 'entries')
+    reasons.push({
+      code: 'gherkin-on-prose',
+      ...at,
+      message: `Section "${section.key}": Given / When / Then applies only to entries Sections.`,
+    })
+  if (rule.known && !rule.targets.includes(section.target))
+    reasons.push({
+      code: 'unknown-target',
+      ...at,
+      message: `Section "${section.key}": a ${String(rule.type)} can be Published only into ${rule.fieldNames}.`,
+    })
+  if (typeof section.locked !== 'boolean')
+    reasons.push({ code: 'bad-locked', ...at, message: `Section "${section.key}": locked must be true or false.` })
+  return reasons
+}
+
+/** Checks every Section: a bad or repeated key stops that Section's other checks. */
+function checkTemplateSections(sections: TemplateSection[], rule: TargetRule): Reason[] {
+  const reasons: Reason[] = []
+  const seen = new Set<string>()
+  for (const section of sections) {
+    const at = { sectionKey: section.key }
+    if (!KEY.test(section.key)) {
+      reasons.push({
+        code: 'bad-key',
+        ...at,
+        message: `Section key "${section.key}" must be letters and digits, starting with a letter (e.g. "openQuestions").`,
+      })
+      continue
+    }
+    if (seen.has(section.key)) {
+      reasons.push({ code: 'duplicate-key', ...at, message: `Section key "${section.key}" is used twice.` })
+      continue
+    }
+    seen.add(section.key)
+    reasons.push(...checkTemplateSection(section, rule))
+  }
+  return reasons
+}
+
 export function validateTemplate(
   content: unknown,
   opts: { requireSkeleton?: boolean; workItemType?: WorkItemType } = {},
 ): Validation {
   if (!isContent(content))
-    return {
-      ok: false,
-      reasons: [
-        {
-          code: 'malformed-template',
-          message:
-            'Expected { "name": string, "sections": [{ "key", "heading", "shape": "prose"|"entries", "locked": boolean, "guidance", "target", "entryFormat"?: "gherkin" }], "method": string }.',
-        },
-      ],
-    }
+    return { ok: false, reasons: [{ code: 'malformed-template', message: MALFORMED_TEMPLATE_MESSAGE }] }
 
   const reasons: Reason[] = []
   const type = opts.workItemType ?? content.workItemType
@@ -106,47 +161,14 @@ export function validateTemplate(
       message: `The Template needs a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.`,
     })
   const targets: string[] = knownType ? allowedTargets(type) : []
-  const fieldNames = targets.map((t) => ADO_FIELD_LABELS[t]).join(', ')
+  const fieldNames = targets.map((target) => ADO_FIELD_LABELS[target]).join(', ')
   if (!content.name.trim()) reasons.push({ code: 'missing-name', message: 'The Template needs a name.' })
   if (!content.sections.length) reasons.push({ code: 'no-sections', message: 'A Template needs at least one Section.' })
 
-  const seen = new Set<string>()
-  for (const s of content.sections) {
-    const at = { sectionKey: s.key }
-    if (!KEY.test(s.key)) {
-      reasons.push({
-        code: 'bad-key',
-        ...at,
-        message: `Section key "${s.key}" must be letters and digits, starting with a letter (e.g. "openQuestions").`,
-      })
-      continue
-    }
-    if (seen.has(s.key)) {
-      reasons.push({ code: 'duplicate-key', ...at, message: `Section key "${s.key}" is used twice.` })
-      continue
-    }
-    seen.add(s.key)
-    if (!s.heading.trim())
-      reasons.push({ code: 'missing-heading', ...at, message: `Section "${s.key}" needs a heading.` })
-    if (s.shape !== 'prose' && s.shape !== 'entries')
-      reasons.push({ code: 'bad-shape', ...at, message: `Section "${s.key}": shape must be "prose" or "entries".` })
-    else if (s.entryFormat === 'gherkin' && s.shape !== 'entries')
-      reasons.push({
-        code: 'gherkin-on-prose',
-        ...at,
-        message: `Section "${s.key}": Given / When / Then applies only to entries Sections.`,
-      })
-    if (knownType && !targets.includes(s.target))
-      reasons.push({
-        code: 'unknown-target',
-        ...at,
-        message: `Section "${s.key}": a ${type} can be Published only into ${fieldNames}.`,
-      })
-    if (typeof s.locked !== 'boolean')
-      reasons.push({ code: 'bad-locked', ...at, message: `Section "${s.key}": locked must be true or false.` })
-  }
+  reasons.push(...checkTemplateSections(content.sections, { known: knownType, type, targets, fieldNames }))
 
-  if (knownType && content.iterationLogTarget !== undefined && !targets.includes(content.iterationLogTarget))
+  const logTarget = content.iterationLogTarget
+  if (knownType && logTarget !== undefined && !targets.includes(logTarget))
     reasons.push({
       code: 'unknown-iteration-log-target',
       message: `The Iteration Log of a ${type} can be Published only into ${fieldNames}.`,

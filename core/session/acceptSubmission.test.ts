@@ -1,3 +1,4 @@
+// Tests for what a session's submission does to its Draft: v1 for the first session, a Proposal after.
 import { describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'

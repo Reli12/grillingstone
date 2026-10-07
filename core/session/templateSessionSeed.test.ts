@@ -1,3 +1,4 @@
+// Tests for the seed a Template Session starts from.
 import { describe, expect, it } from 'vitest'
 
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
@@ -19,8 +20,14 @@ describe('Template Session seed', () => {
   })
 
   const seedText = (extra: Partial<Parameters<typeof buildTemplateSeed>[0]> = {}) => {
-    const s = buildTemplateSeed({ workItemType: 'PBI', purpose: 'Spike PBIs', examples: '', submitCommand, ...extra })
-    return s.systemPrompt + '\n' + s.firstMessage
+    const seed = buildTemplateSeed({
+      workItemType: 'PBI',
+      purpose: 'Spike PBIs',
+      examples: '',
+      submitCommand,
+      ...extra,
+    })
+    return seed.systemPrompt + '\n' + seed.firstMessage
   }
 
   it("offers only the Azure DevOps fields the type's form shows, and lets Claude place the Iteration Log", () => {
@@ -50,9 +57,9 @@ describe('Template Session seed', () => {
       'target field',
       'rules and examples',
       'guiding principle',
-    ].map((p) => all.indexOf(p))
+    ].map((phrase) => all.indexOf(phrase))
     expect(order.every((i) => i >= 0)).toBe(true)
-    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect([...order].sort((first, second) => first - second)).toEqual(order)
   })
 
   it('passes the pasted examples and the base Template as read-only starting material', () => {

@@ -24,12 +24,12 @@ export interface Submission {
 
 export type SubmissionOutcome = { ok: true; draft: Draft; message: string } | { ok: false; reasons: Reason[] }
 
-export function acceptSubmission(draft: Draft, s: Submission): SubmissionOutcome {
-  if (s.kind === 'first') {
+export function acceptSubmission(draft: Draft, submission: Submission): SubmissionOutcome {
+  if (submission.kind === 'first') {
     if (draft.version !== 0) return { ok: false, reasons: [{ code: 'v1-exists', message: 'v1 already exists.' }] }
-    const result = validate(draft.template, s.payload as DraftContent)
+    const result = validate(draft.template, submission.payload as DraftContent)
     if (!result.ok) return { ok: false, reasons: result.reasons }
-    const next = writeV1(draft, s.payload as DraftContent, s.meta)
+    const next = writeV1(draft, submission.payload as DraftContent, submission.meta)
     return {
       ok: true,
       draft: next,
@@ -38,19 +38,21 @@ export function acceptSubmission(draft: Draft, s: Submission): SubmissionOutcome
   }
   if (draft.proposal)
     return { ok: false, reasons: [{ code: 'proposal-open', message: 'The Draft already has an open Proposal.' }] }
-  const changes = (s.payload as { changes?: unknown } | null)?.changes
-  const reasons = checkProposal(draft, changes, s.upgradeTo ?? draft.template)
+  const changes = (submission.payload as { changes?: unknown } | null)?.changes
+  const reasons = checkProposal(draft, changes, submission.upgradeTo ?? draft.template)
   if (reasons.length) return { ok: false, reasons }
   const next = openProposal(draft, changes as ProposedChange[], {
-    sessionId: s.sessionId,
-    kind: s.kind,
-    now: s.now,
-    upgradeTo: s.upgradeTo,
+    sessionId: submission.sessionId,
+    kind: submission.kind,
+    now: submission.now,
+    upgradeTo: submission.upgradeTo,
   })
-  const conflicts = next.proposal!.changes.filter((c) => c.conflict).length
+  const proposed = next.proposal!.changes
+  const conflicts = proposed.filter((change) => change.conflict).length
+  const clean = proposed.length - conflicts
   return {
     ok: true,
     draft: next,
-    message: `Proposal written: ${plural(next.proposal!.changes.length - conflicts, 'Clean Change')}, ${plural(conflicts, 'Conflict')}.`,
+    message: `Proposal written: ${plural(clean, 'Clean Change')}, ${plural(conflicts, 'Conflict')}.`,
   }
 }

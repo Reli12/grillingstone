@@ -1,10 +1,11 @@
+// Tests for turning a Template Session's submission into a Template.
 import { describe, expect, it } from 'vitest'
 
 import { templateFromSession } from '#core/template/templateFromSession.ts'
 
 describe('templateFromSession', () => {
   it('keeps only Template fields, trims text and defaults the Iteration Log heading', () => {
-    const t = templateFromSession(
+    const template = templateFromSession(
       {
         name: ' Spike PBI ',
         method: ' # Method ',
@@ -32,7 +33,7 @@ describe('templateFromSession', () => {
       'PBI',
       '2026-09-23',
     )
-    expect(t).toEqual({
+    expect(template).toEqual({
       id: '',
       workItemType: 'PBI',
       name: 'Spike PBI',
@@ -57,7 +58,7 @@ describe('templateFromSession', () => {
   })
 
   it('keeps the Iteration Log field the session chose', () => {
-    const t = templateFromSession(
+    const template = templateFromSession(
       {
         name: 'Team Bug',
         method: 'm',
@@ -76,6 +77,6 @@ describe('templateFromSession', () => {
       'Bug',
       '2026-10-03',
     )
-    expect(t.iterationLogTarget).toBe('Microsoft.VSTS.TCM.SystemInfo')
+    expect(template.iterationLogTarget).toBe('Microsoft.VSTS.TCM.SystemInfo')
   })
 })

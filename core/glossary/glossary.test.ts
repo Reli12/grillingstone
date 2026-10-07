@@ -1,3 +1,4 @@
+// Tests for reading and editing Glossary terms while leaving the rest of CONTEXT.md untouched.
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -70,7 +71,11 @@ describe('Glossary (CONTEXT.md)', () => {
       definition: 'Permanently removed from service.',
       avoid: 'retired',
     })
-    expect(parseGlossary(added).map((t) => t.term)).toEqual(['Archived Device', 'Site Owner', 'Decommissioned Device'])
+    expect(parseGlossary(added).map((entry) => entry.term)).toEqual([
+      'Archived Device',
+      'Site Owner',
+      'Decommissioned Device',
+    ])
     expect(added.indexOf('Decommissioned')).toBeLessThan(added.indexOf('## Example dialogue'))
     const fresh = addTerm('', { term: 'Site', definition: 'A physical location.', avoid: '' }, 'Customer Portal')
     expect(fresh).toContain('# Customer Portal')
@@ -78,7 +83,7 @@ describe('Glossary (CONTEXT.md)', () => {
   })
 
   it('removes a term', () => {
-    expect(parseGlossary(removeTerm(md, 0)).map((t) => t.term)).toEqual(['Site Owner'])
+    expect(parseGlossary(removeTerm(md, 0)).map((entry) => entry.term)).toEqual(['Site Owner'])
   })
 
   it('reads a definition written on the term line itself', () => {
@@ -100,7 +105,7 @@ describe('startingGlossary', () => {
     expect(start.split('\n')[0]).toBe('# Billing Platform')
     expect(start).not.toContain('# Customer Portal')
     expect(start).toContain('Devices and billing for smart energy.')
-    expect(parseGlossary(start).map((t) => t.term)).toEqual(['Archived Device', 'Site Owner'])
+    expect(parseGlossary(start).map((entry) => entry.term)).toEqual(['Archived Device', 'Site Owner'])
   })
 
   it('adds the title to text that has none, and keeps any format', () => {

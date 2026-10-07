@@ -1,3 +1,4 @@
+// Tests for deriving Conflicts from what the human did to each change's target.
 import { describe, expect, it } from 'vitest'
 
 import { classify } from '#core/proposal/classify.ts'
@@ -54,7 +55,7 @@ describe('Proposal Engine — classify', () => {
       },
       { kind: 'addEntry', sectionId: deps.id, title: 'Backend API must provide', body: 'POST /devices/archive' },
     ])
-    expect(changes.map((c) => [c.conflict, c.conflictReason])).toEqual([
+    expect(changes.map((change) => [change.conflict, change.conflictReason])).toEqual([
       [true, 'You discarded this'],
       [true, 'You discarded this Section'],
     ])

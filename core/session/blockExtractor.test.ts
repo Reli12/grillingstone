@@ -1,3 +1,4 @@
+// Tests for pulling question cards and the Ready Check out of Claude's text without dropping anything.
 import { describe, expect, it } from 'vitest'
 
 import { extractBlocks } from '#core/session/blockExtractor.ts'
@@ -32,12 +33,12 @@ describe('Block extractor', () => {
     const broken = `${fence}pbi-question\n{"question": "Who may archive?", "recommended": \n${fence}`
     const missing = `${fence}pbi-question\n{"question": "Who?"}\n${fence}`
     const unknown = `${fence}pbi-poll\n{"a": 1}\n${fence}`
-    for (const t of [broken, missing, unknown]) expect(extractBlocks(t)).toEqual([{ type: 'text', text: t }])
+    for (const text of [broken, missing, unknown]) expect(extractBlocks(text)).toEqual([{ type: 'text', text }])
   })
 
   it('leaves ordinary code blocks inside the text', () => {
-    const t = `Like this:\n${fence}ts\nconst a = 1\n${fence}\nDone.`
-    expect(extractBlocks(t)).toEqual([{ type: 'text', text: t }])
+    const text = `Like this:\n${fence}ts\nconst a = 1\n${fence}\nDone.`
+    expect(extractBlocks(text)).toEqual([{ type: 'text', text }])
   })
 
   it('tolerates missing options and a trailing unclosed fence while streaming', () => {

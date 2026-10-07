@@ -1,3 +1,4 @@
+// The Template: the ordered Sections and writing method a Draft of one work item type is written to.
 import type { SectionTarget } from '#core/shared/adoFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 

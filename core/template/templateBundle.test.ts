@@ -1,3 +1,4 @@
+// Tests for exporting, previewing and importing Template bundles.
 import { describe, expect, it } from 'vitest'
 
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
@@ -63,12 +64,12 @@ describe('Template bundles', () => {
     if (!preview.ok) throw new Error('preview failed')
     const writes = applyImport(
       mine,
-      preview.items.map((i) => ({ ...i, selected: true })),
+      preview.items.map((item) => ({ ...item, selected: true })),
       '2026-09-22',
     )
-    expect(writes.map((t) => t.name).sort()).toEqual(['Default PBI Template (imported)', 'Spike PBI'])
-    expect(writes.every((t) => !t.isDefault)).toBe(true)
-    expect(writes.some((t) => t.id === defaultPbiTemplate.id)).toBe(false)
+    expect(writes.map((template) => template.name).sort()).toEqual(['Default PBI Template (imported)', 'Spike PBI'])
+    expect(writes.every((template) => !template.isDefault)).toBe(true)
+    expect(writes.some((template) => template.id === defaultPbiTemplate.id)).toBe(false)
   })
 
   it('overwrites a changed Template of mine only when selected, as its next version', () => {
@@ -77,7 +78,7 @@ describe('Template bundles', () => {
     expect(applyImport([backendPbi], preview.items, 'now')).toEqual([])
     const [write] = applyImport(
       [backendPbi],
-      preview.items.map((i) => ({ ...i, selected: true })),
+      preview.items.map((item) => ({ ...item, selected: true })),
       '2026-09-22',
     )
     expect(write).toMatchObject({ id: 't-backend', method: 'Newer.', version: backendPbi.version + 1 })

@@ -1,3 +1,4 @@
+// Tests for refusing a submitted Proposal before the human sees it.
 import { describe, expect, it } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
@@ -6,7 +7,7 @@ import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acOf, rewriteAc02, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 describe('Proposal Engine — refusing a submitted Proposal', () => {
-  const codes = (d: Draft, proposed: unknown) => checkProposal(d, proposed).map((r) => r.code)
+  const codes = (draft: Draft, proposed: unknown) => checkProposal(draft, proposed).map((reason) => reason.code)
 
   it('accepts well-formed changes against existing ids', () => {
     const draft = v1Draft()

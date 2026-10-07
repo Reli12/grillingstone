@@ -1,9 +1,10 @@
+// The work item types a Draft can be, with the hint and Publish fields each one gets.
 import { ADO_FIELDS, type SectionTarget } from '#core/shared/adoFields.ts'
 
 export const WORK_ITEM_TYPES = ['Epic', 'Feature', 'PBI', 'Task', 'Bug'] as const
 export type WorkItemType = (typeof WORK_ITEM_TYPES)[number]
 
-export const isWorkItemType = (t: unknown): t is WorkItemType => WORK_ITEM_TYPES.includes(t as WorkItemType)
+export const isWorkItemType = (value: unknown): value is WorkItemType => WORK_ITEM_TYPES.includes(value as WorkItemType)
 
 /** One line telling the human when to choose this type. */
 export const WORK_ITEM_TYPE_HINTS: Record<WorkItemType, string> = {
