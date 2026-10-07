@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 
 import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
+import { newSessionState, type SessionEvent, type SessionState, transition } from '#core/session/sessionMachine.ts'
 import {
   type ChatMessage,
   LIVE_STATUSES,
@@ -46,8 +47,8 @@ interface Live {
   stderrTail: string
   /** tool_use id → the tool message showing it. */
   tools: Map<string, KnownTool>
-  accepted: boolean
-  stopping: boolean
+  /** Status, plus whether a submission was accepted or a stop requested: owned by the session state machine. */
+  state: SessionState
   /** Stream events are handled one at a time, in order. */
   queue: Promise<void>
   /** Settles once the session has ended and its Transcript is saved. */
@@ -65,8 +66,6 @@ const STOP_GRACE_MS = 3000
 const ALREADY_RUNNING_ON_DRAFT = 'A session is already running on this Draft — finish or stop it first.'
 const INTERRUPTED_BY_RESTART =
   'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.'
-/** While Claude is in one of these, the human waits for its turn to finish. */
-const REPLYING_STATUSES: SessionStatus[] = ['thinking', 'writing', 'starting']
 
 /** A just-spawned session's in-memory state; `markEnded` settles `ended` once its Transcript is saved. */
 function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, token: string): Live {
@@ -79,8 +78,7 @@ function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, t
     token,
     stderrTail: '',
     tools: new Map(),
-    accepted: false,
-    stopping: false,
+    state: newSessionState(),
     queue: Promise.resolve(),
     ended,
     markEnded,
@@ -89,7 +87,8 @@ function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, t
 
 /** Asks the session's Claude Code to exit, and kills it if it is still running after the grace period. */
 function requestStop(live: Live) {
-  live.stopping = true
+  const next = transition(live.state, { type: 'stopRequested' })
+  if (next.ok) live.state = next.state
   live.child.kill('SIGTERM')
   const killIfStillRunning = () => live.child.exitCode === null && live.child.kill('SIGKILL')
   setTimeout(killIfStillRunning, STOP_GRACE_MS).unref()
@@ -113,8 +112,9 @@ const humanMessage = (kind: 'answer' | 'message' | 'write', text: string): ChatM
 
 /** Marks a Transcript that was still running when the backend went down as interrupted, and saves it. */
 async function markInterruptedIfLive<T extends AnyTranscript>(transcript: T, save: (transcript: T) => Promise<void>) {
-  if (!LIVE_STATUSES.includes(transcript.status)) return
-  Object.assign(transcript, { status: 'interrupted', endedAt: now() })
+  const next = transition({ ...newSessionState(), status: transcript.status }, { type: 'backendRestarted' })
+  if (!next.ok) return
+  Object.assign(transcript, { status: next.state.status, endedAt: now() })
   transcript.messages.push(systemMessage(INTERRUPTED_BY_RESTART, 'error'))
   await save(transcript)
 }
@@ -221,7 +221,8 @@ export class Supervisor {
     await this.push(live, systemMessage(intro))
     if (transcript.humanNote) await this.push(live, humanMessage('message', transcript.humanNote))
     sendMessage(child, seed.firstMessage)
-    await this.setStatus(live, 'thinking')
+    // Claude Code may already have failed to start; that session has ended and stays ended.
+    if (this.live.has(transcript.id)) await this.moveOn(live, { type: 'started' })
     return transcript
   }
 
@@ -243,6 +244,8 @@ export class Supervisor {
       live.stderrTail = (live.stderrTail + chunk).slice(-STDERR_TAIL_CHARS)
     })
     child.on('error', (error) => {
+      if (!this.live.has(live.transcript.id)) return
+      this.advance(live, { type: 'spawnFailed' })
       void this.end(live, 'failed', `Could not start Claude Code (${CLAUDE_BIN}): ${error.message}`)
     })
     // 'close', not 'exit': it fires only after stdout is fully read, so no stream event lands after the session ended.
@@ -261,23 +264,21 @@ export class Supervisor {
     const live = this.get(sessionId)
     const said = text.trim()
     if (!said) throw new SessionError('Say something first.')
-    if (REPLYING_STATUSES.includes(live.transcript.status))
-      throw new SessionError('Claude is still replying — wait for its turn to finish.')
+    this.advance(live, { type: 'humanSaid' })
     await this.push(live, humanMessage(kind, said))
     sendMessage(live.child, said)
-    await this.setStatus(live, 'thinking')
+    await this.setStatus(live, live.state.status)
   }
 
   /** The human confirms the Ready Check, or says "enough — write it" at any moment. */
   async writeNow(sessionId: string) {
     const live = this.get(sessionId)
-    if (live.transcript.status === 'writing') return
-    if (live.transcript.status !== 'waiting')
-      throw new SessionError('Claude is still replying — wait for its turn to finish, then press write.')
-    live.transcript.writeConfirmed = true
+    const before = live.state
+    this.advance(live, { type: 'writeConfirmed' })
+    if (live.state === before) return // already writing: a second press changes nothing
     await this.push(live, humanMessage('write', WRITE_NOW_MESSAGE))
     sendMessage(live.child, WRITE_NOW_MESSAGE)
-    await this.setStatus(live, 'writing')
+    await this.setStatus(live, live.state.status)
   }
 
   stop(sessionId: string) {
@@ -313,9 +314,8 @@ export class Supervisor {
 
   /** After an accepted submission the session is done; otherwise it is the human's turn. */
   private async onTurnEnded(live: Live) {
-    if (!live.accepted) return this.setStatus(live, 'waiting')
-    live.child.stdin?.end()
-    await this.end(live, 'finished')
+    if (live.state.accepted) live.child.stdin?.end()
+    await this.moveOn(live, { type: 'turnEnded' })
   }
 
   // ── Submissions (from scripts/writeDraft.mjs) ───────────────────────────
@@ -329,19 +329,14 @@ export class Supervisor {
       await this.push(live, systemMessage(`Submission refused — ${listed}`, 'error'))
       return { ok: false as const, reasons }
     }
-    if (!live.transcript.writeConfirmed)
-      return refuse([
-        {
-          code: 'not-confirmed',
-          message: `The human has not confirmed yet. Run the Ready Check and wait for "${WRITE_NOW_MESSAGE}".`,
-        },
-      ])
-    if (live.accepted)
-      return refuse([{ code: 'already-submitted', message: 'This session already submitted successfully. Stop here.' }])
+    // Checked before the submission is stored; committed only once it has been.
+    const allowed = transition(live.state, { type: 'submissionAccepted' })
+    if (!allowed.ok) return refuse([allowed.reason])
 
     const result = await live.scope.submit(payload)
     if (!result.ok) return refuse(result.reasons)
-    live.accepted = true
+    const accepted = transition(live.state, { type: 'submissionAccepted' })
+    if (accepted.ok) live.state = accepted.state
     await this.push(live, systemMessage(result.message, 'success'))
     return result
   }
@@ -362,6 +357,22 @@ export class Supervisor {
     live.scope.emitMessage(live.transcript, message)
   }
 
+  /** Feeds an event to the session's state machine; a refusal becomes the SessionError the human sees. */
+  private advance(live: Live, event: SessionEvent): SessionState {
+    const next = transition(live.state, event)
+    if (!next.ok) throw new SessionError(next.reason.message)
+    live.state = next.state
+    live.transcript.writeConfirmed = next.state.writeConfirmed
+    return next.state
+  }
+
+  /** Advances the session and records the result: a new live status is saved, an ended one ends the session. */
+  private async moveOn(live: Live, event: SessionEvent) {
+    const { status } = this.advance(live, event)
+    if (LIVE_STATUSES.includes(status)) await this.setStatus(live, status)
+    else await this.end(live, status)
+  }
+
   private async setStatus(live: Live, status: SessionStatus) {
     if (live.transcript.status === status) return
     live.transcript.status = status
@@ -372,9 +383,8 @@ export class Supervisor {
   private async onExit(live: Live, code: number | null, signal: NodeJS.Signals | null) {
     await live.queue
     if (!this.live.has(live.transcript.id)) return
-    if (live.accepted) return this.end(live, 'finished')
-    if (live.stopping) return this.end(live, 'stopped')
-    await this.end(live, 'failed', crashError(live.stderrTail, code, signal))
+    const { status } = this.advance(live, { type: 'exited' })
+    await this.end(live, status, status === 'failed' ? crashError(live.stderrTail, code, signal) : undefined)
   }
 
   private async end(live: Live, status: SessionStatus, error?: string) {
