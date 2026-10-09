@@ -1,0 +1,28 @@
+# Runs Whetstone with only Docker on the host. See docker/README.md.
+#   docker compose -f docker/compose.yml build
+#   docker compose -f docker/compose.yml run --rm whetstone login   (once)
+#   docker compose -f docker/compose.yml up                         then open http://localhost:5310
+name: whetstone
+
+services:
+  whetstone:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: whetstone:local
+    # tini as PID 1: forwards stop signals and reaps the claude processes sessions leave behind.
+    init: true
+    ports:
+      # Same port on both sides: the backend accepts browser calls only from localhost:5310.
+      # Bound to 127.0.0.1 because the tool has no login of its own.
+      - '127.0.0.1:5310:5310'
+    volumes:
+      # Projects, Drafts, Templates and settings stay in the repository's data/ folder.
+      - ../data:/app/data
+      # Claude Code's subscription login and conversation copies.
+      - claude-home:/home/node/.claude
+    # Longer than the backend's own 4 s shutdown, so sessions save their Transcripts.
+    stop_grace_period: 10s
+
+volumes:
+  claude-home:
