@@ -30,6 +30,21 @@ function liveSessionAfter(current: SessionSummary | null, session: SessionSummar
   return current
 }
 
+/**
+ * Folds an event into a cached query. With nothing cached yet, the query's first load may still be in flight and
+ * may answer with what the backend held before this event, so it is reloaded instead of the event being lost.
+ */
+function updateOrReload<T>(qc: QueryClient, queryKey: readonly unknown[], update: (old: T) => T) {
+  if (qc.getQueryData(queryKey)) {
+    qc.setQueryData<T>(queryKey, (old) => old && update(old))
+    return
+  }
+  // Cancel explicitly: with no data yet, a refetch would only join the stale load in flight. Exact, because keys
+  // nest: reloading a Draft must not also cancel and reload its Transcripts and rendering.
+  const onlyThisQuery = { queryKey, exact: true }
+  void qc.cancelQueries(onlyThisQuery).then(() => qc.invalidateQueries(onlyThisQuery))
+}
+
 function applyDraft(qc: QueryClient, event: EventOf<'draft'>) {
   qc.setQueryData<DraftWithSession>(queryKeys.draft(event.projectId, event.draft.id), (old) => ({
     draft: event.draft,
@@ -41,12 +56,12 @@ function applyDraft(qc: QueryClient, event: EventOf<'draft'>) {
 function applySession(qc: QueryClient, event: EventOf<'session'>) {
   const { session } = event
   const live = LIVE_STATUSES.includes(session.status)
-  qc.setQueryData<DraftWithSession>(queryKeys.draft(event.projectId, session.draftId), (old) => {
-    if (!old) return old
-    return { ...old, liveSession: liveSessionAfter(old.liveSession, session, live) }
-  })
-  qc.setQueryData<Transcript[]>(queryKeys.transcripts(event.projectId, session.draftId), (old) => {
-    if (!old?.some((transcript) => transcript.id === session.id)) return old
+  updateOrReload<DraftWithSession>(qc, queryKeys.draft(event.projectId, session.draftId), (old) => ({
+    ...old,
+    liveSession: liveSessionAfter(old.liveSession, session, live),
+  }))
+  updateOrReload<Transcript[]>(qc, queryKeys.transcripts(event.projectId, session.draftId), (old) => {
+    if (!old.some((transcript) => transcript.id === session.id)) return old
     return old.map((transcript) => (transcript.id === session.id ? { ...transcript, ...session } : transcript))
   })
   // Once a session ends, refetch the Transcripts so the list matches what the backend saved.
@@ -57,22 +72,19 @@ function applyTemplateSession(qc: QueryClient, event: EventOf<'templateSession'>
   const { session } = event
   const liveSession = LIVE_STATUSES.includes(session.status) ? session : null
   qc.setQueryData(queryKeys.liveTemplateSession, { session: liveSession })
-  qc.setQueryData<TemplateTranscript>(queryKeys.templateSession(session.id), (old) =>
-    old ? { ...old, ...session } : old,
-  )
+  updateOrReload<TemplateTranscript>(qc, queryKeys.templateSession(session.id), (old) => ({ ...old, ...session }))
 }
 
 function applyTemplateMessage(qc: QueryClient, event: EventOf<'templateMessage'>) {
-  qc.setQueryData<TemplateTranscript>(queryKeys.templateSession(event.sessionId), (old) => {
-    if (!old) return old
-    return { ...old, messages: upsertMessage(old.messages, event.message) }
-  })
+  updateOrReload<TemplateTranscript>(qc, queryKeys.templateSession(event.sessionId), (old) => ({
+    ...old,
+    messages: upsertMessage(old.messages, event.message),
+  }))
 }
 
 function applyMessage(qc: QueryClient, event: EventOf<'message'>) {
   const transcriptsKey = queryKeys.transcripts(event.projectId, event.draftId)
-  qc.setQueryData<Transcript[]>(transcriptsKey, (old) => {
-    if (!old) return old
+  updateOrReload<Transcript[]>(qc, transcriptsKey, (old) => {
     // A session not yet in the list: refetch the list rather than guess where it belongs.
     if (!old.some((transcript) => transcript.id === event.sessionId)) {
       void qc.invalidateQueries({ queryKey: transcriptsKey })

@@ -21,7 +21,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: `http://127.0.0.1:${serverPort}`, ws: true },
     },
-    watch: { ignored: ['**/data/**'] },
+    // Session writes to data/, data-test/ and data-e2e/ must never trigger a reload.
+    watch: { ignored: ['**/data*/**'] },
   },
   test: {
     projects: [

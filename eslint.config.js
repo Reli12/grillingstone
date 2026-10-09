@@ -88,7 +88,7 @@ export default tseslint.config(
   },
 
   {
-    files: ['**/*.test.{ts,tsx}', 'test/**'],
+    files: ['**/*.test.{ts,tsx}', 'test/**', 'e2e/**'],
     // Tests read untyped JSON responses and use long describe blocks.
     rules: {
       'max-lines-per-function': 'off',

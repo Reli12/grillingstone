@@ -1,5 +1,5 @@
 // The app's modal dialog: a title bar with a close button, a scrolling body and an optional footer.
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 
 import { X } from 'lucide-react'
 
@@ -17,6 +17,7 @@ interface DialogProps {
 /** Native <dialog>: focus trapping, Escape and the backdrop come from the browser. */
 export function Dialog({ open, onClose, title, children, footer, className }: Readonly<DialogProps>) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
@@ -26,6 +27,8 @@ export function Dialog({ open, onClose, title, children, footer, className }: Re
   return (
     <dialog
       ref={ref}
+      // Named by its title, so assistive tech (and role-based tests) can tell one dialog from another.
+      aria-labelledby={titleId}
       onClose={onClose}
       // A click on the <dialog> itself, not on its content, is a click on the backdrop.
       onClick={(event) => event.target === event.currentTarget && onClose()}
@@ -37,7 +40,9 @@ export function Dialog({ open, onClose, title, children, footer, className }: Re
       {open && (
         <div className="flex max-h-[85vh] flex-col">
           <header className="flex items-center justify-between border-b border-line-soft px-5 py-3.5">
-            <h2 className="text-base font-semibold">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold">
+              {title}
+            </h2>
             <button
               onClick={onClose}
               className="rounded p-1 text-ink-faint hover:bg-fog hover:text-ink"

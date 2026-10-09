@@ -1,4 +1,5 @@
 // Tests for applyServerEvent: each server event type lands in, or invalidates, the right cache entry.
+import { type QueryClient, QueryObserver } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ChatMessage, TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
@@ -15,6 +16,27 @@ const projectId = draft.projectId
 const msg = (id: string, text = 'hi'): ChatMessage => ({ id, at: '', role: 'system', text })
 const invalidated = (qc: ReturnType<typeof createTestQueryClient>, key: readonly unknown[]) =>
   qc.getQueryState(key)?.isInvalidated
+
+const templateSession = {
+  id: 'ts',
+  kind: 'template' as const,
+  status: 'waiting' as const,
+  writeConfirmed: false,
+  startedAt: '',
+  request: { workItemType: 'PBI' as const, purpose: 'x', examples: '' },
+}
+
+/**
+ * A screen loading `queryKey` whose first load is still in flight when the event arrives: that load would answer
+ * with what the backend held just before the event, so it never answers here; any later load returns `fresh`.
+ * Returns the function that stops the screen watching.
+ */
+function loadingWhenEventArrives<T>(qc: QueryClient, queryKey: readonly unknown[], fresh: T) {
+  const staleLoad = new Promise<T>(() => {})
+  const loads = [staleLoad]
+  const observer = new QueryObserver(qc, { queryKey, queryFn: () => loads.shift() ?? Promise.resolve(fresh) })
+  return observer.subscribe(() => {})
+}
 
 function seeded() {
   const qc = createTestQueryClient()
@@ -104,14 +126,7 @@ describe('applyServerEvent', () => {
 
   it('follows a Template Session', () => {
     const qc = seeded()
-    const session = {
-      id: 'ts',
-      kind: 'template' as const,
-      status: 'waiting' as const,
-      writeConfirmed: false,
-      startedAt: '',
-      request: { workItemType: 'PBI' as const, purpose: 'x', examples: '' },
-    }
+    const session = templateSession
     qc.setQueryData<TemplateTranscript>(queryKeys.templateSession('ts'), { ...session, messages: [msg('a')] })
 
     applyServerEvent(qc, { type: 'templateSession', session })
@@ -128,5 +143,51 @@ describe('applyServerEvent', () => {
     })
     applyServerEvent(qc, { type: 'templateMessage', sessionId: 'unknown', message: msg('x') })
     expect(qc.getQueryData(queryKeys.templateSession('unknown'))).toBeUndefined()
+  })
+  it('keeps a Template Session event that arrives while its Transcript is still loading', async () => {
+    const qc = createTestQueryClient()
+    const queryKey = queryKeys.templateSession('ts')
+    const question = msg('q', 'Who may archive?')
+    const stopWatching = loadingWhenEventArrives(qc, queryKey, { ...templateSession, messages: [question] })
+
+    applyServerEvent(qc, { type: 'templateMessage', sessionId: 'ts', message: question })
+
+    await vi.waitFor(() => expect(qc.getQueryData<TemplateTranscript>(queryKey)?.messages).toEqual([question]))
+    stopWatching()
+  })
+
+  it("keeps a chat message that arrives while the Draft's Transcripts are still loading", async () => {
+    const qc = createTestQueryClient()
+    const queryKey = queryKeys.transcripts(projectId, draft.id)
+    const live = liveSession(draft)
+    const question = msg('q', 'Who may archive?')
+    const stopWatching = loadingWhenEventArrives(qc, queryKey, [{ ...live, messages: [question] }])
+
+    applyServerEvent(qc, { type: 'message', projectId, draftId: draft.id, sessionId: live.id, message: question })
+
+    await vi.waitFor(() => expect(qc.getQueryData<Transcript[]>(queryKey)?.[0].messages).toEqual([question]))
+    stopWatching()
+  })
+  it('keeps a session that starts while its Draft is still loading', async () => {
+    const qc = createTestQueryClient()
+    const queryKey = queryKeys.draft(projectId, draft.id)
+    const live = liveSession(draft, { status: 'thinking' })
+    const stopWatching = loadingWhenEventArrives<DraftWithSession>(qc, queryKey, { draft, liveSession: live })
+
+    applyServerEvent(qc, { type: 'session', projectId, session: live })
+
+    await vi.waitFor(() => expect(qc.getQueryData<DraftWithSession>(queryKey)?.liveSession).toEqual(live))
+    stopWatching()
+  })
+  it("keeps a session's new status that arrives while the Draft's Transcripts are still loading", async () => {
+    const qc = createTestQueryClient()
+    const queryKey = queryKeys.transcripts(projectId, draft.id)
+    const waiting = liveSession(draft, { status: 'waiting' })
+    const stopWatching = loadingWhenEventArrives<Transcript[]>(qc, queryKey, [{ ...waiting, messages: [] }])
+
+    applyServerEvent(qc, { type: 'session', projectId, session: waiting })
+
+    await vi.waitFor(() => expect(qc.getQueryData<Transcript[]>(queryKey)?.[0].status).toBe('waiting'))
+    stopWatching()
   })
 })

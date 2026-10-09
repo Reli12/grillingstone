@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A stand-in for `claude -p` in server tests: reads stream-json user messages on stdin and answers like a
+// A stand-in for `claude -p` in server and browser (e2e/) tests: reads stream-json user messages on stdin and answers like a
 // session would. It asks one question card; on "Write it now." it runs the real submit script with a valid
 // payload for its kind of session (v1 Draft, Proposal or Template). A message containing CRASH makes it die.
 // Like Claude Code it names its session in an init event; with --resume it keeps the name it is given.
