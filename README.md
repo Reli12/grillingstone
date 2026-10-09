@@ -78,6 +78,9 @@ loads no skills and has no Glossary. It submits a Template instead of a Draft, a
   on your own subscription, so no API key is needed. Choose the model in **Settings**; leave it empty for Claude Code's
   default.
 
+Or neither of them: with Docker you need only Docker and a Claude subscription (see
+[Running with Docker](#running-with-docker)).
+
 ## Getting started
 
 ```bash
@@ -93,6 +96,40 @@ Claude Code once (run `claude` in any terminal and sign in), and make sure `clau
 runs `npm run dev`. If it isn't, point `WHETSTONE_CLAUDE_BIN` at the binary.
 
 The **How it works** page inside the app walks through every step.
+
+## Running with Docker
+
+No Node.js or Claude Code on your machine? Run Whetstone in Docker instead. You need only
+[Docker](https://www.docker.com/products/docker-desktop/) and a Claude subscription (Pro or Max). The container holds
+the backend, the frontend and Claude Code.
+
+From the repository root:
+
+```bash
+# 1. Build the image (again after every git pull)
+docker compose -f docker/compose.yml build
+
+# 2. Sign in to Claude, once. Open the link it prints, sign in with your Claude account, paste the code back.
+docker compose -f docker/compose.yml run --rm whetstone login
+
+# 3. Start Whetstone
+docker compose -f docker/compose.yml up
+```
+
+Open <http://localhost:5310>. Stop it with `Ctrl+C`, or with `docker compose -f docker/compose.yml down` if you started
+it with `up -d`.
+
+- **Your data** stays in this repository's `data/` folder, the same one `npm run dev` uses. Don't run both at once.
+- **Your Claude login** is kept in the `whetstone_claude-home` Docker volume, with Claude Code's chat copies, so it
+  survives restarts and rebuilds. `down -v` deletes it: you sign in again, and ended sessions can no longer be
+  Continued.
+- **Sessions can't be Continued across the two setups:** one started under `npm run dev` can't be Continued in Docker,
+  nor the other way round.
+- **Port 5310 only, and only from your machine.** The backend accepts browser calls only from `localhost:5310`, and the
+  port is bound to `127.0.0.1` because Whetstone has no login of its own.
+
+Check your login with `docker compose -f docker/compose.yml run --rm whetstone claude auth status --text`. More
+details, including Linux file permissions, are in [docker/README.md](docker/README.md).
 
 ## Your data and privacy
 
@@ -140,9 +177,3 @@ If Playwright reports a missing browser, run `npx playwright install chromium` o
 
 Other checks: `npm run typecheck`, `npm run lint`, `npm run format:check`. An optional local SonarQube is wired up in
 `compose.sonar.yml` (`npm run sonar:up`, then `npm run sonar`).
-
-## Status
-
-v1 is complete: grilling, Proposals, Templates and Template Sessions, Continuations, and Copy for Azure DevOps. Next up
-is publishing straight to Azure DevOps through its REST API (create, update, import, and drift checks), so that copy and
-paste is no longer needed.
