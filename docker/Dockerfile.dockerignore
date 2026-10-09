@@ -1,0 +1,13 @@
+# Used by BuildKit for docker/Dockerfile (the build context is the repository root).
+# data*/ is mounted at run time; .claude/ and plan/ must not sit above session folders, where Claude Code would find them.
+.git
+node_modules
+data*
+.claude
+plan
+coverage
+dist
+.playwright-mcp
+*.log
+*.tsbuildinfo
+docker/compose.yml
