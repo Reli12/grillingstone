@@ -10,6 +10,8 @@ import type { MobileView, Side } from '@/types/draftPage'
 export function useDraftPageUi() {
   const [intent, setIntent] = useState<StartIntent | null>(null)
   const [side, setSide] = useState<Side>('chat')
+  /** The side panel takes about 60% of the width instead of its normal column; never remembered. */
+  const [wide, setWide] = useState(false)
   const [glossaryOpen, setGlossaryOpen] = useState(false)
   const [copyOpen, setCopyOpen] = useState(false)
   const [refsOpen, setRefsOpen] = useState(false)
@@ -27,6 +29,8 @@ export function useDraftPageUi() {
     setIntent,
     side,
     setSide,
+    wide,
+    setWide,
     glossaryOpen,
     setGlossaryOpen,
     copyOpen,

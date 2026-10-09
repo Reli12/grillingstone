@@ -416,6 +416,28 @@ describe('DraftPage from v1', () => {
     expect(screen.getByRole('tab', { name: 'Chat (running)' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('widens the side panel beside the Draft, on either tab, and narrows it back', async () => {
+    const draft = v1Draft()
+    draftBackend(draft)
+    const { user } = renderPage(draft)
+    const columns = async () => (await screen.findByRole('complementary')).parentElement
+
+    const widen = await screen.findByRole('button', { name: 'Widen panel' })
+    expect(widen).toHaveAttribute('aria-pressed', 'false')
+    expect(await columns()).toHaveClass('lg:grid-cols-[minmax(360px,440px)_1fr]')
+    await user.click(widen)
+
+    expect(screen.getByRole('button', { name: 'Narrow panel' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await columns()).toHaveClass('lg:grid-cols-[minmax(360px,3fr)_2fr]')
+
+    await user.click(screen.getByRole('tab', { name: 'Glossary' }))
+    expect(await columns()).toHaveClass('lg:grid-cols-[minmax(360px,3fr)_2fr]')
+
+    await user.click(screen.getByRole('button', { name: 'Narrow panel' }))
+    expect(screen.getByRole('button', { name: 'Widen panel' })).toHaveAttribute('aria-pressed', 'false')
+    expect(await columns()).toHaveClass('lg:grid-cols-[minmax(360px,440px)_1fr]')
+  })
+
   it('shows why the Draft cannot load', async () => {
     const draft = v1Draft()
     draftBackend(draft)
