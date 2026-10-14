@@ -23,7 +23,8 @@ export function QuestionCard({ q: question, answer, canAnswer, onAnswer }: Reado
     defaultValues: { text: '' },
   })
   const open = canAnswer && answer === undefined
-  const closedNote = answer !== undefined ? 'Answered below' : `Recommended: ${question.recommended}`
+  const recommendedNote = question.recommended ? `Recommended: ${question.recommended}` : ''
+  const closedNote = answer !== undefined ? 'Answered below' : recommendedNote
   return (
     <div
       className={cn(

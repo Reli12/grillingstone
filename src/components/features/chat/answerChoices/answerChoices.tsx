@@ -16,23 +16,25 @@ interface AnswerChoicesProps {
 }
 
 /** The open card's ways to answer: the recommendation, the offered options, or your own words. */
-export function AnswerChoices({ question, form, onAnswer }: Readonly<AnswerChoicesProps>) {
+export function AnswerChoices({ question: { recommended, options }, form, onAnswer }: Readonly<AnswerChoicesProps>) {
   const { register, handleSubmit, formState } = form
   return (
     <div className="space-y-2.5 px-4 pt-3 pb-4">
-      <button
-        onClick={() => onAnswer(question.recommended)}
-        className="group flex w-full items-start gap-2.5 rounded-md border border-claude/30 bg-claude-wash px-3 py-2.5 text-left text-sm hover:border-claude"
-      >
-        <Check size={16} className="mt-0.5 shrink-0 text-claude" />
-        <span>
-          <span className="font-semibold text-claude">Recommended</span>
-          <span className="block text-ink">{question.recommended}</span>
-        </span>
-      </button>
-      {question.options.length > 0 && (
+      {recommended && (
+        <button
+          onClick={() => onAnswer(recommended)}
+          className="group flex w-full items-start gap-2.5 rounded-md border border-claude/30 bg-claude-wash px-3 py-2.5 text-left text-sm hover:border-claude"
+        >
+          <Check size={16} className="mt-0.5 shrink-0 text-claude" />
+          <span>
+            <span className="font-semibold text-claude">Recommended</span>
+            <span className="block text-ink">{recommended}</span>
+          </span>
+        </button>
+      )}
+      {options.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {question.options.map((option) => (
+          {options.map((option) => (
             <Button
               key={option}
               size="sm"

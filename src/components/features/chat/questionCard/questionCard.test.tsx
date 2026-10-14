@@ -28,6 +28,27 @@ describe('QuestionCard', () => {
     expect(screen.getByText('Recommended: Yes, alerts muted')).toBeInTheDocument()
   })
 
+  it('answers a question without a recommendation by option or free text', async () => {
+    const onAnswer = vi.fn()
+    const factQuestion = { type: 'question' as const, question: 'Which browser?', options: ['Chrome', 'Safari'] }
+    render(<QuestionCard q={factQuestion} canAnswer onAnswer={onAnswer} />)
+    expect(screen.queryByRole('button', { name: /Recommended/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Safari' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Your answer' }), 'Firefox{Enter}')
+    expect(onAnswer.mock.calls).toEqual([['Safari'], ['Firefox']])
+  })
+
+  it('shows no recommendation note on a closed question without one', () => {
+    render(
+      <QuestionCard
+        q={{ type: 'question', question: 'Which browser?', options: [] }}
+        canAnswer={false}
+        onAnswer={() => {}}
+      />,
+    )
+    expect(screen.queryByText(/Recommended/)).not.toBeInTheDocument()
+  })
+
   it('says when it was answered', () => {
     render(<QuestionCard q={question} answer="No" canAnswer onAnswer={() => {}} />)
     expect(screen.getByText('Answered below')).toBeInTheDocument()

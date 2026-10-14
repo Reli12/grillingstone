@@ -25,7 +25,7 @@ The human sees your messages in a chat UI that renders two kinds of fenced JSON 
 {"question": "Who may archive a device?", "recommended": "Admin and Manager; only Admin restores", "options": ["Admin only", "Admin and Manager", "Everyone who can edit"]}
 \`\`\`
 
-"options" holds 2–4 short alternative answers (the recommended one need not be repeated). The human may pick one, accept the recommendation, or answer in their own words.
+"options" holds 2–4 short alternative answers (the recommended one need not be repeated). Leave out "recommended" only for questions about facts only the human knows. The human may pick one, accept the recommendation, or answer in their own words. Always use this block for a question — never write the question or its options as plain text.
 
 When you believe you understand enough to write ${target}, run the Ready Check instead of asking another question:
 

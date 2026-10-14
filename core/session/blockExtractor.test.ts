@@ -31,9 +31,16 @@ describe('Block extractor', () => {
 
   it('falls back to plain text for malformed or incomplete blocks instead of dropping them', () => {
     const broken = `${fence}pbi-question\n{"question": "Who may archive?", "recommended": \n${fence}`
-    const missing = `${fence}pbi-question\n{"question": "Who?"}\n${fence}`
+    const missing = `${fence}pbi-question\n{"recommended": "Admins"}\n${fence}`
     const unknown = `${fence}pbi-poll\n{"a": 1}\n${fence}`
     for (const text of [broken, missing, unknown]) expect(extractBlocks(text)).toEqual([{ type: 'text', text }])
+  })
+
+  it('turns a question without a recommendation into a card, for facts only the human knows', () => {
+    const text = `${fence}pbi-question\n{"question": "Where does the Glossary appear?", "options": ["Project page", "Both"]}\n${fence}`
+    expect(extractBlocks(text)).toEqual([
+      { type: 'question', question: 'Where does the Glossary appear?', options: ['Project page', 'Both'] },
+    ])
   })
 
   it('leaves ordinary code blocks inside the text', () => {

@@ -4,7 +4,8 @@ import { QUESTION_FENCE, READY_FENCE } from '#core/session/cardProtocol.ts'
 
 export type Segment =
   | { type: 'text'; text: string }
-  | { type: 'question'; question: string; recommended: string; options: string[] }
+  // No recommendation on questions about observed facts: only the human knows the answer.
+  | { type: 'question'; question: string; recommended?: string; options: string[] }
   | { type: 'ready'; summary: string }
 
 // A fenced ```pbi-<kind> block on its own lines, capturing the kind and the JSON between the fences.
@@ -22,9 +23,11 @@ function parseBlock(kind: string, json: string): Segment | null {
   }
   if (!data || typeof data !== 'object') return null
   const fields = data as Record<string, unknown>
-  if (kind === QUESTION_FENCE && nonEmpty(fields.question) && nonEmpty(fields.recommended)) {
+  if (kind === QUESTION_FENCE && nonEmpty(fields.question)) {
     const options = Array.isArray(fields.options) ? fields.options.filter(nonEmpty).map((option) => option.trim()) : []
-    return { type: 'question', question: fields.question.trim(), recommended: fields.recommended.trim(), options }
+    const question = fields.question.trim()
+    if (!nonEmpty(fields.recommended)) return { type: 'question', question, options }
+    return { type: 'question', question, recommended: fields.recommended.trim(), options }
   }
   if (kind === READY_FENCE) return { type: 'ready', summary: nonEmpty(fields.summary) ? fields.summary.trim() : '' }
   return null
