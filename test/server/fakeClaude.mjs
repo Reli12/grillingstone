@@ -17,7 +17,7 @@ const resumeAt = process.argv.indexOf('--resume')
 const claudeSessionId = resumeAt >= 0 ? process.argv[resumeAt + 1] : `claude-${process.pid}`
 
 function payload() {
-  if (process.env.WHETSTONE_GUARD_MODE === 'template')
+  if (process.env.GRILLINGSTONE_GUARD_MODE === 'template')
     return {
       name: 'Spike PBI',
       method: methodSkeleton('Spike PBI'),
@@ -74,7 +74,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     done()
     continue
   }
-  const script = process.env.WHETSTONE_SUBMIT_SCRIPT
+  const script = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
   emit({
     type: 'assistant',
     message: {
@@ -83,7 +83,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
           type: 'tool_use',
           id: 'submit-1',
           name: 'Bash',
-          input: { command: `node "${script}" <<'WHETSTONE_JSON'\n…\nWHETSTONE_JSON` },
+          input: { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n…\nGRILLINGSTONE_JSON` },
         },
       ],
     },

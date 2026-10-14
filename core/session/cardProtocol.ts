@@ -14,7 +14,7 @@ export const QUESTION_FENCE = 'pbi-question'
 export const READY_FENCE = 'pbi-ready'
 
 /** Delimiter of the submit command's heredoc; the Permission Guard allows exactly this form. */
-export const SUBMIT_HEREDOC = 'WHETSTONE_JSON'
+export const SUBMIT_HEREDOC = 'GRILLINGSTONE_JSON'
 
 /** How a session asks questions and runs the Ready Check — shared by Grilling and Template Sessions. */
 export function cardProtocol(target: string, writeWhat: string): string {

@@ -24,7 +24,7 @@ export function draftMarkdown(draft: Draft): string {
       ? [`- Section: ${section.heading}`]
       : section.entries.filter((entry) => entry.discarded).map((entry) => `- ${section.heading}: ${entry.title}`),
   )
-  const generatedNotice = `<!-- Generated from ${draft.id}.json — edit in Whetstone; changes here are overwritten. -->`
+  const generatedNotice = `<!-- Generated from ${draft.id}.json — edit in Grilling Stone; changes here are overwritten. -->`
   const subtitle = `_${draft.workItemType} · ${draft.template.name} v${draft.template.version} · Draft v${draft.version}_`
   const header = `${generatedNotice}\n# ${draft.title}\n\n${subtitle}`
   // The visible Sections grouped under a comment naming the Azure DevOps field they Publish into.

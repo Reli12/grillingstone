@@ -12,7 +12,7 @@ const FAKE_CLAUDE = fileURLToPath(new URL('./test/server/fakeClaude.mjs', import
 // backend wipes at start.
 const RESULTS_DIR = 'data-e2e-results'
 
-const ports = { WHETSTONE_SERVER_PORT: SERVER_PORT, WHETSTONE_WEB_PORT: WEB_PORT }
+const ports = { GRILLINGSTONE_SERVER_PORT: SERVER_PORT, GRILLINGSTONE_WEB_PORT: WEB_PORT }
 
 export default defineConfig({
   testDir: 'e2e',
@@ -31,8 +31,8 @@ export default defineConfig({
   webServer: [
     {
       command: 'node e2e/startBackend.mjs',
-      // The backend allows browser calls only from WHETSTONE_WEB_PORT, so it needs both ports.
-      env: { ...ports, WHETSTONE_DATA_DIR: 'data-e2e', WHETSTONE_CLAUDE_BIN: FAKE_CLAUDE },
+      // The backend allows browser calls only from GRILLINGSTONE_WEB_PORT, so it needs both ports.
+      env: { ...ports, GRILLINGSTONE_DATA_DIR: 'data-e2e', GRILLINGSTONE_CLAUDE_BIN: FAKE_CLAUDE },
       port: Number(SERVER_PORT),
       reuseExistingServer: false,
     },
