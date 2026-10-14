@@ -7,7 +7,7 @@ import { Button } from '@/components/atoms/button/button'
 import { routesPaths } from '@/routes/routes'
 import type { LayoutProps } from '@/types/draftPage'
 
-export function BeforeV1Header({
+export function FirstSessionHeader({
   projectId,
   projectName,
   draft,

@@ -24,7 +24,7 @@ export interface LayoutProps {
   dialogs: ReactNode
 }
 
-export interface FromV1LayoutProps extends LayoutProps {
+export interface DraftWorkspaceLayoutProps extends LayoutProps {
   /** The newer Template version on offer, if the Draft may upgrade. */
   upgradeTo?: Template
   busy: boolean

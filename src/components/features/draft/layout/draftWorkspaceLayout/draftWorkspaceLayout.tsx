@@ -3,13 +3,13 @@ import { DraftColumn } from '@/components/features/draft/layout/draftColumn/draf
 import { MobileTabs } from '@/components/features/draft/layout/mobileTabs/mobileTabs'
 import { SidePanel } from '@/components/features/draft/layout/sidePanel/sidePanel'
 import { cn } from '@/lib/cn'
-import type { FromV1LayoutProps } from '@/types/draftPage'
+import type { DraftWorkspaceLayoutProps } from '@/types/draftPage'
 
 /** Desktop columns: the side panel at its normal width, or widened to about 60% beside the Draft. */
 const NORMAL_COLUMNS = 'lg:grid-cols-[minmax(360px,440px)_1fr]'
 const WIDE_COLUMNS = 'lg:grid-cols-[minmax(360px,3fr)_2fr]'
 
-export function FromV1Layout(props: Readonly<Omit<FromV1LayoutProps, 'dialogs'>>) {
+export function DraftWorkspaceLayout(props: Readonly<Omit<DraftWorkspaceLayoutProps, 'dialogs'>>) {
   const { projectId, live, ui, chat } = props
   const running = !!live
   return (
