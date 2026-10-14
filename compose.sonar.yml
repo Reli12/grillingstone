@@ -2,7 +2,7 @@
 #   npm run sonar:up    start the server on http://localhost:9000
 #   npm run sonar       run tests with coverage, then analyse (needs SONAR_TOKEN)
 #   npm run sonar:down  stop the server (analysis history is kept in the volumes)
-name: whetstone-sonar
+name: grillingstone-sonar
 
 services:
   sonarqube:

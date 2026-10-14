@@ -16,7 +16,7 @@ describe('describeTool', () => {
     expect(summary('Write', { file_path: '/p/plan/adr/1.md' })).toBe('Wrote plan/adr/1.md')
     expect(summary('WebSearch', { query: 'ADO' })).toBe('Searched the web for "ADO"')
     expect(summary('WebFetch', { url: 'https://x' })).toBe('Read https://x')
-    expect(summary('Bash', { command: `node "${SUBMIT_SCRIPT}" <<'WHETSTONE_JSON'` })).toBe('Submitted the Draft')
+    expect(summary('Bash', { command: `node "${SUBMIT_SCRIPT}" <<'GRILLINGSTONE_JSON'` })).toBe('Submitted the Draft')
     expect(summary('Bash', { command: 'ls -la\nrm x' })).toBe('Tried to run `ls -la`')
     expect(summary('Skill', { skill: 'grill-with-docs' })).toBe('Loaded the grill-with-docs skill')
     expect(summary('TodoWrite', {})).toBeNull()

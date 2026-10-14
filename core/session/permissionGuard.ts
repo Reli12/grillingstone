@@ -75,8 +75,8 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
 }
 
 /**
- * The only Bash a session may run: `node "<submitScript>" <<'WHETSTONE_JSON'` followed by the JSON and a final
- * WHETSTONE_JSON line. The quoted delimiter disables every expansion inside the heredoc, and nothing may follow it.
+ * The only Bash a session may run: `node "<submitScript>" <<'GRILLINGSTONE_JSON'` followed by the JSON and a final
+ * GRILLINGSTONE_JSON line. The quoted delimiter disables every expansion inside the heredoc, and nothing may follow it.
  */
 function submitCommand(ctx: GuardContext, command: unknown): Decision {
   const usage = `The only allowed Bash command is:\nnode "${ctx.submitScript}" <<'${SUBMIT_HEREDOC}'\n{ …json… }\n${SUBMIT_HEREDOC}`

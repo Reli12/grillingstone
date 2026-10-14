@@ -7,7 +7,7 @@ export function Wordmark() {
         <rect x="1.8" y="1.8" width="4" height="18.4" fill="var(--color-mark)" />
         <path d="M8.5 7h7M8.5 11h7M8.5 15h4.5" stroke="var(--color-claude)" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
-      Whetstone
+      Grilling Stone
     </span>
   )
 }

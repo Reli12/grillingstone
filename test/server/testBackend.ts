@@ -1,4 +1,4 @@
-// Boots the real backend for server tests: HTTP API + Supervisor on WHETSTONE_SERVER_PORT, data in data-test/,
+// Boots the real backend for server tests: HTTP API + Supervisor on GRILLINGSTONE_SERVER_PORT, data in data-test/,
 // `claude` replaced by test/server/fakeClaude.mjs. Server events are recorded instead of sent over a socket.
 import fs from 'node:fs/promises'
 import http from 'node:http'
@@ -21,7 +21,7 @@ export interface Reply<T = any> {
 /** Empties data-test/ — and refuses to touch any other folder. */
 export async function resetTestData() {
   if (path.basename(DATA_DIR) !== 'data-test')
-    throw new Error(`Server tests must run with WHETSTONE_DATA_DIR=data-test, not ${DATA_DIR}`)
+    throw new Error(`Server tests must run with GRILLINGSTONE_DATA_DIR=data-test, not ${DATA_DIR}`)
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 

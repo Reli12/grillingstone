@@ -35,7 +35,7 @@ describe('AppLayout', () => {
     rememberProject('billing')
     server.use(http.get(`*${endpoints.projects}`, () => HttpResponse.json(projects)))
     const { user } = render(<AppLayout />, { route: '/settings', path: '/settings' })
-    expect(screen.getByRole('link', { name: 'Whetstone' })).toHaveAttribute('href', '/p/billing')
+    expect(screen.getByRole('link', { name: 'Grilling Stone' })).toHaveAttribute('href', '/p/billing')
     await user.click(await screen.findByRole('button', { name: /Billing/ }))
     await user.click(screen.getByRole('button', { name: /New Project/ }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('AppLayout', () => {
   it('hides the switcher without Projects', () => {
     server.use(http.get(`*${endpoints.projects}`, () => HttpResponse.json([])))
     render(<AppLayout />, { route: '/', path: '/' })
-    expect(screen.getByRole('link', { name: 'Whetstone' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Grilling Stone' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 })

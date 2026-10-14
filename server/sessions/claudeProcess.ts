@@ -53,12 +53,12 @@ export function spawnClaude({ sessionId, token, scope, seed, model, conversation
     cwd: scope.cwd,
     env: {
       ...process.env,
-      WHETSTONE_PROJECT_DIR: scope.cwd,
-      WHETSTONE_GUARD_MODE: scope.guardMode,
-      WHETSTONE_SUBMIT_SCRIPT: SUBMIT_SCRIPT,
-      WHETSTONE_SERVER_URL: SERVER_URL,
-      WHETSTONE_SESSION_ID: sessionId,
-      WHETSTONE_SESSION_TOKEN: token,
+      GRILLINGSTONE_PROJECT_DIR: scope.cwd,
+      GRILLINGSTONE_GUARD_MODE: scope.guardMode,
+      GRILLINGSTONE_SUBMIT_SCRIPT: SUBMIT_SCRIPT,
+      GRILLINGSTONE_SERVER_URL: SERVER_URL,
+      GRILLINGSTONE_SESSION_ID: sessionId,
+      GRILLINGSTONE_SESSION_TOKEN: token,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })

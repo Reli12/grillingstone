@@ -73,7 +73,7 @@ describe('Template Session seed', () => {
 
   it('shows how to submit the Template through the submit command, gated on the human confirming', () => {
     const all = seedText()
-    expect(all).toContain(`${submitCommand} <<'WHETSTONE_JSON'`)
+    expect(all).toContain(`${submitCommand} <<'GRILLINGSTONE_JSON'`)
     expect(all).toContain('"sections"')
     expect(all).toContain('Write it now.')
     expect(all).toContain('pbi-question')

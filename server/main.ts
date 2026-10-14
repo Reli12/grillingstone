@@ -15,7 +15,7 @@ await deps.supervisor.markInterrupted()
 
 const server = http.createServer(createApp(deps))
 hub.attach(server)
-server.listen(SERVER_PORT, '127.0.0.1', () => console.log(`[whetstone] backend on http://127.0.0.1:${SERVER_PORT}`))
+server.listen(SERVER_PORT, '127.0.0.1', () => console.log(`[grillingstone] backend on http://127.0.0.1:${SERVER_PORT}`))
 
 const shutdown = () => {
   server.close()

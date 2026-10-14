@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { decide } from '#core/session/permissionGuard.ts'
 
-const ALLOWED_REASON = 'Allowed by the Whetstone session allowlist.'
+const ALLOWED_REASON = 'Allowed by the Grilling Stone session allowlist.'
 const STDIN = 0
 
 /** realpath for paths that may not exist yet: resolve the longest existing ancestor, keep the rest. */
@@ -38,11 +38,11 @@ const respondAndExit = (permissionDecision, permissionDecisionReason) => {
 
 try {
   const input = JSON.parse(fs.readFileSync(STDIN, 'utf8'))
-  const projectDir = process.env.WHETSTONE_PROJECT_DIR
-  const submitScript = process.env.WHETSTONE_SUBMIT_SCRIPT
+  const projectDir = process.env.GRILLINGSTONE_PROJECT_DIR
+  const submitScript = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
   if (!projectDir || !submitScript)
-    respondAndExit('deny', 'Session environment is missing WHETSTONE_PROJECT_DIR / WHETSTONE_SUBMIT_SCRIPT.')
-  const mode = process.env.WHETSTONE_GUARD_MODE === 'template' ? 'template' : 'grilling'
+    respondAndExit('deny', 'Session environment is missing GRILLINGSTONE_PROJECT_DIR / GRILLINGSTONE_SUBMIT_SCRIPT.')
+  const mode = process.env.GRILLINGSTONE_GUARD_MODE === 'template' ? 'template' : 'grilling'
   const decision = decide(input.tool_name, input.tool_input ?? {}, {
     projectDir: realpath(projectDir),
     submitScript,

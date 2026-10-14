@@ -1,4 +1,4 @@
-# Whetstone
+# Grilling Stone
 
 A tool that runs only on the user's own machine, where a human and Claude grill a requirement into a single written work item, which the human then edits and arranges before it is published.
 

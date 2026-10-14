@@ -11,7 +11,7 @@ import { StepPublish } from '@/components/features/guide/stepPublish/stepPublish
 import { StepRefine } from '@/components/features/guide/stepRefine/stepRefine'
 import { StepStart } from '@/components/features/guide/stepStart/stepStart'
 import { StepTemplates } from '@/components/features/guide/stepTemplates/stepTemplates'
-import { WhyWhetstone } from '@/components/features/guide/whyWhetstone/whyWhetstone'
+import { WhyGrillingStone } from '@/components/features/guide/whyGrillingStone/whyGrillingStone'
 
 export default function GuidePage() {
   return (
@@ -20,7 +20,7 @@ export default function GuidePage() {
         <StepNav />
         <article className="max-w-[680px]">
           <Intro />
-          <WhyWhetstone />
+          <WhyGrillingStone />
           <div className="space-y-12">
             <StepProject />
             <StepStart />

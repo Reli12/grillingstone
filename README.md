@@ -1,4 +1,4 @@
-# Whetstone
+# Grilling Stone
 
 A local tool where you and Claude grill a requirement into a single, well-written Azure DevOps work item.
 
@@ -6,8 +6,9 @@ You describe a requirement, or a bug you saw. Claude interrogates it one questio
 writes it as an **Epic, Feature, PBI, Task or Bug** in your Template. You edit the result like a document, ask Claude to
 rework any part, and copy it into Azure DevOps. Claude writes the copy; you stay the editor.
 
-> **Why "Whetstone"?** A whetstone doesn't cut anything itself; you sharpen your own blade against it. Here the blade
-> is your requirement: every vague word meets resistance until it holds an edge.
+> **Why "Grilling Stone"?** A grilling stone holds the heat, and whatever you put on it gets turned until it's done all
+> the way through. Here your requirement goes on the stone and Claude's questions are the heat: every vague word gets
+> turned over until nothing raw is left.
 
 ## How it works
 
@@ -31,7 +32,7 @@ The domain language (Draft, Section, Proposal, Conflict, Iteration…) is define
 
 ## How Claude runs
 
-Whetstone doesn't call an API. It runs your installed **Claude Code** as a headless child process, one per session,
+Grilling Stone doesn't call an API. It runs your installed **Claude Code** as a headless child process, one per session,
 started and supervised by the local backend:
 
 ```
@@ -74,7 +75,7 @@ loads no skills and has no Glossary. It submits a Template instead of a Draft, a
 ## Requirements
 
 - **Node.js 23.6 or newer.** The backend runs TypeScript directly through Node's type stripping, with no build step.
-- **[Claude Code](https://claude.com/claude-code)**, installed and logged in. Whetstone runs it headless (`claude -p`)
+- **[Claude Code](https://claude.com/claude-code)**, installed and logged in. Grilling Stone runs it headless (`claude -p`)
   on your own subscription, so no API key is needed. Choose the model in **Settings**; leave it empty for Claude Code's
   default.
 
@@ -93,13 +94,13 @@ and the Node backend (port 5311), which restarts when `server/` or `core/` chang
 
 No separate Claude terminal is needed: the backend starts and stops Claude Code for each session. Just log in to
 Claude Code once (run `claude` in any terminal and sign in), and make sure `claude` is on the `PATH` of the shell that
-runs `npm run dev`. If it isn't, point `WHETSTONE_CLAUDE_BIN` at the binary.
+runs `npm run dev`. If it isn't, point `GRILLINGSTONE_CLAUDE_BIN` at the binary.
 
 The **How it works** page inside the app walks through every step.
 
 ## Running with Docker
 
-No Node.js or Claude Code on your machine? Run Whetstone in Docker instead. You need only
+No Node.js or Claude Code on your machine? Run Grilling Stone in Docker instead. You need only
 [Docker](https://www.docker.com/products/docker-desktop/) and a Claude subscription (Pro or Max). The container holds
 the backend, the frontend and Claude Code.
 
@@ -110,9 +111,9 @@ From the repository root:
 docker compose -f docker/compose.yml build
 
 # 2. Sign in to Claude, once. Open the link it prints, sign in with your Claude account, paste the code back.
-docker compose -f docker/compose.yml run --rm whetstone login
+docker compose -f docker/compose.yml run --rm grillingstone login
 
-# 3. Start Whetstone
+# 3. Start Grilling Stone
 docker compose -f docker/compose.yml up
 ```
 
@@ -120,20 +121,20 @@ Open <http://localhost:5310>. Stop it with `Ctrl+C`, or with `docker compose -f 
 it with `up -d`.
 
 - **Your data** stays in this repository's `data/` folder, the same one `npm run dev` uses. Don't run both at once.
-- **Your Claude login** is kept in the `whetstone_claude-home` Docker volume, with Claude Code's chat copies, so it
+- **Your Claude login** is kept in the `grillingstone_claude-home` Docker volume, with Claude Code's chat copies, so it
   survives restarts and rebuilds. `down -v` deletes it: you sign in again, and ended sessions can no longer be
   Continued.
 - **Sessions can't be Continued across the two setups:** one started under `npm run dev` can't be Continued in Docker,
   nor the other way round.
 - **Port 5310 only, and only from your machine.** The backend accepts browser calls only from `localhost:5310`, and the
-  port is bound to `127.0.0.1` because Whetstone has no login of its own.
+  port is bound to `127.0.0.1` because Grilling Stone has no login of its own.
 
-Check your login with `docker compose -f docker/compose.yml run --rm whetstone claude auth status --text`. More
+Check your login with `docker compose -f docker/compose.yml run --rm grillingstone claude auth status --text`. More
 details, including Linux file permissions, are in [docker/README.md](docker/README.md).
 
 ## Your data and privacy
 
-- Everything Whetstone produces (Projects, Drafts, Glossaries, Transcripts, Templates, settings) lives in the
+- Everything Grilling Stone produces (Projects, Drafts, Glossaries, Transcripts, Templates, settings) lives in the
   git-ignored `data/` folder inside this repository. Nothing is sent anywhere except to Claude, through Claude Code.
 - Claude Code also keeps its own copy of each grilling conversation (under `~/.claude/projects/`), which is what lets an
   ended session be continued.
@@ -143,12 +144,12 @@ details, including Linux file permissions, are in [docker/README.md](docker/READ
 
 Optional environment variables, mainly for running isolated copies (the test suites use them):
 
-| Variable                | Default  | Purpose                                                                     |
-| ----------------------- | -------- | --------------------------------------------------------------------------- |
-| `WHETSTONE_WEB_PORT`    | `5310`   | Vite dev server port; the backend only accepts browser calls from this port |
-| `WHETSTONE_SERVER_PORT` | `5311`   | Backend port                                                                |
-| `WHETSTONE_DATA_DIR`    | `data`   | Data folder; must be named `data…` and sit directly in the repository       |
-| `WHETSTONE_CLAUDE_BIN`  | `claude` | The Claude Code binary to run                                               |
+| Variable                    | Default  | Purpose                                                                     |
+| --------------------------- | -------- | --------------------------------------------------------------------------- |
+| `GRILLINGSTONE_WEB_PORT`    | `5310`   | Vite dev server port; the backend only accepts browser calls from this port |
+| `GRILLINGSTONE_SERVER_PORT` | `5311`   | Backend port                                                                |
+| `GRILLINGSTONE_DATA_DIR`    | `data`   | Data folder; must be named `data…` and sit directly in the repository       |
+| `GRILLINGSTONE_CLAUDE_BIN`  | `claude` | The Claude Code binary to run                                               |
 
 ## Project structure
 

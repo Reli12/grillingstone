@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
-const serverPort = Number(process.env.WHETSTONE_SERVER_PORT ?? 5311)
+const serverPort = Number(process.env.GRILLINGSTONE_SERVER_PORT ?? 5311)
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -15,7 +15,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: Number(process.env.WHETSTONE_WEB_PORT ?? 5310),
+    port: Number(process.env.GRILLINGSTONE_WEB_PORT ?? 5310),
     strictPort: true,
     host: '127.0.0.1',
     proxy: {
@@ -36,9 +36,9 @@ export default defineConfig({
           // One backend on one port and one data-test/ folder: run the files one after another.
           fileParallelism: false,
           env: {
-            WHETSTONE_DATA_DIR: 'data-test',
-            WHETSTONE_SERVER_PORT: '5397',
-            WHETSTONE_CLAUDE_BIN: fileURLToPath(new URL('./test/server/fakeClaude.mjs', import.meta.url)),
+            GRILLINGSTONE_DATA_DIR: 'data-test',
+            GRILLINGSTONE_SERVER_PORT: '5397',
+            GRILLINGSTONE_CLAUDE_BIN: fileURLToPath(new URL('./test/server/fakeClaude.mjs', import.meta.url)),
           },
         },
       },

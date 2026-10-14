@@ -8,9 +8,9 @@ import fs from 'node:fs'
 const SESSION_TOKEN_HEADER = 'x-pbi-session-token'
 const STDIN = 0
 
-const server = process.env.WHETSTONE_SERVER_URL
-const sessionId = process.env.WHETSTONE_SESSION_ID
-const token = process.env.WHETSTONE_SESSION_TOKEN
+const server = process.env.GRILLINGSTONE_SERVER_URL
+const sessionId = process.env.GRILLINGSTONE_SESSION_ID
+const token = process.env.GRILLINGSTONE_SESSION_TOKEN
 
 /** Prints the refusal with one bullet per reason and exits non-zero so the session sees the tool call fail. */
 function fail(reasons) {
@@ -37,11 +37,11 @@ async function submit(payload) {
       body: JSON.stringify(payload),
     })
   } catch (error) {
-    fail([`Could not reach the Whetstone backend: ${error.message}`])
+    fail([`Could not reach the Grilling Stone backend: ${error.message}`])
   }
 }
 
-if (!server || !sessionId || !token) fail(['This command only works inside a Whetstone Grilling Session.'])
+if (!server || !sessionId || !token) fail(['This command only works inside a Grilling Stone session.'])
 
 const payload = readPayload()
 const res = await submit(payload)

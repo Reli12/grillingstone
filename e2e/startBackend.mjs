@@ -9,8 +9,8 @@ const REPO_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const E2E_DATA_FOLDER = 'data-e2e'
 
 // Refuse anything but data-e2e, so a mistyped env can never wipe the real data/ or the server tests' data-test/.
-if (process.env.WHETSTONE_DATA_DIR !== E2E_DATA_FOLDER) {
-  console.error(`Run with WHETSTONE_DATA_DIR=${E2E_DATA_FOLDER} (playwright.config.ts sets it).`)
+if (process.env.GRILLINGSTONE_DATA_DIR !== E2E_DATA_FOLDER) {
+  console.error(`Run with GRILLINGSTONE_DATA_DIR=${E2E_DATA_FOLDER} (playwright.config.ts sets it).`)
   process.exit(1)
 }
 
