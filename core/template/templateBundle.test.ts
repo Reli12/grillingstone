@@ -92,6 +92,13 @@ describe('Template bundles', () => {
     expect(previewImport({ ...bundle, templates: [{ name: 'broken' }] }, []).ok).toBe(false)
   })
 
+  it('exports as a Grilling Stone bundle and still imports bundles exported before the rename', () => {
+    const bundle = exportBundle([spike], 'now')
+    expect(bundle.format).toBe('grillingstone/templates')
+    const preview = previewImport({ ...bundle, format: 'whetstone/templates' }, [])
+    expect(preview.ok && preview.items[0]).toMatchObject({ status: 'new' })
+  })
+
   it('leaves out where a Template was made — the Transcript link is local only', () => {
     const made = { ...spike, origin: { sessionId: 'sess-abc', at: '2026-09-22' } }
     const bundle = exportBundle([made], 'now')
