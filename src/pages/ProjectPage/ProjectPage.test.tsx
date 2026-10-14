@@ -1,22 +1,37 @@
-// Tests for ProjectPage: the empty state, renaming the Project and the load error.
+// Tests for ProjectPage: the empty state, renaming the Project, the load error, and the Drafts and Glossary tabs.
+import { Route, Routes } from 'react-router'
+
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { addTerm } from '#core/glossary/glossary.ts'
+
 import { endpoints } from '@/api/endpoints/endpoints'
 import ProjectPage from '@/pages/ProjectPage/ProjectPage'
+import { routesPaths } from '@/routes/routes'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
 const project = { id: 'customer-portal', name: 'Customer Portal', createdAt: '2026-09-22' }
-const renderPage = () => render(<ProjectPage />, { route: '/p/customer-portal', path: '/p/:projectId' })
+const glossary = addTerm('', { term: 'Device', definition: 'A metered unit.', avoid: '' }, 'Customer Portal')
+const renderPage = (route = '/p/customer-portal') =>
+  render(
+    <Routes>
+      <Route path={routesPaths.project(':projectId')} element={<ProjectPage />} />
+      <Route path={routesPaths.projectGlossary(':projectId')} element={<ProjectPage />} />
+    </Routes>,
+    { route },
+  )
 
 describe('ProjectPage', () => {
   beforeEach(() =>
     server.use(
       http.get(`*${endpoints.project('customer-portal')}`, () => HttpResponse.json(project)),
       http.get(`*${endpoints.drafts('customer-portal')}`, () => HttpResponse.json([])),
-      http.get(`*${endpoints.glossary('customer-portal')}`, () => HttpResponse.json({ markdown: '', version: 'v0' })),
+      http.get(`*${endpoints.glossary('customer-portal')}`, () =>
+        HttpResponse.json({ markdown: glossary, version: 'v1' }),
+      ),
     ),
   )
 
@@ -61,5 +76,26 @@ describe('ProjectPage', () => {
     )
     renderPage()
     expect(await screen.findByText('No such Project')).toBeInTheDocument()
+  })
+
+  it('shows the Drafts tab with a read-only Glossary preview at the Project URL', async () => {
+    renderPage()
+    expect(await screen.findByRole('tab', { name: 'Drafts' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('link', { name: 'Device' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add term/ })).not.toBeInTheDocument()
+  })
+
+  it('opens the whole Glossary from the preview, and the Glossary tab at its own URL', async () => {
+    const { user } = renderPage()
+    await user.click(await screen.findByRole('link', { name: /Open Glossary/ }))
+    expect(await screen.findByRole('tab', { name: 'Glossary' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('searchbox', { name: 'Filter terms' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Add term/ })).toBeInTheDocument()
+  })
+
+  it('switches back to the Drafts tab', async () => {
+    const { user } = renderPage('/p/customer-portal/glossary')
+    await user.click(await screen.findByRole('tab', { name: 'Drafts' }))
+    expect(await screen.findByRole('link', { name: /Open Glossary/ })).toBeInTheDocument()
   })
 })

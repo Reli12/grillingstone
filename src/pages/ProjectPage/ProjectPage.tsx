@@ -1,19 +1,21 @@
-// A Project's page: its Drafts, a way to start a new one, and the Project Glossary beside them.
-import { Link, useParams } from 'react-router'
+// A Project's page: its Drafts with the Glossary preview beside them, or the whole Glossary to maintain —
+// two tabs, each at its own URL.
+import { Link, useMatch, useParams } from 'react-router'
 
 import { Plus } from 'lucide-react'
 
 import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'
 import { Button } from '@/components/atoms/button/button'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
-import { DraftList } from '@/components/features/drafts/draftList/draftList'
-import { NoDraftsYet } from '@/components/features/drafts/noDraftsYet/noDraftsYet'
-import { GlossaryAside } from '@/components/features/glossary/glossaryAside/glossaryAside'
+import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
+import { ProjectDrafts } from '@/components/features/projects/projectDrafts/projectDrafts'
+import { ProjectTabs } from '@/components/features/projects/projectTabs/projectTabs'
 import { ProjectTitle } from '@/components/features/projects/projectTitle/projectTitle'
 import { routesPaths } from '@/routes/routes'
 
 export default function ProjectPage() {
   const { projectId = '' } = useParams()
+  const glossarySelected = useMatch(routesPaths.projectGlossary(':projectId')) !== null
   const { data: project, error } = useProject(projectId)
   const { data: drafts } = useDrafts(projectId)
 
@@ -22,21 +24,23 @@ export default function ProjectPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[1fr_340px]">
-        <section>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <ProjectTitle project={project} />
-            <Link to={routesPaths.newDraft(projectId)}>
-              <Button variant="ink" size="lg" tabIndex={-1}>
-                <Plus size={17} /> New Draft
-              </Button>
-            </Link>
-          </div>
-          <div className="mt-6">
-            {drafts.length ? <DraftList drafts={drafts} /> : <NoDraftsYet projectId={projectId} />}
-          </div>
-        </section>
-        <GlossaryAside projectId={projectId} projectName={project.name} />
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <ProjectTitle project={project} />
+          <Link to={routesPaths.newDraft(projectId)}>
+            <Button variant="ink" size="lg" tabIndex={-1}>
+              <Plus size={17} /> New Draft
+            </Button>
+          </Link>
+        </div>
+        <div className="mt-6 mb-4">
+          <ProjectTabs projectId={projectId} glossarySelected={glossarySelected} />
+        </div>
+        {glossarySelected ? (
+          <GlossaryPanel projectId={projectId} />
+        ) : (
+          <ProjectDrafts projectId={projectId} projectName={project.name} drafts={drafts} />
+        )}
       </div>
     </div>
   )
