@@ -4,7 +4,7 @@ import { UpgradeBanner } from '@/components/features/draft/layout/upgradeBanner/
 import { ProposalBar } from '@/components/features/draft/proposal/proposalBar/proposalBar'
 import { DraftSheet } from '@/components/features/draft/sheet/draftSheet/draftSheet'
 import { cn } from '@/lib/cn'
-import type { FromV1LayoutProps } from '@/types/draftPage'
+import type { DraftWorkspaceLayoutProps } from '@/types/draftPage'
 
 /** From v1 on: the chat (or Glossary) on the left, the live Draft on the right. */
 /** The right column: the toolbar, the upgrade offer, the open Proposal's bar, and the Draft sheet. */
@@ -17,7 +17,7 @@ export function DraftColumn({
   upgradeTo,
   busy,
   onAcceptClean,
-}: Readonly<Omit<FromV1LayoutProps, 'dialogs' | 'chat'>>) {
+}: Readonly<Omit<DraftWorkspaceLayoutProps, 'dialogs' | 'chat'>>) {
   const running = !!live
   return (
     <div

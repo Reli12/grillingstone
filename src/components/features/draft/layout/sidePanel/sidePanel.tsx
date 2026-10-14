@@ -3,7 +3,7 @@ import { type ReactNode } from 'react'
 
 import { SideTab } from '@/components/atoms/sideTab/sideTab'
 import { WideToggle } from '@/components/features/draft/layout/wideToggle/wideToggle'
-import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
+import { GlossaryPreview } from '@/components/features/glossary/glossaryPreview/glossaryPreview'
 import { cn } from '@/lib/cn'
 import type { Side } from '@/types/draftPage'
 
@@ -52,7 +52,7 @@ export function SidePanel({
         chat
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <GlossaryPanel projectId={projectId} compact />
+          <GlossaryPreview projectId={projectId} />
         </div>
       )}
     </aside>

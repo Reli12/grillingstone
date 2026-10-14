@@ -19,6 +19,7 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage/SettingsPage'))
 export const routesPaths = {
   home: '/',
   project: (projectId: string) => `/p/${projectId}`,
+  projectGlossary: (projectId: string) => `/p/${projectId}/glossary`,
   newDraft: (projectId: string) => `/p/${projectId}/new`,
   draft: (projectId: string, draftId: string) => `/p/${projectId}/d/${draftId}`,
   templates: '/templates',
@@ -39,6 +40,7 @@ const routes: RouteObject[] = [
     children: [
       { path: routesPaths.home, element: page(<HomePage />) },
       { path: routesPaths.project(':projectId'), element: page(<ProjectPage />) },
+      { path: routesPaths.projectGlossary(':projectId'), element: page(<ProjectPage />) },
       { path: routesPaths.newDraft(':projectId'), element: page(<NewDraftPage />) },
       { path: routesPaths.draft(':projectId', ':draftId'), element: page(<DraftPage />) },
       { path: routesPaths.templates, element: page(<TemplatesPage />) },

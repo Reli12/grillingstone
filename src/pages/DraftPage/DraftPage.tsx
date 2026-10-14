@@ -10,8 +10,8 @@ import type { Template } from '#core/template/templateTypes.ts'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
 import { ChatPane } from '@/components/features/chat/chatPane/chatPane'
 import { DraftDialogs } from '@/components/features/draft/dialogs/draftDialogs/draftDialogs'
-import { BeforeV1Layout } from '@/components/features/draft/layout/beforeV1Layout/beforeV1Layout'
-import { FromV1Layout } from '@/components/features/draft/layout/fromV1Layout/fromV1Layout'
+import { DraftWorkspaceLayout } from '@/components/features/draft/layout/draftWorkspaceLayout/draftWorkspaceLayout'
+import { FirstSessionLayout } from '@/components/features/draft/layout/firstSessionLayout/firstSessionLayout'
 import { DraftEditorContext } from '@/context/DraftEditor/DraftEditor'
 import { useDraftEditorValue } from '@/hooks/draft/useDraftEditorValue'
 import { useDraftMutations } from '@/hooks/draft/useDraftMutations'
@@ -59,10 +59,10 @@ export default function DraftPage() {
   const dialogs = <DraftDialogs projectId={projectId} draft={draft} mutations={mutations} ui={ui} />
   const layout = { projectId, projectName: project?.name, draft, live, ui, chat, dialogs }
 
-  if (draft.version === 0) return <BeforeV1Layout {...layout} />
+  if (draft.version === 0) return <FirstSessionLayout {...layout} />
   return (
     <DraftEditorContext.Provider value={editor}>
-      <FromV1Layout
+      <DraftWorkspaceLayout
         {...layout}
         upgradeTo={upgradeTarget(draft, templates, !!live)}
         busy={editor.busy}

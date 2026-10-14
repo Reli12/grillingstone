@@ -83,6 +83,23 @@ function locate(md: string): { lines: string[]; terms: Located[]; range: [number
 export const parseGlossary = (md: string): GlossaryTerm[] =>
   locate(md).terms.map(({ term, definition, avoid }) => ({ term, definition, avoid }))
 
+/** Whether two term names are the same, ignoring case and surrounding space. */
+export const sameName = (one: string, other: string) => one.trim().toLowerCase() === other.trim().toLowerCase()
+
+/** The index of the first term with this name (ignoring case), or -1 when there is none. */
+export const findTerm = (md: string, name: string): number =>
+  parseGlossary(md).findIndex((glossaryTerm) => sameName(glossaryTerm.term, name))
+
+/** Whether the term, its definition or its words to avoid contain the query, ignoring case; a blank query matches all. */
+export function matchesTerm(glossaryTerm: GlossaryTerm, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  const { term, definition, avoid } = glossaryTerm
+  return [term, definition, avoid].some((field) => field.toLowerCase().includes(needle))
+}
+
+/** A stable element id for a term: one per name, ignoring case and surrounding space, as `findTerm` matches. */
+export const termAnchor = (name: string) => `term-${encodeURIComponent(name.trim().toLowerCase())}`
+
 const termLines = (glossaryTerm: GlossaryTerm) => {
   const avoid = glossaryTerm.avoid.trim()
   return [
