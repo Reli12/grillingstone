@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   addTerm,
+  findTerm,
+  matchesTerm,
   parseGlossary,
   removeTerm,
   startingGlossary,
+  termAnchor,
   updateTerm,
   withoutTitle,
 } from '#core/glossary/glossary.ts'
@@ -96,6 +99,31 @@ describe('Glossary (CONTEXT.md)', () => {
         avoid: 'toggle',
       },
     ])
+  })
+})
+
+describe('finding and filtering terms', () => {
+  const device = { term: 'Archived Device', definition: 'Hidden from dashboards, still billed.', avoid: 'deleted' }
+
+  it('finds a term by name, ignoring case and surrounding space; -1 when it is gone', () => {
+    expect(findTerm(md, ' archived device ')).toBe(0)
+    expect(findTerm(md, 'Site Owner')).toBe(1)
+    expect(findTerm(md, 'Foo')).toBe(-1)
+  })
+
+  it('matches a query against the term, its definition and the words to avoid, ignoring case', () => {
+    for (const query of ['ARCHIVED', 'dashboards', 'Deleted', '  ']) expect(matchesTerm(device, query)).toBe(true)
+    expect(matchesTerm(device, 'site')).toBe(false)
+  })
+
+  it('gives each term a stable anchor id, the same for names that differ only in case or surrounding space', () => {
+    expect(termAnchor(' Archived Device ')).toBe(termAnchor('archived device'))
+    expect(termAnchor('Archived Device')).toMatch(/^term-\S+$/)
+  })
+
+  it('never gives two different names the same anchor', () => {
+    const names = ['Site Owner', 'Site/Owner', 'Site-Owner', 'C', 'C++', '++', '—']
+    expect(new Set(names.map(termAnchor)).size).toBe(names.length)
   })
 })
 
