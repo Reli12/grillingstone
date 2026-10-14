@@ -1,15 +1,15 @@
-# Runs Whetstone with only Docker on the host. See docker/README.md.
+# Runs Grilling Stone with only Docker on the host. See docker/README.md.
 #   docker compose -f docker/compose.yml build
-#   docker compose -f docker/compose.yml run --rm whetstone login   (once)
+#   docker compose -f docker/compose.yml run --rm grillingstone login   (once)
 #   docker compose -f docker/compose.yml up                         then open http://localhost:5310
-name: whetstone
+name: grillingstone
 
 services:
-  whetstone:
+  grillingstone:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: whetstone:local
+    image: grillingstone:local
     # tini as PID 1: forwards stop signals and reaps the claude processes sessions leave behind.
     init: true
     ports:

@@ -11,8 +11,8 @@ case "${1:-}" in
 esac
 
 if ! claude auth status --text >/dev/null 2>&1; then
-  echo '[whetstone] Not logged in to Claude. Grilling Sessions will fail until you run:'
-  echo '[whetstone]   docker compose -f docker/compose.yml run --rm whetstone login'
+  echo '[grillingstone] Not logged in to Claude. Grilling Sessions will fail until you run:'
+  echo '[grillingstone]   docker compose -f docker/compose.yml run --rm grillingstone login'
 fi
 
 # The backend stays on the container's 127.0.0.1; only Vite listens on all interfaces, and it proxies /api to it.
