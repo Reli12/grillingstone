@@ -9,7 +9,9 @@ import type { GlossaryTerm } from '#core/glossary/glossary.ts'
 import { Button } from '@/components/atoms/button/button'
 import { TextArea } from '@/components/atoms/textArea/textArea'
 import { TextInput } from '@/components/atoms/textInput/textInput'
+import { SaveProblem } from '@/components/features/glossary/saveProblem/saveProblem'
 import { type GlossaryTermFormData, glossaryTermSchema } from '@/lib/formSchemas/glossaryTermSchema'
+import type { SaveStatus } from '@/types/glossary'
 
 interface TermEditorProps {
   initial: GlossaryTerm
@@ -17,9 +19,13 @@ interface TermEditorProps {
   onCancel: () => void
   /** Offered only for an existing term. */
   onRemove?: () => void
+  /** How the last save went; after a refused one, the next save applies the change to the latest Glossary. */
+  status?: SaveStatus
 }
 
-export function TermEditor({ initial, onSave, onCancel, onRemove }: Readonly<TermEditorProps>) {
+const NO_PROBLEM: SaveStatus = { saving: false, stale: false, failure: null }
+
+export function TermEditor({ initial, onSave, onCancel, onRemove, status = NO_PROBLEM }: Readonly<TermEditorProps>) {
   const { register, handleSubmit, formState } = useForm<GlossaryTermFormData>({
     resolver: zodResolver(glossaryTermSchema),
     mode: 'onChange',
@@ -36,8 +42,9 @@ export function TermEditor({ initial, onSave, onCancel, onRemove }: Readonly<Ter
         aria-label="Definition"
       />
       <TextInput {...register('avoid')} placeholder="Words to avoid, comma separated" aria-label="Avoid" />
+      <SaveProblem status={status} staleHint="Save again to apply your change to the latest version." />
       <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" variant="ink" disabled={!formState.isValid}>
+        <Button type="submit" size="sm" variant="ink" disabled={status.saving || !formState.isValid}>
           Save term
         </Button>
         <Button size="sm" variant="quiet" onClick={onCancel}>

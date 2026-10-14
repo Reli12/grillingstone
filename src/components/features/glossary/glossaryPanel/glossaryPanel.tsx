@@ -1,50 +1,49 @@
-// The Project Glossary (CONTEXT.md): readable term list, editable in place. Saves carry the version they
-// edited; if a session or another tab changed the Glossary meanwhile, the save is refused and reloaded.
-import { useState } from 'react'
+// The Project Glossary (CONTEXT.md) where it is maintained: a filterable one-line-per-term list, editable in
+// place, or the whole markdown. Saves are checked against the Glossary as it was when the edit opened.
+import { parseGlossary } from '#core/glossary/glossary.ts'
 
-import { useGlossary, useProject, useSaveGlossary } from '@/api/hooks/projects/projectHooks'
+import { GlossaryToolbar } from '@/components/features/glossary/glossaryToolbar/glossaryToolbar'
 import { RawEditor } from '@/components/features/glossary/rawEditor/rawEditor'
 import { TermsView } from '@/components/features/glossary/termsView/termsView'
-import type { Editing } from '@/types/glossary'
+import { useGlossaryEditing } from '@/hooks/glossary/useGlossaryEditing'
+import { useGlossaryFilter } from '@/hooks/glossary/useGlossaryFilter'
+import { useTermFromUrl } from '@/hooks/glossary/useTermFromUrl'
 
-interface GlossaryPanelProps {
-  projectId: string
-  compact?: boolean
-}
+export function GlossaryPanel({ projectId }: Readonly<{ projectId: string }>) {
+  const filter = useGlossaryFilter()
+  const editing = useGlossaryEditing(projectId, { onTermSaved: filter.keep })
+  const highlighted = useTermFromUrl(editing.doc?.markdown)
 
-export function GlossaryPanel({ projectId, compact = false }: Readonly<GlossaryPanelProps>) {
-  const [editing, setEditing] = useState<Editing>(null)
-  /** The raw CONTEXT.md being edited, or null while the term list shows. */
-  const [raw, setRaw] = useState<string | null>(null)
-
-  const { data: doc } = useGlossary(projectId)
-  const { data: project } = useProject(projectId)
-  const save = useSaveGlossary(projectId)
-
-  if (!doc) return null
-  const saveThen = (markdown: string, done: () => void) =>
-    save.mutate({ markdown, baseVersion: doc.version }, { onSuccess: done })
-  const commit = (markdown: string) => saveThen(markdown, () => setEditing(null))
-
-  if (raw !== null)
-    return (
-      <RawEditor
-        markdown={raw}
-        onChange={setRaw}
-        onSave={() => saveThen(raw, () => setRaw(null))}
-        onCancel={() => setRaw(null)}
-      />
-    )
-
+  if (!editing.doc) return null
+  const terms = parseGlossary(editing.doc.markdown)
+  const rows = filter.rowsOf(terms, editing.edit?.name)
+  const { raw } = editing
   return (
-    <TermsView
-      markdown={doc.markdown}
-      projectName={project?.name}
-      compact={compact}
-      editing={editing}
-      onEditingChange={setEditing}
-      onCommit={commit}
-      onEditRaw={() => setRaw(doc.markdown)}
-    />
+    <div>
+      <GlossaryToolbar
+        query={filter.query}
+        onQueryChange={filter.setQuery}
+        shown={rows.length}
+        total={terms.length}
+        rawOpen={raw !== null}
+        termOpen={editing.edit !== null}
+        onAdd={() => {
+          filter.clear()
+          editing.startNew()
+        }}
+        onEditRaw={editing.startRaw}
+      />
+      {raw === null ? (
+        <TermsView rows={rows} total={terms.length} query={filter.query} editing={editing} highlighted={highlighted} />
+      ) : (
+        <RawEditor
+          markdown={raw}
+          status={editing}
+          onChange={editing.setRaw}
+          onSave={editing.saveRaw}
+          onCancel={editing.cancel}
+        />
+      )}
+    </div>
   )
 }
