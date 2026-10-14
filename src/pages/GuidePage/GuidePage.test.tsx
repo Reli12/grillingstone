@@ -16,7 +16,7 @@ describe('GuidePage', () => {
 
   it('explains the name in its own section at the top', () => {
     render(<GuidePage />)
-    const nameSection = screen.getByRole('region', { name: 'Why “Whetstone”?' })
+    const nameSection = screen.getByRole('region', { name: 'Why “Grilling Stone”?' })
     const firstStep = screen.getByRole('heading', { name: 'Create a Project' })
     expect(nameSection.compareDocumentPosition(firstStep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
