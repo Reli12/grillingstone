@@ -12,7 +12,7 @@ export type Side = 'chat' | 'glossary'
 export type MobileView = 'chat' | 'draft'
 
 /** What deciding whether a session can be continued needs to know about it. */
-export type Continuable = Pick<Transcript, 'status' | 'conversationId'>
+export type Continuable = Pick<Transcript, 'status' | 'conversationId' | 'assistant'>
 
 export interface LayoutProps {
   projectId: string

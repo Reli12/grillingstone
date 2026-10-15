@@ -16,14 +16,8 @@ interface ChatThreadProps extends Handlers, ContinueOptions {
   className?: string
 }
 
-export function ChatThread({
-  transcripts,
-  liveSessionId,
-  canContinue,
-  onContinue,
-  className,
-  ...handlers
-}: Readonly<ChatThreadProps>) {
+export function ChatThread({ transcripts, liveSessionId, className, ...options }: Readonly<ChatThreadProps>) {
+  const { canContinue, continueBlockedReason, onContinue, ...handlers } = options
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
   const latest = transcripts.at(-1)
   const live = transcripts.find((transcript) => transcript.id === liveSessionId)
@@ -47,6 +41,7 @@ export function ChatThread({
             live={transcript.id === liveSessionId}
             onOpen={() => setOpenIds(new Set(openIds).add(transcript.id))}
             canContinue={canContinue}
+            continueBlockedReason={continueBlockedReason}
             onContinue={onContinue}
             handlers={handlers}
           />

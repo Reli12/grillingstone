@@ -369,6 +369,21 @@ describe('DraftPage from v1', () => {
     expect(screen.queryByRole('button', { name: 'Continue this session instead' })).not.toBeInTheDocument()
   })
 
+  it('shows why a session another Assistant held cannot be continued', async () => {
+    const draft = v1Draft()
+    // Settings name Claude (test/mocks/handlers.ts); this session ran on Codex.
+    const onCodex = transcript(draft, grillingMessages, { assistant: 'codex', conversationId: 'codex-1' })
+    draftBackend(draft, { transcripts: [onCodex] })
+    renderPage(draft)
+
+    const continueButton = await screen.findByRole('button', { name: 'Continue First session' })
+    expect(continueButton).toBeDisabled()
+    expect(continueButton).toHaveAccessibleDescription(
+      'Codex held this conversation. Switch to Codex in Settings to continue it, or start a new session.',
+    )
+    expect(screen.queryByRole('button', { name: 'Continue this session instead' })).not.toBeInTheDocument()
+  })
+
   it('drives a running session from the composer', async () => {
     const draft = v1Draft()
     const live = liveSession(draft)

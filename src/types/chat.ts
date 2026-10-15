@@ -22,6 +22,8 @@ export interface Handlers {
 export interface ContinueOptions {
   /** Offers Continue on the ended sessions it accepts. */
   canContinue?: (transcript: AnyTranscript) => boolean
+  /** Why Continue shows but cannot be pressed on an ended session, if it cannot. */
+  continueBlockedReason?: (transcript: AnyTranscript) => string | undefined
   onContinue?: (sessionId: string) => void
 }
 

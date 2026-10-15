@@ -21,11 +21,16 @@ export function ThreadSession({
   live,
   onOpen,
   canContinue,
+  continueBlockedReason,
   onContinue,
   handlers,
 }: Readonly<ThreadSessionProps>) {
   const offerContinue = onContinue && canContinue?.(transcript)
-  const continueButton = offerContinue ? <ContinueButton transcript={transcript} onContinue={onContinue} /> : null
+  const blockedReason = onContinue && !offerContinue ? continueBlockedReason?.(transcript) : undefined
+  const continueButton =
+    offerContinue || blockedReason ? (
+      <ContinueButton transcript={transcript} onContinue={onContinue!} blockedReason={blockedReason} />
+    ) : null
   if (!expanded) return <FoldedSession transcript={transcript} continueButton={continueButton} onOpen={onOpen} />
   return (
     <ExpandedSession
