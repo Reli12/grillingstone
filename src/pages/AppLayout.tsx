@@ -1,8 +1,9 @@
-// The frame around every page: the header with the Project switcher and navigation, and a banner
-// while the backend can't be reached.
+// The frame around every page: the header with the Project switcher and navigation, a banner while the
+// backend can't be reached, and the footer with the copyright and the Legal link.
 import { NavLink, Outlet, useParams } from 'react-router'
 
 import { Wordmark } from '@/components/atoms/wordmark/wordmark'
+import { LegalFooter } from '@/components/features/legal/legalFooter/legalFooter'
 import { ProjectSwitcher } from '@/components/features/projects/projectSwitcher/projectSwitcher'
 import { useBackendConnection } from '@/context/ServerEvents/ServerEvents'
 import { cn } from '@/lib/cn'
@@ -46,6 +47,7 @@ export default function AppLayout() {
       <main className="min-h-0 flex-1">
         <Outlet />
       </main>
+      <LegalFooter />
     </div>
   )
 }

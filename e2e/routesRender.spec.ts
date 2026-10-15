@@ -10,6 +10,7 @@ const pages = [
   { path: '/templates', heading: 'Templates' },
   { path: '/settings', heading: 'Settings' },
   { path: '/how-it-works', heading: 'How it works' },
+  { path: '/legal', heading: 'Legal' },
 ]
 
 for (const { path, heading } of pages) {
