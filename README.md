@@ -75,11 +75,11 @@ loads no skills and has no Glossary. It submits a Template instead of a Draft, a
 ## Requirements
 
 - **Node.js 23.6 or newer.** The backend runs TypeScript directly through Node's type stripping, with no build step.
-- **[Claude Code](https://claude.com/claude-code)**, installed and logged in. Grilling Stone runs it headless (`claude -p`)
-  on your own subscription, so no API key is needed. Choose the model in **Settings**; leave it empty for Claude Code's
-  default.
+- **[Claude Code](https://claude.com/claude-code)**, installed and logged in. Grilling Stone runs it headless
+  (`claude -p`) on your own Claude account: a Claude subscription or an Anthropic API key, whichever you signed in
+  with. Choose the model in **Settings**; leave it empty for Claude Code's default.
 
-Or neither of them: with Docker you need only Docker and a Claude subscription (see
+Or neither of them: with Docker you need only Docker and a Claude account (see
 [Running with Docker](#running-with-docker)).
 
 ## Getting started
@@ -101,8 +101,8 @@ The **How it works** page inside the app walks through every step.
 ## Running with Docker
 
 No Node.js or Claude Code on your machine? Run Grilling Stone in Docker instead. You need only
-[Docker](https://www.docker.com/products/docker-desktop/) and a Claude subscription (Pro or Max). The container holds
-the backend, the frontend and Claude Code.
+[Docker](https://www.docker.com/products/docker-desktop/) and a Claude account: a subscription (Pro or Max) or an
+Anthropic API key. The container holds the backend, the frontend and Claude Code.
 
 From the repository root:
 
@@ -111,6 +111,7 @@ From the repository root:
 docker compose -f docker/compose.yml build
 
 # 2. Sign in to Claude, once. Open the link it prints, sign in with your Claude account, paste the code back.
+#    Using an Anthropic API key instead? Add --console after login and sign in to your Console account.
 docker compose -f docker/compose.yml run --rm grillingstone login
 
 # 3. Start Grilling Stone
@@ -178,3 +179,9 @@ If Playwright reports a missing browser, run `npx playwright install chromium` o
 
 Other checks: `npm run typecheck`, `npm run lint`, `npm run format:check`. An optional local SonarQube is wired up in
 `compose.sonar.yml` (`npm run sonar:up`, then `npm run sonar`).
+
+## License
+
+[MIT](LICENSE). The license covers this repository's code only. Claude Code is Anthropic's software: you install it
+separately, and your use of it and of Claude is governed by Anthropic's terms. Grilling Stone is an independent
+project, not affiliated with or endorsed by Anthropic or Microsoft.
