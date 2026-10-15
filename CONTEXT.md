@@ -1,6 +1,6 @@
 # Grilling Stone
 
-A tool that runs only on the user's own machine, where a human and Claude grill a requirement into a single written work item, which the human then edits and arranges before it is published.
+A tool that runs only on the user's own machine, where a human and an Assistant grill a requirement into a single written work item, which the human then edits and arranges before it is published.
 
 ## Language
 
@@ -8,8 +8,12 @@ A tool that runs only on the user's own machine, where a human and Claude grill 
 The kind of item being written: Epic, Feature, PBI, Task or Bug. Epic, Feature, PBI and Task describe something to be built; a Bug describes a defect already observed. Chosen once, before grilling starts, and fixes what the Draft must contain.
 _Avoid_: level, kind, ticket type
 
+**Assistant**:
+The AI the human grills with: Claude or Codex, each signed in with the human's own account. Chosen once for the whole tool in Settings, since most humans have only one of the two; every new session uses it.
+_Avoid_: engine, provider, model, agent, Claude (when meaning whichever Assistant is set)
+
 **Grilling Session**:
-One conversation with Claude that interrogates a requirement, or an observed defect, until it is understood well enough to write down.
+One conversation with the Assistant that interrogates a requirement, or an observed defect, until it is understood well enough to write down.
 _Avoid_: chat, run, interview
 
 **Draft**:
@@ -21,7 +25,7 @@ The ordered set of Sections a Draft of one Work Item Type is written in, plus th
 _Avoid_: format, layout, schema
 
 **Template Session**:
-A conversation with Claude that interrogates how a team writes one Work Item Type until it can be written down as a Template. Belongs to no Project and is never challenged against a Glossary; it may start from an existing Template and from example work items the human pastes.
+A conversation with the Assistant that interrogates how a team writes one Work Item Type until it can be written down as a Template. Belongs to no Project and is never challenged against a Glossary; it may start from an existing Template and from example work items the human pastes.
 _Avoid_: template wizard, template grilling, template builder
 
 **Default Template**:
@@ -65,15 +69,15 @@ The state of a Section or Entry the human removed from a Draft. Hidden and exclu
 _Avoid_: deleted, removed, rejected
 
 **Ready Check**:
-Claude's question, when it believes it understands enough, asking whether the human has anything to add before it writes. Claude never writes a Draft or Proposal without the human confirming — either by answering the Ready Check or by asking to write at any moment. The one exception is an Import: starting the Import is the confirmation.
+The Assistant's question, when it believes it understands enough, asking whether the human has anything to add before it writes. The Assistant never writes a Draft or Proposal without the human confirming — either by answering the Ready Check or by asking to write at any moment. The one exception is an Import: starting the Import is the confirmation.
 _Avoid_: confirmation, final check
 
 **Transcript**:
-The tool's own record of one Grilling Session's conversation, kept with the Draft for reading back. Never fed to Claude; a Continuation resumes Claude Code's own conversation instead.
+The tool's own record of one Grilling Session's conversation, kept with the Draft for reading back. Never fed to the Assistant; a Continuation resumes the Assistant's own conversation instead. It records which Assistant held the conversation.
 _Avoid_: chat log, history, session file
 
 **Publish**:
-Creating (or updating) the Azure DevOps work item from a Draft. The tool itself does it; Claude never takes part. Planned for v2. Only non-Discarded content is published, in the human's order.
+Creating (or updating) the Azure DevOps work item from a Draft. The tool itself does it; the Assistant never takes part. Planned for v2. Only non-Discarded content is published, in the human's order.
 _Avoid_: export, push, sync
 
 **Backlog**:
@@ -115,7 +119,7 @@ The set of changes a Grilling Session suggests to an existing Draft. Never appli
 _Avoid_: suggestion, patch, update
 
 **Clean Change**:
-A change in a Proposal that touches only content Claude wrote and the human never edited, moved or discarded. Can be accepted in bulk.
+A change in a Proposal that touches only content the Assistant wrote and the human never edited, moved or discarded. Can be accepted in bulk.
 _Avoid_: safe change, auto change
 
 **Conflict**:
@@ -127,7 +131,7 @@ A new version of a Draft, created when a Proposal is accepted; recorded as a lin
 _Avoid_: revision, round, run
 
 **Continuation**:
-A Grilling Session that picks up an ended one's conversation (Claude remembers it), yet still starts from the current Draft, Glossary and References, which win over anything said before. After v1 it can only produce a Proposal.
+A Grilling Session that picks up an ended one's conversation (the Assistant remembers it), so only the same Assistant can continue it, yet still starts from the current Draft, Glossary and References, which win over anything said before. After v1 it can only produce a Proposal.
 _Avoid_: resume, reopen, restart
 
 **Focused Session**:
@@ -147,6 +151,7 @@ _Avoid_: sub-session, partial session
 - Each **Publish** replaces the Draft's **Published Snapshot**. Bringing **Drift** into the Draft produces a **Proposal**, never a direct edit.
 - The first **Grilling Session** on a **Draft** writes v1 directly; every later session produces a **Proposal**, and each accepted **Proposal** is one **Iteration**.
 - A **Proposal** is split into **Clean Changes** and **Conflicts**.
+- Every session is held with the **Assistant** set at its start; a **Continuation** needs that same **Assistant**. Different sessions on one **Draft** may have different **Assistants**, since the **Draft** is the memory.
 - A **Draft** has many **Grilling Sessions** over its life. Each session starts from the current **Draft**, the **Glossary** and the Draft's **References**. An ended session may be picked up by a **Continuation**, which also has the earlier chat but is told the current Draft wins. Every session's **Transcript** stays read-only.
 - A **Work Item Type** has many **Templates**, exactly one of which is its **Default Template**; a **Template** defines many **Sections**.
 - A **Draft** is written in exactly one **Template**, chosen when the Draft is created, and keeps a snapshot of it. Later edits to the **Template** affect only new **Drafts**; an existing **Draft** moves to a newer Template version only through an explicit upgrade, which arrives as a **Proposal**.
@@ -154,7 +159,7 @@ _Avoid_: sub-session, partial session
 - A **Template Session** produces at most one **Template**; it never touches a **Project**, **Draft** or **Glossary**.
 - A **Section** holds either prose or many **Entries**, and names the Azure DevOps field it is **Published** into.
 - A **Draft** has a title of its own, outside its **Sections**.
-- The **Template** decides what Claude must write and in what order; the human decides what the **Draft** finally keeps and in what order. Claude never omits a Section — an empty one says so, with a reason.
+- The **Template** decides what the Assistant must write and in what order; the human decides what the **Draft** finally keeps and in what order. The Assistant never omits a Section — an empty one says so, with a reason.
 
 ## Example dialogue
 
