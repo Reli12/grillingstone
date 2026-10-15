@@ -7,6 +7,7 @@ import { ApiError } from '@/api/apiError'
 interface ErrorBody {
   error?: string
   reasons?: Reason[]
+  code?: string
 }
 
 const JSON_CONTENT_TYPE = { 'content-type': 'application/json' }
@@ -18,8 +19,8 @@ export async function fetchJson<T>(url: string, init: RequestInit = {}): Promise
   // A failed request may not carry a JSON body; fall back to an empty error.
   const data = (await res.json().catch(() => ({}))) as unknown
   if (!res.ok) {
-    const { error, reasons } = data as ErrorBody
-    throw new ApiError(error ?? `Request failed (${res.status})`, res.status, reasons)
+    const { error, reasons, code } = data as ErrorBody
+    throw new ApiError(error ?? `Request failed (${res.status})`, res.status, reasons, code)
   }
   return data as T
 }

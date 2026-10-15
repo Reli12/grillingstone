@@ -6,19 +6,21 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { toast } from 'sonner'
 
 import { ApiError } from '@/api/apiError'
+import { toastMutationError } from '@/api/mutationErrorToast'
 import { ServerEventsProvider } from '@/context/ServerEvents/ServerEvents'
 import { ThemeProvider } from '@/context/Theme/Theme'
-import { router } from '@/routes/routes'
+import { router, routesPaths } from '@/routes/routes'
 
 /** Network failures and 5xx get this many attempts in total. */
 const MAX_QUERY_ATTEMPTS = 3
 
 const queryClient = new QueryClient({
   // Failed actions explain themselves in a toast; components need no try/catch.
-  mutationCache: new MutationCache({ onError: (error) => toast.error(error.message) }),
+  mutationCache: new MutationCache({
+    onError: (error) => toastMutationError(error, () => void router.navigate(routesPaths.settings)),
+  }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
