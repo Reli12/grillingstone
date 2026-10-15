@@ -39,6 +39,7 @@ export default defineConfig({
             GRILLINGSTONE_DATA_DIR: 'data-test',
             GRILLINGSTONE_SERVER_PORT: '5397',
             GRILLINGSTONE_CLAUDE_BIN: fileURLToPath(new URL('./test/server/fakeClaude.mjs', import.meta.url)),
+            GRILLINGSTONE_CODEX_BIN: fileURLToPath(new URL('./test/server/fakeCodex.mjs', import.meta.url)),
           },
         },
       },

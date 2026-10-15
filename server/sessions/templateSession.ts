@@ -1,5 +1,4 @@
 // A Template Session runs in an empty working folder — no Project, no Glossary — and writes one new Template.
-import type { AssistantName } from '#core/session/assistantName.ts'
 import type { TemplateRequest, TemplateTranscript } from '#core/session/sessionTypes.ts'
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -8,12 +7,12 @@ import { templateFromSession } from '#core/template/templateFromSession.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { type TemplateContent, validateTemplate } from '#core/template/templateValidator.ts'
 
-import { SUBMIT_SCRIPT } from '../config.ts'
 import type { Hub } from '../hub.ts'
 import { now } from '../services/clock.ts'
 import type { TemplateService } from '../services/templateService.ts'
 import { getTemplate } from '../storage/templates.ts'
 import { makeTemplateSessionDir, saveTemplateTranscript } from '../storage/transcripts.ts'
+import type { Assistant } from './assistant.ts'
 import { SessionError } from './sessionError.ts'
 import { type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
 
@@ -68,7 +67,7 @@ function templateScope(cwd: string, deps: TemplateSessionDeps, submit: Scope['su
 
 export async function prepareTemplateSession(
   request: TemplateRequest,
-  assistant: AssistantName,
+  assistant: Pick<Assistant, 'name' | 'submitVia'>,
   deps: TemplateSessionDeps,
 ): Promise<PreparedSession<TemplateTranscript>> {
   if (!request.purpose.trim()) throw new SessionError('Say what the Template is for, so Claude has something to grill.')
@@ -81,7 +80,7 @@ export async function prepareTemplateSession(
     kind: 'template',
     request: { ...request, ...(base ? { baseTemplateName: base.name } : {}) },
     status: 'starting',
-    assistant,
+    assistant: assistant.name,
     writeConfirmed: false,
     startedAt: now(),
     messages: [],
@@ -92,7 +91,7 @@ export async function prepareTemplateSession(
     purpose: request.purpose,
     examples: request.examples,
     base,
-    submitCommand: `node "${SUBMIT_SCRIPT}"`,
+    submitVia: assistant.submitVia,
   })
   const intro = templateIntro(request, base)
   const cwd = await makeTemplateSessionDir(transcript.id)

@@ -3,7 +3,13 @@
 // No earlier Transcript is passed on: the Draft is the memory. A Continuation (ADR-0014) also has Claude
 // Code's own conversation, so its task says the Draft below wins over anything said there.
 import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
-import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
+import {
+  onlySubmitAction,
+  type Seed,
+  submitAnswer,
+  submitInstruction,
+  type SubmitVia,
+} from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
@@ -15,8 +21,8 @@ export interface SeedInput {
   /** The Project's CONTEXT.md, verbatim ('' when it does not exist yet). */
   glossary: string
   references: { title: string; workItemType: string; markdown: string }[]
-  /** Shell command prefix that submits JSON on stdin, e.g. `node "/abs/scripts/writeDraft.mjs"`. */
-  submitCommand: string
+  /** How the session submits: the submit command (Claude Code) or the submit tool (Codex). */
+  submitVia: SubmitVia
   focus?: { sectionId: string; entryId?: string }
   /** What the human said when starting a later session ("BA wants bulk archive back in"). */
   humanNote?: string
@@ -57,14 +63,12 @@ Change objects (ids come from the current Draft below):
 - Content marked "editedByHuman" or "movedByHuman" is the human's deliberate work: change it only when the session really requires it. Such changes, and anything touching Discarded content, are shown to the human as Conflicts.
 - You cannot delete or discard anything; the human does that.`
   return `## How you write
-You never write Draft files yourself. When the human has confirmed, submit ${first ? 'the whole Draft' : 'a Proposal'} as JSON by running exactly this Bash command (the quoted heredoc delimiter is required):
-
-${submitUsage(input.submitCommand, payload.split('\n')[0])}
+You never write Draft files yourself. When the human has confirmed, ${submitInstruction(input.submitVia, first ? 'the whole Draft' : 'a Proposal', payload.split('\n')[0])}
 
 JSON shape:
 ${payload}
 
-The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human it is written, and stop.`
+The tool validates the submission. ${submitAnswer(input.submitVia)} ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human it is written, and stop.`
 }
 
 // The human-edit markers Claude sees, so it treats the human's deliberate work with care.
@@ -181,7 +185,7 @@ export function buildSeed(input: SeedInput): Seed {
   const template = input.kind === 'upgrade' && input.upgradeTo ? input.upgradeTo : draft.template
 
   const systemPrompt = `# Your role
-You grill a requirement or an observed defect with a human and write it down as one ${draft.workItemType} Draft for Azure DevOps, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
+You grill a requirement or an observed defect with a human and write it down as one ${draft.workItemType} Draft for Azure DevOps, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and ${onlySubmitAction(input.submitVia)}.
 ${first ? 'This first session writes Draft v1 directly.' : `The Draft already exists (v${draft.version}). You never rewrite it: you submit a Proposal of changes, which the human triages.`}
 
 ${grillingRules(first)}

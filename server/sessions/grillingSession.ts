@@ -3,7 +3,6 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { parseGlossary } from '#core/glossary/glossary.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
-import type { AssistantName } from '#core/session/assistantName.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
@@ -11,7 +10,6 @@ import { newId } from '#core/shared/ids.ts'
 import { plural } from '#core/shared/plural.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
-import { SUBMIT_SCRIPT } from '../config.ts'
 import type { Hub } from '../hub.ts'
 import { iterationMeta, now } from '../services/clock.ts'
 import type { DraftService } from '../services/draftService.ts'
@@ -22,6 +20,7 @@ import { projectDir } from '../storage/paths.ts'
 import { getProject } from '../storage/projects.ts'
 import { getTemplate } from '../storage/templates.ts'
 import { saveTranscript } from '../storage/transcripts.ts'
+import type { Assistant } from './assistant.ts'
 import { SessionError } from './sessionError.ts'
 import { type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
 
@@ -34,7 +33,7 @@ export interface StartArgs {
   /** For a Continuation: the ended session whose conversation it resumes (ADR-0014). */
   continues?: SessionSummary
   /** The Assistant that runs it. */
-  assistant: AssistantName
+  assistant: Pick<Assistant, 'name' | 'submitVia'>
 }
 
 export interface GrillingDeps {
@@ -175,7 +174,7 @@ function seedFor(args: StartArgs, material: SeedMaterial) {
   return buildSeed({
     kind: args.kind,
     ...material,
-    submitCommand: `node "${SUBMIT_SCRIPT}"`,
+    submitVia: args.assistant.submitVia,
     focus: args.focus,
     humanNote: args.humanNote,
     continuing: !!args.continues,
@@ -193,7 +192,7 @@ function newTranscript(args: StartArgs, focus: Focus): Transcript {
     status: 'starting',
     ...(focus ? { focus } : {}),
     ...(humanNote ? { humanNote } : {}),
-    assistant: args.assistant,
+    assistant: args.assistant.name,
     ...(continues ? { continues: continues.id, conversationId: continues.conversationId } : {}),
     writeConfirmed: false,
     startedAt: now(),

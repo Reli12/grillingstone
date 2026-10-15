@@ -1,5 +1,6 @@
 // Boots the real backend for server tests: HTTP API + Supervisor on GRILLINGSTONE_SERVER_PORT, data in data-test/,
-// `claude` replaced by test/server/fakeClaude.mjs. Server events are recorded instead of sent over a socket.
+// `claude` and `codex` replaced by test/server/fakeClaude.mjs and fakeCodex.mjs. Server events are recorded
+// instead of sent over a socket.
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
@@ -12,6 +13,7 @@ import { createApp } from '../../server/app.ts'
 import { DATA_DIR, SERVER_PORT, SERVER_URL } from '../../server/config.ts'
 import { Hub } from '../../server/hub.ts'
 import { createServices } from '../../server/services/createServices.ts'
+import type { Assistant } from '../../server/sessions/assistant.ts'
 
 export interface Reply<T = any> {
   status: number
@@ -25,12 +27,13 @@ export async function resetTestData() {
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 
-export async function startBackend() {
+/** `assistant` is the one sessions run on; Claude unless a test names another. */
+export async function startBackend(assistant?: Assistant) {
   await resetTestData()
   const hub = new Hub()
   const events: ServerEvent[] = []
-  vi.spyOn(hub, 'broadcast').mockImplementation((e) => void events.push(e))
-  const deps = createServices(hub)
+  vi.spyOn(hub, 'broadcast').mockImplementation((event) => void events.push(event))
+  const deps = createServices(hub, assistant)
   const { supervisor } = deps
   const server = http.createServer(createApp(deps))
   await new Promise<void>((resolve) => server.listen(SERVER_PORT, '127.0.0.1', resolve))

@@ -24,12 +24,34 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('Frontend PBI Guide')
     expect(all).toContain('Managers need to archive devices.')
     expect(all).toContain('acceptanceCriteria')
+  })
+
+  it('tells a Codex session to submit through submit_draft, never a shell command', () => {
+    const draft = newDraft({
+      projectId: 'customer-portal',
+      workItemType: 'PBI',
+      template: defaultPbiTemplate,
+      requirement: 'Managers need to archive devices.',
+      now: meta.date,
+    })
+    const seed = buildSeed({
+      kind: 'first',
+      draft,
+      projectName: 'Customer Portal',
+      glossary: '',
+      references: [],
+      submitVia: { tool: 'submit_draft' },
+    })
+    const all = seed.systemPrompt + seed.firstMessage
+    expect(all).toContain('submit_draft')
+    expect(all).not.toContain('GRILLINGSTONE_JSON')
+    expect(all).not.toMatch(/Bash|submit command/)
   })
 
   it('grills a Bug as an observed defect, never recommending what the human saw or did', () => {
@@ -46,7 +68,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('a requirement or an observed defect')
@@ -63,7 +85,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     const all = seed.systemPrompt + seed.firstMessage
     const ac = sectionByKey(draft, 'acceptanceCriteria')
@@ -89,7 +111,7 @@ describe('Session Seed Builder', () => {
           markdown: '# Restore archived device\nOnly Admins restore.',
         },
       ],
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('Hidden from dashboards, still billed.')
@@ -109,7 +131,7 @@ describe('Session Seed Builder', () => {
         projectName: 'Customer Portal',
         glossary: '',
         references: [],
-        submitCommand,
+        submitVia: { command: submitCommand },
       }),
     ).join('\n')
     const discardedPart = all.slice(all.indexOf('Discarded by the human'))
@@ -127,7 +149,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
       focus: { sectionId: scope.id },
       humanNote: 'BA wants bulk archive back in',
     })
@@ -158,7 +180,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
       upgradeTo,
     })
     expect(seed.firstMessage).toContain('Analytics Events')
@@ -172,7 +194,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     expect(seed.systemPrompt + seed.firstMessage).not.toMatch(/transcript|previous conversation/i)
   })
@@ -191,7 +213,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
       humanNote: 'Only Account Admins may export.',
     })
     expect(seed.firstMessage).toContain('Only Account Admins may export.')
@@ -206,7 +228,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
       humanNote: 'Bulk archive is back',
       continuing: true,
     })
@@ -231,7 +253,7 @@ describe('Session Seed Builder', () => {
       projectName: 'Customer Portal',
       glossary: '',
       references: [],
-      submitCommand,
+      submitVia: { command: submitCommand },
       continuing: true,
     })
     expect(seed.firstMessage).toContain('continues your earlier conversation')

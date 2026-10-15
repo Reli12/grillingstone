@@ -1,7 +1,7 @@
 // Template Session seed: what a session that writes a new Template starts from. It belongs to no Project
 // and sees no Glossary — a Template is reused across Projects and shared with colleagues — so its only
 // material is the purpose, the pasted examples and an optional base Template (read-only).
-import { cardProtocol, type Seed, submitUsage } from '#core/session/cardProtocol.ts'
+import { cardProtocol, type Seed, submitAnswer, submitInstruction, type SubmitVia } from '#core/session/cardProtocol.ts'
 import { ADO_FIELD_LABELS, type SectionTarget } from '#core/shared/adoFields.ts'
 import { allowedTargets, defaultIterationLogTarget, type WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -14,7 +14,8 @@ export interface TemplateSeedInput {
   /** Example work items pasted by the human ('' for none). */
   examples: string
   base?: Template
-  submitCommand: string
+  /** How the session submits: the submit command (Claude Code) or the submit tool (Codex). */
+  submitVia: SubmitVia
 }
 
 const templateJson = (template: Pick<Template, 'name' | 'sections'>) =>
@@ -75,9 +76,7 @@ function submitSection(input: TemplateSeedInput, targets: SectionTarget[]): stri
   const defaultLogField = ADO_FIELD_LABELS[defaultIterationLogTarget(workItemType)]
   const example = `{"name": "Spike ${workItemType}", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "${targets[0]}"}], "method": "# Spike ${workItemType} Guide\\n\\n## Purpose\\n…"}`
   return `## How you submit
-You never write files. When the human has confirmed, submit the whole Template as JSON by running exactly this Bash command (the quoted heredoc delimiter is required):
-
-${submitUsage(input.submitCommand, '{ …the Template JSON… }')}
+You never write files. When the human has confirmed, ${submitInstruction(input.submitVia, 'the whole Template', '{ …the Template JSON… }')}
 
 JSON shape:
 ${example}
@@ -86,7 +85,7 @@ ${example}
 - "iterationLogTarget": one of those fields — where the Iteration Log is appended (optional; defaults to ${defaultLogField})
 - The Work Item Type is fixed to ${workItemType}; do not include it.
 
-The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`
+The tool validates the submission. ${submitAnswer(input.submitVia)} ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`
 }
 
 /** The base Template, shown read-only as starting material for the new one. */

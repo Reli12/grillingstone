@@ -1,9 +1,9 @@
-// Tests for the `claude -p` launch arguments and the stdout JSON-lines reader.
+// Tests for the `claude -p` launch arguments.
 import { describe, expect, it } from 'vitest'
 
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { claudeArgs, jsonLines } from './claudeProcess.ts'
+import { claudeArgs } from './claudeProcess.ts'
 
 describe('claudeArgs', () => {
   it('runs headless over stream-json with only the session tools and the guard hook', () => {
@@ -24,17 +24,5 @@ describe('claudeArgs', () => {
     expect(claudeArgs('RULES', '', { persist: true })).not.toContain('--resume')
     const resumed = claudeArgs('RULES', '', { persist: true, resume: 'claude-123' })
     expect(resumed[resumed.indexOf('--resume') + 1]).toBe('claude-123')
-  })
-})
-
-describe('jsonLines', () => {
-  it('parses complete JSON lines across chunks and skips the rest', () => {
-    const events: unknown[] = []
-    const feed = jsonLines((event) => events.push(event))
-    feed('{"a":1}\n{"b"')
-    feed(':2}\n\nnot json\n{"c":3')
-    expect(events).toEqual([{ a: 1 }, { b: 2 }])
-    feed('}\n')
-    expect(events).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }])
   })
 })

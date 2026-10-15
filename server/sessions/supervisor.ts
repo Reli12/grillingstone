@@ -31,6 +31,7 @@ import {
   saveTranscript,
 } from '../storage/transcripts.ts'
 import type { Assistant, AssistantExit, AssistantSession } from './assistant.ts'
+import { systemMessage } from './chatMessages.ts'
 import { claudeAssistant } from './claudeAssistant.ts'
 import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
 import { SessionError } from './sessionError.ts'
@@ -82,14 +83,6 @@ function requestStop(live: Live) {
   live.session.stop()
 }
 
-const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage => ({
-  id: newId('m'),
-  at: now(),
-  role: 'system',
-  ...(tone ? { tone } : {}),
-  text,
-})
-
 const humanMessage = (kind: 'answer' | 'message' | 'write', text: string): ChatMessage => ({
   id: newId('m'),
   at: now(),
@@ -116,10 +109,11 @@ export class Supervisor {
   private unsaved = new Set<Promise<void>>()
   private deps: GrillingDeps & TemplateSessionDeps
   /** The Assistant every new session runs on. */
-  private assistant: Assistant = claudeAssistant
+  private assistant: Assistant
 
-  constructor(deps: GrillingDeps & TemplateSessionDeps) {
+  constructor(deps: GrillingDeps & TemplateSessionDeps, assistant: Assistant = claudeAssistant) {
     this.deps = deps
+    this.assistant = assistant
   }
 
   /** Sessions cannot survive a backend restart; mark the ones that were running. */
@@ -151,7 +145,7 @@ export class Supervisor {
 
   async start(request: SessionRequest): Promise<SessionSummary> {
     if (this.liveForDraft(request.draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
-    const args = { ...request, assistant: this.assistant.name }
+    const args = { ...request, assistant: this.assistant }
     return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
   }
 
@@ -178,7 +172,7 @@ export class Supervisor {
   async startTemplate(request: TemplateRequest): Promise<TemplateSessionSummary> {
     if (this.liveTemplateSession())
       throw new SessionError('A Template Session is already running — continue or stop it first.')
-    return summaryOf(await this.launch(await prepareTemplateSession(request, this.assistant.name, this.deps)))
+    return summaryOf(await this.launch(await prepareTemplateSession(request, this.assistant, this.deps)))
   }
 
   private async launch<T extends AnyTranscript>({
@@ -190,7 +184,9 @@ export class Supervisor {
   }: PreparedSession<T>): Promise<T> {
     const token = randomUUID()
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
-    const launch = { sessionId: transcript.id, token, scope, seed, model: (await getSettings()).model, conversation }
+    const model = (await getSettings()).model
+    const submit = (payload: unknown) => this.submit(transcript.id, token, payload)
+    const launch = { sessionId: transcript.id, token, scope, seed, model, conversation, submit }
     const live = newLive(transcript, scope, token)
     live.session = this.assistant.start(launch, {
       onStep: (step) => this.queueStep(live, step),

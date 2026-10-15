@@ -12,7 +12,7 @@ describe('Template Session seed', () => {
       workItemType: 'PBI',
       purpose: 'Spike PBIs: timeboxed investigations ending in a recommendation',
       examples: '',
-      submitCommand,
+      submitVia: { command: submitCommand },
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('PBI')
@@ -24,7 +24,7 @@ describe('Template Session seed', () => {
       workItemType: 'PBI',
       purpose: 'Spike PBIs',
       examples: '',
-      submitCommand,
+      submitVia: { command: submitCommand },
       ...extra,
     })
     return seed.systemPrompt + '\n' + seed.firstMessage
@@ -78,6 +78,13 @@ describe('Template Session seed', () => {
     expect(all).toContain('Write it now.')
     expect(all).toContain('pbi-question')
     expect(all).toContain('pbi-ready')
+  })
+
+  it('tells a Codex session to submit the Template through submit_draft, not a shell command', () => {
+    const all = seedText({ submitVia: { tool: 'submit_draft' } })
+    expect(all).toContain('submit_draft')
+    expect(all).not.toContain('GRILLINGSTONE_JSON')
+    expect(all).not.toMatch(/Bash/)
   })
 
   it('carries no Project or Glossary — Templates are reused across Projects', () => {

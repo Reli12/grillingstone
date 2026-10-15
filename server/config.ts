@@ -34,4 +34,5 @@ export const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`
 export const ALLOWED_ORIGINS = new Set([`http://127.0.0.1:${WEB_PORT}`, `http://localhost:${WEB_PORT}`])
 
 export const CLAUDE_BIN = process.env.GRILLINGSTONE_CLAUDE_BIN ?? 'claude'
+export const CODEX_BIN = process.env.GRILLINGSTONE_CODEX_BIN ?? 'codex'
 export const DEFAULT_AUTHOR = os.userInfo().username

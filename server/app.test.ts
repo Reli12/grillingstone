@@ -1,6 +1,7 @@
-// End-to-end tests of the HTTP API: each test boots the real backend with a fake Claude and data in
-// data-test/, then drives Projects, Drafts, sessions and Templates the way the browser would.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+// End-to-end tests of the HTTP API: each test boots the real backend with a fake Assistant and data in
+// data-test/, then drives Projects, Drafts, sessions and Templates the way the browser would. Everything that
+// runs a session runs once per Assistant, against fakeClaude.mjs and fakeCodex.mjs.
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
@@ -10,12 +11,17 @@ import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import { startBackend } from '../test/server/testBackend.ts'
+import type { Assistant } from './sessions/assistant.ts'
+import { claudeAssistant } from './sessions/claudeAssistant.ts'
+import { codexAssistant } from './sessions/codexAssistant.ts'
 
 let backend: Awaited<ReturnType<typeof startBackend>>
 const call = (...args: Parameters<typeof backend.call>) => backend.call(...args)
+/** The Assistant the next backend runs sessions on; a describe.each below switches it for its tests. */
+let assistantUnderTest: Assistant = claudeAssistant
 
 beforeEach(async () => {
-  backend = await startBackend()
+  backend = await startBackend(assistantUnderTest)
 })
 afterEach(() => backend.close())
 
@@ -45,7 +51,7 @@ async function transcripts(projectId: string, draftId: string) {
   return (await call('GET', `/api/projects/${projectId}/drafts/${draftId}/sessions`)).body as Transcript[]
 }
 
-/** Grills a first session to v1 through the fake Claude and the real submit script. */
+/** Grills a first session to v1 through the fake Assistant and the real submission path. */
 async function writtenDraft() {
   const grilled = await grillingDraft()
   expect((await call('POST', `/api/sessions/${grilled.sessionId}/write`)).status).toBe(200)
@@ -124,221 +130,285 @@ describe('projects and Glossary', () => {
   })
 })
 
-describe('Drafts and Grilling Sessions', () => {
-  it('validates a new Draft', async () => {
-    const project = await newProject()
-    const url = `/api/projects/${project.id}/drafts`
-    expect(
-      (await call('POST', url, { workItemType: 'Story', templateId: defaultPbiTemplate.id, requirement: 'x' })).status,
-    ).toBe(400)
-    expect(
-      (await call('POST', url, { workItemType: 'Epic', templateId: defaultPbiTemplate.id, requirement: 'x' })).status,
-    ).toBe(400)
-    expect(
-      (await call('POST', url, { workItemType: 'PBI', templateId: defaultPbiTemplate.id, requirement: ' ' })).status,
-    ).toBe(400)
-    expect((await call('POST', url, { workItemType: 'PBI', templateId: 'nope', requirement: 'x' })).status).toBe(404)
+describe.each([
+  { assistant: claudeAssistant, prefix: 'claude' },
+  { assistant: codexAssistant, prefix: 'codex' },
+])('with $assistant.name', ({ assistant, prefix }) => {
+  beforeAll(() => {
+    assistantUnderTest = assistant
+  })
+  afterAll(() => {
+    assistantUnderTest = claudeAssistant
   })
 
-  it('grills a first session into v1 through the submit script', async () => {
-    const grilled = await grillingDraft()
-    const [transcript] = await transcripts(grilled.projectId, grilled.draftId)
-    expect(transcript.messages.map((message) => message.role)).toEqual(['system', 'tool', 'claude'])
-    expect(transcript.messages[1]).toMatchObject({ role: 'tool', summary: 'Read CONTEXT.md', outcome: 'ok' })
-    expect(
-      (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.liveSession,
-    ).toMatchObject({
-      id: grilled.sessionId,
-      status: 'waiting',
+  describe('Drafts and Grilling Sessions', () => {
+    it('validates a new Draft', async () => {
+      const project = await newProject()
+      const url = `/api/projects/${project.id}/drafts`
+      expect(
+        (await call('POST', url, { workItemType: 'Story', templateId: defaultPbiTemplate.id, requirement: 'x' }))
+          .status,
+      ).toBe(400)
+      expect(
+        (await call('POST', url, { workItemType: 'Epic', templateId: defaultPbiTemplate.id, requirement: 'x' })).status,
+      ).toBe(400)
+      expect(
+        (await call('POST', url, { workItemType: 'PBI', templateId: defaultPbiTemplate.id, requirement: ' ' })).status,
+      ).toBe(400)
+      expect((await call('POST', url, { workItemType: 'PBI', templateId: 'nope', requirement: 'x' })).status).toBe(404)
     })
-    expect(
-      (await call('POST', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions`, { kind: 'first' }))
-        .status,
-    ).toBe(409)
 
-    await call('POST', `/api/sessions/${grilled.sessionId}/messages`, { text: 'Managers only', kind: 'answer' })
-    await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
-    await call('POST', `/api/sessions/${grilled.sessionId}/write`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
-
-    const { draft, liveSession } = (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`))
-      .body
-    expect(draft.version).toBe(1)
-    expect(liveSession).toBeNull()
-    const messages = (await transcripts(grilled.projectId, grilled.draftId))[0].messages
-    expect(messages).toContainEqual(
-      expect.objectContaining({ role: 'tool', summary: 'Submitted the Draft for validation', outcome: 'ok' }),
-    )
-    expect(messages).toContainEqual(
-      expect.objectContaining({ role: 'system', tone: 'success', text: expect.stringContaining('Draft v1 written') }),
-    )
-    expect(backend.events).toContainEqual(expect.objectContaining({ type: 'draft', projectId: grilled.projectId }))
-    expect((await call('GET', `/api/projects/${grilled.projectId}/drafts`)).body).toEqual([
-      expect.objectContaining({ id: grilled.draftId, version: 1, pendingChanges: 0 }),
-    ])
-    expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/render`)).body.title).toBe(
-      draft.title,
-    )
-  })
-
-  it('refuses human input the session cannot take', async () => {
-    const grilled = await grillingDraft()
-    expect((await call('POST', `/api/sessions/${grilled.sessionId}/messages`, { text: '  ' })).status).toBe(409)
-    expect((await call('POST', `/api/sessions/unknown/write`)).status).toBe(409)
-    expect(
-      (await call('POST', `/api/internal/sessions/${grilled.sessionId}/submit`, {}, { 'x-pbi-session-token': 'wrong' }))
-        .body,
-    ).toMatchObject({ ok: false, reasons: [{ code: 'unknown-session' }] })
-    expect((await call('DELETE', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).status).toBe(409)
-  })
-
-  it('stops a session without writing, and reports a crashed one', async () => {
-    const grilled = await grillingDraft()
-    await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
-    expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version).toBe(
-      0,
-    )
-
-    const again = await call('POST', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions`, {
-      kind: 'first',
-      humanNote: 'CRASH please',
-    })
-    expect(again.status).toBe(200)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'failed')
-    expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.error).toContain('fake claude crashed')
-  })
-
-  it('stopAll resolves only once every running session has saved its Transcript', async () => {
-    const grilled = await grillingDraft()
-    await backend.supervisor.stopAll()
-    expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.status).toBe('stopped')
-  })
-
-  it('edits a written Draft, sets References and deletes it', async () => {
-    const grilled = await writtenDraft()
-    const base = `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`
-    const edited = await call('POST', `${base}/ops`, { op: 'retitle', title: 'Archive a device' })
-    expect(edited.body).toMatchObject({ title: 'Archive a device', titleHumanEdited: true })
-    expect((await call('POST', `${base}/ops`, { op: 'nonsense' })).status).toBe(400)
-    expect((await call('POST', `${base}/ops`, { op: 'discardSection', sectionId: 'nope' })).status).toBe(409)
-    expect(
-      (await call('PATCH', `${base}/references`, { references: [grilled.draftId, 'missing'] })).body.references,
-    ).toEqual([])
-    expect((await call('DELETE', base)).body).toEqual({ ok: true })
-    expect((await call('GET', base)).status).toBe(404)
-  })
-
-  it('turns a later session into a Proposal that is triaged into v2', async () => {
-    const grilled = await writtenDraft()
-    const base = `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`
-    expect((await call('POST', `${base}/sessions`, { kind: 'bogus' })).status).toBe(400)
-    expect((await call('POST', `${base}/sessions`, { kind: 'upgrade' })).status).toBe(409)
-    expect((await call('POST', `${base}/sessions`, { kind: 'focused', focus: { sectionId: 'nope' } })).status).toBe(409)
-
-    const session = (await call('POST', `${base}/sessions`, { kind: 'iteration', humanNote: 'BA wants bulk archive' }))
-      .body
-    await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
-    await call('POST', `/api/sessions/${session.id}/write`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
-
-    const withProposal = (await call('GET', base)).body.draft as Draft
-    expect(withProposal.proposal?.changes).toHaveLength(1)
-    expect((await call('POST', `${base}/sessions`, { kind: 'iteration' })).status).toBe(409)
-    const accepted = (await call('POST', `${base}/proposal/accept-clean`)).body as Draft
-    expect(accepted).toMatchObject({ version: 2, proposal: null })
-
-    await call('POST', `${base}/proposal/decide`, { changeId: 'none', accept: true })
-    expect((await call('GET', base)).body.draft.version).toBe(2)
-  })
-})
-
-describe('Continuations', () => {
-  const continueUrl = (grilled: { projectId: string; draftId: string }, sessionId: string) =>
-    `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions/${sessionId}/continue`
-
-  it('continues a stopped first session in the same Claude conversation, and still writes v1', async () => {
-    const grilled = await grillingDraft()
-    await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
-    const [stopped] = await transcripts(grilled.projectId, grilled.draftId)
-    expect(stopped).toMatchObject({ assistant: 'claude', conversationId: expect.stringMatching(/^claude-/) })
-
-    const continued = await call('POST', continueUrl(grilled, grilled.sessionId), { humanNote: 'Where were we?' })
-    expect(continued.body).toMatchObject({
-      kind: 'first',
-      continues: grilled.sessionId,
-      assistant: 'claude',
-      conversationId: stopped.conversationId,
-    })
-    await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
-    const transcript = (await transcripts(grilled.projectId, grilled.draftId)).at(-1)!
-    expect(transcript.conversationId).toBe(stopped.conversationId)
-    expect(transcript.messages).toContainEqual(expect.objectContaining({ role: 'human', text: 'Where were we?' }))
-    expect(transcript.messages).toContainEqual(
-      expect.objectContaining({ role: 'claude', segments: [{ type: 'text', text: 'Picking up where we left off.' }] }),
-    )
-
-    await call('POST', `/api/sessions/${continued.body.id}/write`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
-    expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version).toBe(
-      1,
-    )
-  })
-
-  it('continues a finished first session as a New Iteration that can only propose', async () => {
-    const grilled = await writtenDraft()
-    const continued = (
-      await call('POST', continueUrl(grilled, grilled.sessionId), { humanNote: 'BA wants bulk archive' })
-    ).body
-    expect(continued).toMatchObject({ kind: 'iteration', continues: grilled.sessionId })
-    await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
-    expect((await call('POST', continueUrl(grilled, grilled.sessionId), {})).status).toBe(409)
-
-    await call('POST', `/api/sessions/${continued.id}/write`)
-    await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
-    const draft = (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body
-      .draft as Draft
-    expect(draft).toMatchObject({ version: 1, proposal: { changes: [expect.anything()] } })
-    expect((await call('POST', continueUrl(grilled, continued.id), {})).status).toBe(409)
-    expect((await call('POST', continueUrl(grilled, 'sess-missing'), {})).status).toBe(404)
-  })
-})
-
-describe('Focused Sessions', () => {
-  it('grills one Section with a Reference in view, and names it in the chat', async () => {
-    const other = await writtenDraft()
-    const project = other.projectId
-    const created = (
-      await call('POST', `/api/projects/${project}/drafts`, {
-        workItemType: 'PBI',
-        templateId: defaultPbiTemplate.id,
-        requirement: 'Bulk',
-        references: [other.draftId],
+    it('grills a first session into v1 through the submit script', async () => {
+      const grilled = await grillingDraft()
+      const [transcript] = await transcripts(grilled.projectId, grilled.draftId)
+      expect(transcript.messages.map((message) => message.role)).toEqual(['system', 'tool', 'claude'])
+      expect(transcript.messages[1]).toMatchObject({ role: 'tool', summary: 'Read CONTEXT.md', outcome: 'ok' })
+      expect(
+        (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.liveSession,
+      ).toMatchObject({
+        id: grilled.sessionId,
+        status: 'waiting',
       })
-    ).body
-    await waitForStatus(project, created.draft.id, 'waiting')
-    await call('POST', `/api/sessions/${created.session.id}/write`)
-    await waitForStatus(project, created.draft.id, 'finished')
+      expect(
+        (await call('POST', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions`, { kind: 'first' }))
+          .status,
+      ).toBe(409)
 
-    const draft = (await call('GET', `/api/projects/${project}/drafts/${created.draft.id}`)).body.draft as Draft
-    const scope = draft.sections.find((section) => section.key === 'scope')!
-    const session = (
-      await call('POST', `/api/projects/${project}/drafts/${draft.id}/sessions`, {
-        kind: 'focused',
-        focus: { sectionId: scope.id, entryId: scope.entries[0].id },
-      })
-    ).body
-    expect(session.focus).toEqual({
-      sectionId: scope.id,
-      entryId: scope.entries[0].id,
-      heading: `Scope › ${scope.entries[0].title}`,
+      await call('POST', `/api/sessions/${grilled.sessionId}/messages`, { text: 'Managers only', kind: 'answer' })
+      await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
+      await call('POST', `/api/sessions/${grilled.sessionId}/write`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
+
+      const { draft, liveSession } = (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`))
+        .body
+      expect(draft.version).toBe(1)
+      expect(liveSession).toBeNull()
+      const messages = (await transcripts(grilled.projectId, grilled.draftId))[0].messages
+      expect(messages).toContainEqual(
+        expect.objectContaining({ role: 'tool', summary: 'Submitted the Draft for validation', outcome: 'ok' }),
+      )
+      expect(messages).toContainEqual(
+        expect.objectContaining({ role: 'system', tone: 'success', text: expect.stringContaining('Draft v1 written') }),
+      )
+      expect(backend.events).toContainEqual(expect.objectContaining({ type: 'draft', projectId: grilled.projectId }))
+      expect((await call('GET', `/api/projects/${grilled.projectId}/drafts`)).body).toEqual([
+        expect.objectContaining({ id: grilled.draftId, version: 1, pendingChanges: 0 }),
+      ])
+      expect(
+        (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/render`)).body.title,
+      ).toBe(draft.title)
     })
-    await waitForStatus(project, draft.id, 'waiting')
-    const intro = (await transcripts(project, draft.id)).at(-1)!.messages[0]
-    expect(intro).toMatchObject({ role: 'system', text: expect.stringContaining('and 1 Reference') })
-    await call('POST', `/api/sessions/${session.id}/stop`)
-    await waitForStatus(project, draft.id, 'stopped')
+
+    it('refuses human input the session cannot take', async () => {
+      const grilled = await grillingDraft()
+      expect((await call('POST', `/api/sessions/${grilled.sessionId}/messages`, { text: '  ' })).status).toBe(409)
+      expect((await call('POST', `/api/sessions/unknown/write`)).status).toBe(409)
+      expect(
+        (
+          await call(
+            'POST',
+            `/api/internal/sessions/${grilled.sessionId}/submit`,
+            {},
+            { 'x-pbi-session-token': 'wrong' },
+          )
+        ).body,
+      ).toMatchObject({ ok: false, reasons: [{ code: 'unknown-session' }] })
+      expect((await call('DELETE', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).status).toBe(409)
+    })
+
+    it('stops a session without writing, and reports a crashed one', async () => {
+      const grilled = await grillingDraft()
+      await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+      expect(
+        (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version,
+      ).toBe(0)
+
+      const again = await call('POST', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions`, {
+        kind: 'first',
+        humanNote: 'CRASH please',
+      })
+      expect(again.status).toBe(200)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'failed')
+      expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.error).toContain(`fake ${prefix} crashed`)
+    })
+
+    it('stopAll resolves only once every running session has saved its Transcript', async () => {
+      const grilled = await grillingDraft()
+      await backend.supervisor.stopAll()
+      expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.status).toBe('stopped')
+    })
+
+    it('edits a written Draft, sets References and deletes it', async () => {
+      const grilled = await writtenDraft()
+      const base = `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`
+      const edited = await call('POST', `${base}/ops`, { op: 'retitle', title: 'Archive a device' })
+      expect(edited.body).toMatchObject({ title: 'Archive a device', titleHumanEdited: true })
+      expect((await call('POST', `${base}/ops`, { op: 'nonsense' })).status).toBe(400)
+      expect((await call('POST', `${base}/ops`, { op: 'discardSection', sectionId: 'nope' })).status).toBe(409)
+      expect(
+        (await call('PATCH', `${base}/references`, { references: [grilled.draftId, 'missing'] })).body.references,
+      ).toEqual([])
+      expect((await call('DELETE', base)).body).toEqual({ ok: true })
+      expect((await call('GET', base)).status).toBe(404)
+    })
+
+    it('turns a later session into a Proposal that is triaged into v2', async () => {
+      const grilled = await writtenDraft()
+      const base = `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`
+      expect((await call('POST', `${base}/sessions`, { kind: 'bogus' })).status).toBe(400)
+      expect((await call('POST', `${base}/sessions`, { kind: 'upgrade' })).status).toBe(409)
+      expect((await call('POST', `${base}/sessions`, { kind: 'focused', focus: { sectionId: 'nope' } })).status).toBe(
+        409,
+      )
+
+      const session = (
+        await call('POST', `${base}/sessions`, { kind: 'iteration', humanNote: 'BA wants bulk archive' })
+      ).body
+      await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
+      await call('POST', `/api/sessions/${session.id}/write`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
+
+      const withProposal = (await call('GET', base)).body.draft as Draft
+      expect(withProposal.proposal?.changes).toHaveLength(1)
+      expect((await call('POST', `${base}/sessions`, { kind: 'iteration' })).status).toBe(409)
+      const accepted = (await call('POST', `${base}/proposal/accept-clean`)).body as Draft
+      expect(accepted).toMatchObject({ version: 2, proposal: null })
+
+      await call('POST', `${base}/proposal/decide`, { changeId: 'none', accept: true })
+      expect((await call('GET', base)).body.draft.version).toBe(2)
+    })
+  })
+
+  describe('Continuations', () => {
+    const continueUrl = (grilled: { projectId: string; draftId: string }, sessionId: string) =>
+      `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/sessions/${sessionId}/continue`
+
+    it('continues a stopped first session in the same conversation, and still writes v1', async () => {
+      const grilled = await grillingDraft()
+      await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+      const [stopped] = await transcripts(grilled.projectId, grilled.draftId)
+      expect(stopped).toMatchObject({
+        assistant: assistant.name,
+        conversationId: expect.stringMatching(new RegExp(`^${prefix}-`)),
+      })
+
+      const continued = await call('POST', continueUrl(grilled, grilled.sessionId), { humanNote: 'Where were we?' })
+      expect(continued.body).toMatchObject({
+        kind: 'first',
+        continues: grilled.sessionId,
+        assistant: assistant.name,
+        conversationId: stopped.conversationId,
+      })
+      await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
+      const transcript = (await transcripts(grilled.projectId, grilled.draftId)).at(-1)!
+      expect(transcript.conversationId).toBe(stopped.conversationId)
+      expect(transcript.messages).toContainEqual(expect.objectContaining({ role: 'human', text: 'Where were we?' }))
+      expect(transcript.messages).toContainEqual(
+        expect.objectContaining({
+          role: 'claude',
+          segments: [{ type: 'text', text: 'Picking up where we left off.' }],
+        }),
+      )
+
+      await call('POST', `/api/sessions/${continued.body.id}/write`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
+      expect(
+        (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version,
+      ).toBe(1)
+    })
+
+    it('continues a finished first session as a New Iteration that can only propose', async () => {
+      const grilled = await writtenDraft()
+      const continued = (
+        await call('POST', continueUrl(grilled, grilled.sessionId), { humanNote: 'BA wants bulk archive' })
+      ).body
+      expect(continued).toMatchObject({ kind: 'iteration', continues: grilled.sessionId })
+      await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
+      expect((await call('POST', continueUrl(grilled, grilled.sessionId), {})).status).toBe(409)
+
+      await call('POST', `/api/sessions/${continued.id}/write`)
+      await waitForStatus(grilled.projectId, grilled.draftId, 'finished')
+      const draft = (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body
+        .draft as Draft
+      expect(draft).toMatchObject({ version: 1, proposal: { changes: [expect.anything()] } })
+      expect((await call('POST', continueUrl(grilled, continued.id), {})).status).toBe(409)
+      expect((await call('POST', continueUrl(grilled, 'sess-missing'), {})).status).toBe(404)
+    })
+  })
+
+  describe('Focused Sessions', () => {
+    it('grills one Section with a Reference in view, and names it in the chat', async () => {
+      const other = await writtenDraft()
+      const project = other.projectId
+      const created = (
+        await call('POST', `/api/projects/${project}/drafts`, {
+          workItemType: 'PBI',
+          templateId: defaultPbiTemplate.id,
+          requirement: 'Bulk',
+          references: [other.draftId],
+        })
+      ).body
+      await waitForStatus(project, created.draft.id, 'waiting')
+      await call('POST', `/api/sessions/${created.session.id}/write`)
+      await waitForStatus(project, created.draft.id, 'finished')
+
+      const draft = (await call('GET', `/api/projects/${project}/drafts/${created.draft.id}`)).body.draft as Draft
+      const scope = draft.sections.find((section) => section.key === 'scope')!
+      const session = (
+        await call('POST', `/api/projects/${project}/drafts/${draft.id}/sessions`, {
+          kind: 'focused',
+          focus: { sectionId: scope.id, entryId: scope.entries[0].id },
+        })
+      ).body
+      expect(session.focus).toEqual({
+        sectionId: scope.id,
+        entryId: scope.entries[0].id,
+        heading: `Scope › ${scope.entries[0].title}`,
+      })
+      await waitForStatus(project, draft.id, 'waiting')
+      const intro = (await transcripts(project, draft.id)).at(-1)!.messages[0]
+      expect(intro).toMatchObject({ role: 'system', text: expect.stringContaining('and 1 Reference') })
+      await call('POST', `/api/sessions/${session.id}/stop`)
+      await waitForStatus(project, draft.id, 'stopped')
+    })
+  })
+
+  describe('Template Sessions', () => {
+    it('grills a new Template in a Template Session', async () => {
+      expect((await call('POST', '/api/template-sessions', { workItemType: 'Story', purpose: 'x' })).status).toBe(400)
+      expect((await call('POST', '/api/template-sessions', { workItemType: 'PBI', purpose: ' ' })).status).toBe(409)
+      const session = (
+        await call('POST', '/api/template-sessions', {
+          workItemType: 'PBI',
+          purpose: 'Spikes',
+          baseTemplateId: defaultPbiTemplate.id,
+        })
+      ).body
+      expect(session.request).toMatchObject({ baseTemplateName: defaultPbiTemplate.name })
+      expect((await call('GET', '/api/template-sessions/live')).body.session).toMatchObject({ id: session.id })
+      expect((await call('POST', '/api/template-sessions', { workItemType: 'PBI', purpose: 'Again' })).status).toBe(409)
+
+      const url = `/api/template-sessions/${session.id}`
+      await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('waiting'), {
+        timeout: 8000,
+        interval: 50,
+      })
+      await call('POST', `/api/sessions/${session.id}/write`)
+      await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('finished'), {
+        timeout: 8000,
+        interval: 50,
+      })
+
+      const done = (await call('GET', url)).body
+      expect(done.templateId).toBeTruthy()
+      expect((await call('GET', `/api/templates/${done.templateId}`)).body).toMatchObject({
+        name: 'Spike PBI',
+        origin: { sessionId: session.id },
+      })
+      expect((await call('GET', '/api/template-sessions/live')).body.session).toBeNull()
+    })
   })
 })
 
@@ -390,40 +460,6 @@ describe('Templates', () => {
     expect(preview).toMatchObject({ ok: true, items: [{ status: 'new', selected: true }] })
     expect((await call('POST', '/api/templates/import', { bundle, selected: [0] })).body).toHaveLength(1)
     expect((await call('POST', '/api/templates/import', { bundle: {}, selected: [] })).status).toBe(409)
-  })
-
-  it('grills a new Template in a Template Session', async () => {
-    expect((await call('POST', '/api/template-sessions', { workItemType: 'Story', purpose: 'x' })).status).toBe(400)
-    expect((await call('POST', '/api/template-sessions', { workItemType: 'PBI', purpose: ' ' })).status).toBe(409)
-    const session = (
-      await call('POST', '/api/template-sessions', {
-        workItemType: 'PBI',
-        purpose: 'Spikes',
-        baseTemplateId: defaultPbiTemplate.id,
-      })
-    ).body
-    expect(session.request).toMatchObject({ baseTemplateName: defaultPbiTemplate.name })
-    expect((await call('GET', '/api/template-sessions/live')).body.session).toMatchObject({ id: session.id })
-    expect((await call('POST', '/api/template-sessions', { workItemType: 'PBI', purpose: 'Again' })).status).toBe(409)
-
-    const url = `/api/template-sessions/${session.id}`
-    await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('waiting'), {
-      timeout: 8000,
-      interval: 50,
-    })
-    await call('POST', `/api/sessions/${session.id}/write`)
-    await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('finished'), {
-      timeout: 8000,
-      interval: 50,
-    })
-
-    const done = (await call('GET', url)).body
-    expect(done.templateId).toBeTruthy()
-    expect((await call('GET', `/api/templates/${done.templateId}`)).body).toMatchObject({
-      name: 'Spike PBI',
-      origin: { sessionId: session.id },
-    })
-    expect((await call('GET', '/api/template-sessions/live')).body.session).toBeNull()
   })
 })
 

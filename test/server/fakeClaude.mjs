@@ -6,8 +6,7 @@
 import { spawnSync } from 'node:child_process'
 import readline from 'node:readline'
 
-import { methodSkeleton } from '#core/template/templateValidator.ts'
-import { validPbiContent } from '#core/testing/fixtures.ts'
+import { fakeSubmission } from './fakeSubmission.mjs'
 
 const emit = (event) => process.stdout.write(`${JSON.stringify(event)}\n`)
 const say = (text) => emit({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
@@ -15,37 +14,6 @@ const done = () => emit({ type: 'result', is_error: false })
 let seed = ''
 const resumeAt = process.argv.indexOf('--resume')
 const claudeSessionId = resumeAt >= 0 ? process.argv[resumeAt + 1] : `claude-${process.pid}`
-
-function payload() {
-  if (process.env.GRILLINGSTONE_GUARD_MODE === 'template')
-    return {
-      name: 'Spike PBI',
-      method: methodSkeleton('Spike PBI'),
-      sections: [
-        {
-          key: 'goal',
-          heading: 'Goal',
-          shape: 'prose',
-          locked: true,
-          guidance: 'What to find out',
-          target: 'System.Description',
-        },
-      ],
-    }
-  const current = /## Current Draft[^\n]*\n```json\n([\s\S]*?)\n```/.exec(seed)
-  if (!current) return validPbiContent()
-  const prose = JSON.parse(current[1]).sections.find((s) => typeof s.body === 'string' && !s.entries)
-  return {
-    changes: [
-      {
-        kind: 'replaceSection',
-        sectionId: prose.id,
-        body: `${prose.body} (revised)`,
-        label: `${prose.heading} · revise`,
-      },
-    ],
-  }
-}
 
 for await (const line of readline.createInterface({ input: process.stdin })) {
   const text = JSON.parse(line).message.content
@@ -89,7 +57,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     },
   })
   const run = spawnSync(process.execPath, [script], {
-    input: JSON.stringify(payload()),
+    input: JSON.stringify(fakeSubmission(process.env.GRILLINGSTONE_GUARD_MODE === 'template', seed)),
     env: process.env,
     encoding: 'utf8',
   })

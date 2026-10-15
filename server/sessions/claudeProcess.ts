@@ -4,7 +4,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { CLAUDE_BIN, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
+import { HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
 import type { AssistantLaunch, Conversation } from './assistant.ts'
 
 export function claudeArgs(systemPrompt: string, model: string, { persist, resume }: Conversation): string[] {
@@ -30,8 +30,11 @@ export function claudeArgs(systemPrompt: string, model: string, { persist, resum
   ]
 }
 
-export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: AssistantLaunch): ChildProcess {
-  return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation), {
+export function spawnClaude(
+  bin: string,
+  { sessionId, token, scope, seed, model, conversation }: AssistantLaunch,
+): ChildProcess {
+  return spawn(bin, claudeArgs(seed.systemPrompt, model, conversation), {
     cwd: scope.cwd,
     env: {
       ...process.env,
@@ -49,25 +52,3 @@ export function spawnClaude({ sessionId, token, scope, seed, model, conversation
 /** Sends one human turn over stream-json. */
 export const sendMessage = (child: ChildProcess, text: string) =>
   child.stdin?.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`)
-
-/** Turns stdout chunks into parsed JSON lines; lines that are not JSON are skipped. */
-export function jsonLines(onEvent: (event: Record<string, unknown>) => void) {
-  let buffer = ''
-  return (chunk: string) => {
-    buffer += chunk
-    let newlineAt: number
-    while ((newlineAt = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, newlineAt).trim()
-      buffer = buffer.slice(newlineAt + 1)
-      if (!line) continue
-      let event: Record<string, unknown>
-      try {
-        event = JSON.parse(line) as Record<string, unknown>
-      } catch {
-        // Claude Code may print a non-JSON line (a warning, say); it carries no event, so it is skipped.
-        continue
-      }
-      onEvent(event)
-    }
-  }
-}
