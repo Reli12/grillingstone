@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Container entrypoint.
-#   (no arguments)  start the backend and the Vite frontend side by side, like `npm run dev`
-#   login           sign in to Claude Code with your Claude subscription (once; kept in the claude-home volume)
-#   <command…>      run anything else, e.g. `bash` or `claude auth status --text`
+#   (no arguments)     start the backend and the Vite frontend side by side, like `npm run dev`
+#   login [--console]  sign in to Claude Code once (kept in the claude-home volume): your Claude subscription by
+#                      default, or with --console an Anthropic API key from your Console account
+#   <command…>         run anything else, e.g. `bash` or `claude auth status --text`
 set -u
 
 case "${1:-}" in
-  login) exec claude auth login --claudeai ;;
+  login) shift; exec claude auth login "$@" ;;
   ?*) exec "$@" ;;
 esac
 

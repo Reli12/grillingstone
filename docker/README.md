@@ -1,8 +1,8 @@
 # Running Grilling Stone with Docker
 
-For running Grilling Stone without Node.js or Claude Code on your machine. The container holds the backend, the frontend
-and Claude Code; you only need [Docker](https://www.docker.com/products/docker-desktop/) and a Claude subscription
-(Pro or Max).
+For running Grilling Stone without Node.js or Claude Code on your machine. The container holds the backend, the
+frontend and Claude Code; you only need [Docker](https://www.docker.com/products/docker-desktop/) and a Claude
+account: a subscription (Pro or Max) or an Anthropic API key.
 
 ## Getting started
 
@@ -13,6 +13,7 @@ Run these from the repository root:
 docker compose -f docker/compose.yml build
 
 # 2. Sign in to Claude, once. Open the link it prints, sign in with your Claude account, paste the code back.
+#    Using an Anthropic API key instead? Add --console after login and sign in to your Console account.
 docker compose -f docker/compose.yml run --rm grillingstone login
 
 # 3. Start Grilling Stone
