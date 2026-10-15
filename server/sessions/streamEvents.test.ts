@@ -28,7 +28,7 @@ describe('describeTool', () => {
 describe('readStreamEvent', () => {
   it("reads Claude Code's own session id from the init event", () => {
     expect(readStreamEvent({ type: 'system', subtype: 'init', session_id: 'claude-123' }, ctx())).toEqual([
-      { type: 'claudeSession', id: 'claude-123' },
+      { type: 'conversation', id: 'claude-123' },
     ])
     expect(readStreamEvent({ type: 'system', subtype: 'other' }, ctx())).toEqual([])
   })

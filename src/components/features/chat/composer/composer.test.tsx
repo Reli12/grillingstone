@@ -13,6 +13,7 @@ const session = (status: SessionBase['status']): SessionBase => ({
   id: 's1',
   kind: 'first',
   status,
+  assistant: 'claude',
   writeConfirmed: false,
   startedAt: '',
 })

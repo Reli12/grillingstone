@@ -15,7 +15,8 @@ const ended = (patch: Partial<SessionSummary>): SessionSummary => ({
   status: 'finished',
   writeConfirmed: true,
   startedAt: meta.date,
-  claudeSessionId: 'claude-1',
+  assistant: 'claude',
+  conversationId: 'claude-1',
   ...patch,
 })
 
@@ -58,12 +59,12 @@ describe('continuation', () => {
     expect(continuation(upgrade, v1Draft(), defaultPbiTemplate.version)).toEqual({ ok: true, kind: 'iteration' })
   })
 
-  it('refuses a live session, one Claude Code never named, and a Draft with an open Proposal', () => {
+  it('refuses a live session, one the Assistant never named, and a Draft with an open Proposal', () => {
     expect(continuation(ended({ status: 'waiting' }), v1Draft(), undefined)).toMatchObject({
       ok: false,
       reason: expect.stringContaining('still running'),
     })
-    expect(continuation(ended({ claudeSessionId: undefined }), v1Draft(), undefined)).toMatchObject({
+    expect(continuation(ended({ conversationId: undefined }), v1Draft(), undefined)).toMatchObject({
       ok: false,
       reason: expect.stringContaining('before sessions could be continued'),
     })

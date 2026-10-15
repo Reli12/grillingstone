@@ -316,7 +316,7 @@ describe('DraftPage from v1', () => {
     const ended = transcript(draft, grillingMessages, {
       id: 'sess-1',
       kind: 'iteration',
-      claudeSessionId: 'claude-1',
+      conversationId: 'claude-1',
       startedAt: '2026-09-22T11:00:00Z',
     })
     const api = draftBackend(draft, { transcripts: [old, ended] })
@@ -345,7 +345,7 @@ describe('DraftPage from v1', () => {
   it('offers to continue the latest session right in the message box', async () => {
     const draft = v1Draft()
     const api = draftBackend(draft, {
-      transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', claudeSessionId: 'claude-1' })],
+      transcripts: [transcript(draft, grillingMessages, { id: 'sess-1', conversationId: 'claude-1' })],
     })
     const { user } = renderPage(draft)
 
@@ -362,7 +362,7 @@ describe('DraftPage from v1', () => {
 
   it('cannot continue while a Proposal waits for triage', async () => {
     const draft = withProposal()
-    draftBackend(draft, { transcripts: [transcript(draft, grillingMessages, { claudeSessionId: 'claude-1' })] })
+    draftBackend(draft, { transcripts: [transcript(draft, grillingMessages, { conversationId: 'claude-1' })] })
     renderPage(draft)
     expect(await screen.findByPlaceholderText(/Triage the Proposal/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Continue/ })).not.toBeInTheDocument()

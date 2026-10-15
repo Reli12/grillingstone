@@ -262,17 +262,18 @@ describe('Continuations', () => {
     await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
     await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
     const [stopped] = await transcripts(grilled.projectId, grilled.draftId)
-    expect(stopped.claudeSessionId).toMatch(/^claude-/)
+    expect(stopped).toMatchObject({ assistant: 'claude', conversationId: expect.stringMatching(/^claude-/) })
 
     const continued = await call('POST', continueUrl(grilled, grilled.sessionId), { humanNote: 'Where were we?' })
     expect(continued.body).toMatchObject({
       kind: 'first',
       continues: grilled.sessionId,
-      claudeSessionId: stopped.claudeSessionId,
+      assistant: 'claude',
+      conversationId: stopped.conversationId,
     })
     await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
     const transcript = (await transcripts(grilled.projectId, grilled.draftId)).at(-1)!
-    expect(transcript.claudeSessionId).toBe(stopped.claudeSessionId)
+    expect(transcript.conversationId).toBe(stopped.conversationId)
     expect(transcript.messages).toContainEqual(expect.objectContaining({ role: 'human', text: 'Where were we?' }))
     expect(transcript.messages).toContainEqual(
       expect.objectContaining({ role: 'claude', segments: [{ type: 'text', text: 'Picking up where we left off.' }] }),

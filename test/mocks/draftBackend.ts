@@ -21,6 +21,7 @@ export const liveSession = (draft: Draft, patch: Partial<SessionSummary> = {}): 
   id: 'sess-live',
   kind: 'iteration',
   status: 'waiting',
+  assistant: 'claude',
   writeConfirmed: false,
   startedAt: '2026-09-22T10:00:00Z',
   projectId: draft.projectId,

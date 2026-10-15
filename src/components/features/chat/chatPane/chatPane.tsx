@@ -21,7 +21,7 @@ export function ChatPane({ live, transcripts, composerRef, ...idleProps }: Reado
   const { say, writeNow, stop } = mutations
   // An ended session can be continued if Claude Code kept its conversation and nothing else is open.
   const canContinue = (transcript: Continuable) =>
-    !live && !draft.proposal && !!transcript.claudeSessionId && !LIVE_STATUSES.includes(transcript.status)
+    !live && !draft.proposal && !!transcript.conversationId && !LIVE_STATUSES.includes(transcript.status)
   return (
     <>
       <ChatThread

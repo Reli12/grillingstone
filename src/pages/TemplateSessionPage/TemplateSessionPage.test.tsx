@@ -15,6 +15,7 @@ const transcript = (patch: Partial<TemplateTranscript> = {}): TemplateTranscript
   id: 'ts',
   kind: 'template',
   status: 'waiting',
+  assistant: 'claude',
   writeConfirmed: false,
   startedAt: '',
   request: { workItemType: 'PBI', purpose: 'Spike PBIs', examples: '', baseTemplateName: 'Default PBI Template' },

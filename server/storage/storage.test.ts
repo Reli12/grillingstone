@@ -1,4 +1,4 @@
-// Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup.
+// Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup, old Transcripts.
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'
@@ -7,10 +7,12 @@ import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, getDraft, updateDraft } from './drafts.ts'
 import { StaleWrite } from './errors.ts'
+import { writeJson } from './fsUtil.ts'
 import { getGlossary, saveGlossary } from './glossary.ts'
-import { safeId } from './paths.ts'
+import { safeId, templateTranscriptFile, transcriptFile } from './paths.ts'
 import { createProject } from './projects.ts'
 import { getSettings, saveSettings } from './settings.ts'
+import { getTemplateTranscript, getTranscript, listTemplateTranscripts, listTranscripts } from './transcripts.ts'
 
 beforeEach(resetTestData)
 
@@ -58,5 +60,36 @@ describe('storage', () => {
       theme: 'system',
     })
     expect((await getSettings()).author).toBeTruthy()
+  })
+})
+
+describe('Transcripts saved before the Assistant seam', () => {
+  /** A Transcript as it was stored before it named its Assistant: Claude Code's id in `claudeSessionId`. */
+  const legacy = (projectId: string) => ({
+    id: 'sess-old',
+    projectId,
+    draftId: 'd1',
+    kind: 'first',
+    status: 'stopped',
+    writeConfirmed: false,
+    startedAt: meta.date,
+    claudeSessionId: 'claude-old',
+    messages: [],
+  })
+
+  it('read as held by Claude, with the old id as the conversation to resume', async () => {
+    const project = await createProject('Legacy', meta.date)
+    await writeJson(transcriptFile(project.id, 'sess-old'), legacy(project.id))
+    const expected = { assistant: 'claude', conversationId: 'claude-old' }
+    expect(await getTranscript(project.id, 'sess-old')).toMatchObject(expected)
+    expect(await listTranscripts(project.id)).toEqual([expect.objectContaining(expected)])
+    expect(await getTranscript(project.id, 'sess-old')).not.toHaveProperty('claudeSessionId')
+  })
+
+  it('read a Template Session without an Assistant as held by Claude', async () => {
+    const { projectId: _projectId, draftId: _draftId, ...template } = legacy('')
+    await writeJson(templateTranscriptFile('tsess-old'), { ...template, id: 'tsess-old', kind: 'template' })
+    expect(await getTemplateTranscript('tsess-old')).toMatchObject({ assistant: 'claude' })
+    expect(await listTemplateTranscripts()).toEqual([expect.objectContaining({ assistant: 'claude' })])
   })
 })

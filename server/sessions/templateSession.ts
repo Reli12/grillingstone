@@ -1,4 +1,5 @@
 // A Template Session runs in an empty working folder — no Project, no Glossary — and writes one new Template.
+import type { AssistantName } from '#core/session/assistantName.ts'
 import type { TemplateRequest, TemplateTranscript } from '#core/session/sessionTypes.ts'
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -67,6 +68,7 @@ function templateScope(cwd: string, deps: TemplateSessionDeps, submit: Scope['su
 
 export async function prepareTemplateSession(
   request: TemplateRequest,
+  assistant: AssistantName,
   deps: TemplateSessionDeps,
 ): Promise<PreparedSession<TemplateTranscript>> {
   if (!request.purpose.trim()) throw new SessionError('Say what the Template is for, so Claude has something to grill.')
@@ -79,6 +81,7 @@ export async function prepareTemplateSession(
     kind: 'template',
     request: { ...request, ...(base ? { baseTemplateName: base.name } : {}) },
     status: 'starting',
+    assistant,
     writeConfirmed: false,
     startedAt: now(),
     messages: [],

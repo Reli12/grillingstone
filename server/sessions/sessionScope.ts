@@ -24,7 +24,7 @@ export interface Scope {
   submitLabel: string
   /** A tool result edited the Project Glossary. */
   onGlossaryEdit?: () => void
-  /** Claude Code keeps the conversation so the session can be continued (ADR-0014). */
+  /** The Assistant keeps the conversation so the session can be continued (ADR-0014). */
   persist: boolean
 }
 
@@ -35,7 +35,7 @@ export interface PreparedSession<T extends AnyTranscript> {
   seed: Seed
   /** The first system line in the chat. */
   intro: string
-  /** Claude Code's conversation to resume, for a Continuation. */
+  /** The Assistant's conversation to resume, for a Continuation. */
   resume?: string
 }
 

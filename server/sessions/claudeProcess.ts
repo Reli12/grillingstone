@@ -2,28 +2,10 @@
 // Guard as a PreToolUse hook (ADR-0006), and the submit script's credentials in its environment.
 import { type ChildProcess, spawn } from 'node:child_process'
 
-import type { Seed } from '#core/session/cardProtocol.ts'
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
 import { CLAUDE_BIN, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
-import type { Scope } from './sessionScope.ts'
-
-export interface ClaudeLaunch {
-  sessionId: string
-  /** Authenticates the submit script's call back to the backend. */
-  token: string
-  scope: Pick<Scope, 'cwd' | 'guardMode'>
-  seed: Seed
-  /** '' for Claude Code's default. */
-  model: string
-  conversation: Conversation
-}
-
-/** Whether Claude Code keeps the conversation so it can be continued, and which one to continue (ADR-0014). */
-export interface Conversation {
-  persist: boolean
-  resume?: string
-}
+import type { AssistantLaunch, Conversation } from './assistant.ts'
 
 export function claudeArgs(systemPrompt: string, model: string, { persist, resume }: Conversation): string[] {
   const settings = JSON.stringify({
@@ -48,7 +30,7 @@ export function claudeArgs(systemPrompt: string, model: string, { persist, resum
   ]
 }
 
-export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: ClaudeLaunch): ChildProcess {
+export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: AssistantLaunch): ChildProcess {
   return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation), {
     cwd: scope.cwd,
     env: {

@@ -3,6 +3,7 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { parseGlossary } from '#core/glossary/glossary.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
+import type { AssistantName } from '#core/session/assistantName.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
@@ -30,8 +31,10 @@ export interface StartArgs {
   kind: SessionKind
   focus?: { sectionId: string; entryId?: string }
   humanNote?: string
-  /** For a Continuation: the ended session whose Claude Code conversation it resumes (ADR-0014). */
+  /** For a Continuation: the ended session whose conversation it resumes (ADR-0014). */
   continues?: SessionSummary
+  /** The Assistant that runs it. */
+  assistant: AssistantName
 }
 
 export interface GrillingDeps {
@@ -190,7 +193,8 @@ function newTranscript(args: StartArgs, focus: Focus): Transcript {
     status: 'starting',
     ...(focus ? { focus } : {}),
     ...(humanNote ? { humanNote } : {}),
-    ...(continues ? { continues: continues.id, claudeSessionId: continues.claudeSessionId } : {}),
+    assistant: args.assistant,
+    ...(continues ? { continues: continues.id, conversationId: continues.conversationId } : {}),
     writeConfirmed: false,
     startedAt: now(),
     messages: [],
@@ -228,7 +232,7 @@ export async function prepareGrillingSession(
     transcript,
     seed,
     intro,
-    ...(args.continues ? { resume: args.continues.claudeSessionId } : {}),
+    ...(args.continues ? { resume: args.continues.conversationId } : {}),
     scope: grillingScope(args, deps, submit),
   }
 }

@@ -1,5 +1,6 @@
 // What the backend tells the browser about Grilling and Template Sessions, and what a Transcript holds.
 import type { Draft } from '#core/draft/draftTypes.ts'
+import type { AssistantName } from '#core/session/assistantName.ts'
 import type { Segment } from '#core/session/blockExtractor.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -46,8 +47,10 @@ export interface SessionBase {
   startedAt: string
   endedAt?: string
   error?: string
-  /** Claude Code's own id for the conversation, from its init event; what a Continuation resumes (ADR-0014). */
-  claudeSessionId?: string
+  /** The Assistant that holds the conversation; a Continuation needs the same one (ADR-0020). */
+  assistant: AssistantName
+  /** The Assistant's own id for the conversation; what a Continuation resumes (ADR-0014). */
+  conversationId?: string
 }
 
 /** A Grilling Session: on one Draft in one Project. */

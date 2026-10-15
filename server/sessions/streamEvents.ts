@@ -27,8 +27,8 @@ export type StreamStep =
   | { type: 'message'; message: ChatMessage; toolUseId?: string; tool?: KnownTool }
   | { type: 'toolResult'; messageId: string; outcome: ToolOutcome; glossaryEdited: boolean }
   | { type: 'turnEnded' }
-  /** Claude Code named its conversation. */
-  | { type: 'claudeSession'; id: string }
+  /** The Assistant named its conversation. */
+  | { type: 'conversation'; id: string }
 
 /** Longest slice of a shell command shown in a "Tried to run" line. */
 const MAX_COMMAND_PREVIEW = 80
@@ -176,7 +176,7 @@ export function readStreamEvent(event: Record<string, unknown>, ctx: StreamConte
   if (event.type === 'system') {
     // The init event names Claude Code's conversation, which a Continuation resumes later.
     if (event.subtype === 'init' && typeof event.session_id === 'string')
-      return [{ type: 'claudeSession', id: event.session_id }]
+      return [{ type: 'conversation', id: event.session_id }]
     return []
   }
   // Output of sub-agents carries a parent_tool_use_id; only the main conversation reaches the chat.

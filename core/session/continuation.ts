@@ -14,7 +14,7 @@ export function continuation(
   latestTemplateVersion: number | undefined,
 ): Continuation {
   if (LIVE_STATUSES.includes(earlier.status)) return { ok: false, reason: 'This session is still running.' }
-  if (!earlier.claudeSessionId)
+  if (!earlier.conversationId)
     return { ok: false, reason: 'This session ran before sessions could be continued — start a new one.' }
   if (draft.version === 0) return { ok: true, kind: 'first' }
   if (draft.proposal) return { ok: false, reason: 'Triage the open Proposal before continuing a session.' }

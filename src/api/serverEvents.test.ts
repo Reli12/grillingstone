@@ -21,6 +21,7 @@ const templateSession = {
   id: 'ts',
   kind: 'template' as const,
   status: 'waiting' as const,
+  assistant: 'claude' as const,
   writeConfirmed: false,
   startedAt: '',
   request: { workItemType: 'PBI' as const, purpose: 'x', examples: '' },
