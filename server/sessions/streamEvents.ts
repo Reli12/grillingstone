@@ -2,11 +2,11 @@
 // become one-line summaries whose outcome is filled in when the result arrives.
 import path from 'node:path'
 
-import { extractBlocks } from '#core/session/blockExtractor.ts'
+import { GLOSSARY_FILE } from '#core/session/permissionGuard.ts'
 import type { ChatMessage } from '#core/session/sessionTypes.ts'
-import { newId } from '#core/shared/ids.ts'
 
 import { SUBMIT_SCRIPT } from '../config.ts'
+import { assistantTextSteps, MAX_COMMAND_PREVIEW, toolStartStep, turnFailedSteps } from './chatMessages.ts'
 
 export type ToolOutcome = 'ok' | 'denied' | 'error'
 
@@ -30,20 +30,14 @@ export type StreamStep =
   /** The Assistant named its conversation. */
   | { type: 'conversation'; id: string }
 
-/** Longest slice of a shell command shown in a "Tried to run" line. */
-const MAX_COMMAND_PREVIEW = 80
-
 /** The tools that write files; one of them touching CONTEXT.md is an edit to the Glossary. */
 const FILE_WRITING_TOOLS = ['Edit', 'Write', 'MultiEdit']
-const GLOSSARY_FILE = 'CONTEXT.md'
 
 /** Tool-result text that means the Permission Guard (or Claude Code) refused the call rather than it failing. */
 const DENIED_RESULT = /hook error|denied|not allowed|not available/i
 
 /** What the submit script prints when the backend refused the submission; the call itself "succeeded". */
 const SUBMISSION_REFUSED = 'REFUSED'
-
-const now = () => new Date().toISOString()
 
 /** Tool inputs and stream fields are untyped JSON; show them only when they are text. */
 const text = (value: unknown, fallback: string) => (typeof value === 'string' ? value : fallback)
@@ -95,34 +89,20 @@ function contentBlocks(event: Record<string, unknown>): Block[] {
   return Array.isArray(message?.content) ? (message.content as Block[]) : []
 }
 
-function claudeTextStep(block: Block): StreamStep | null {
-  if (typeof block.text !== 'string' || !block.text.trim()) return null
-  return {
-    type: 'message',
-    message: { id: newId('m'), at: now(), role: 'claude', segments: extractBlocks(block.text) },
-  }
-}
-
-function toolUseStep(block: Block, ctx: StreamContext): StreamStep | null {
+function toolUseSteps(block: Block, ctx: StreamContext): StreamStep[] {
   const name = String(block.name)
   const input = (block.input ?? {}) as Record<string, unknown>
   const summary = describeTool(name, input, ctx)
-  if (!summary) return null
-  const toolUseId = String(block.id)
-  const message: ChatMessage = { id: newId('m'), at: now(), role: 'tool', tool: name, summary, toolUseId }
-  return { type: 'message', message, toolUseId, tool: { name, input, messageId: message.id } }
+  return summary ? [toolStartStep(name, String(block.id), input, summary)] : []
 }
 
 /** Claude's own turn: its text and the tool calls worth showing. */
 function assistantSteps(blocks: Block[], ctx: StreamContext): StreamStep[] {
-  const steps: StreamStep[] = []
-  for (const block of blocks) {
-    let step: StreamStep | null = null
-    if (block.type === 'text') step = claudeTextStep(block)
-    else if (block.type === 'tool_use') step = toolUseStep(block, ctx)
-    if (step) steps.push(step)
-  }
-  return steps
+  return blocks.flatMap((block) => {
+    if (block.type === 'text') return assistantTextSteps(block.text)
+    if (block.type === 'tool_use') return toolUseSteps(block, ctx)
+    return []
+  })
 }
 
 function toolOutcome(block: Block, resultText: string): ToolOutcome {
@@ -161,14 +141,7 @@ function userSteps(blocks: Block[], ctx: StreamContext): StreamStep[] {
 function resultSteps(event: Record<string, unknown>): StreamStep[] {
   if (!event.is_error) return [{ type: 'turnEnded' }]
   const detail = typeof event.result === 'string' ? event.result : text(event.subtype, 'error')
-  const error: ChatMessage = {
-    id: newId('m'),
-    at: now(),
-    role: 'system',
-    tone: 'error',
-    text: `Claude Code reported an error: ${detail}`,
-  }
-  return [{ type: 'message', message: error }, { type: 'turnEnded' }]
+  return turnFailedSteps(`Claude Code reported an error: ${detail}`)
 }
 
 /** What one stream-json event means for the Transcript. */
