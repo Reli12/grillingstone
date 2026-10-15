@@ -1,5 +1,6 @@
 // The Assistant seam (ADR-0020): how the Supervisor runs a session's conversation without knowing whether
 // Claude Code or Codex holds it. Each adapter turns its own process and protocol into the same steps.
+import type { Availability } from '#core/contract/apiTypes.ts'
 import type { AssistantName } from '#core/session/assistantName.ts'
 import type { Seed, SubmitVia } from '#core/session/cardProtocol.ts'
 
@@ -52,5 +53,7 @@ export interface Assistant {
   name: AssistantName
   /** How its sessions hand over their JSON, which the seed names. */
   submitVia: SubmitVia
+  /** Whether it is installed and signed in, so a session never starts on one that cannot run. */
+  checkAvailability: () => Promise<Availability>
   start: (launch: AssistantLaunch, events: AssistantEvents) => AssistantSession
 }

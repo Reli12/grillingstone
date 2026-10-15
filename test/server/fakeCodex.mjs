@@ -9,6 +9,16 @@ import readline from 'node:readline'
 
 import { fakeSubmission } from './fakeSubmission.mjs'
 
+// `codex login status`: signed in (exit 0), unless a test set FAKE_ASSISTANT_SIGNED_OUT.
+if (process.argv[2] === 'login' && process.argv[3] === 'status') {
+  if (process.env.FAKE_ASSISTANT_SIGNED_OUT) {
+    process.stderr.write('Not logged in\n')
+    process.exit(1)
+  }
+  process.stdout.write('Logged in using ChatGPT\n')
+  process.exit(0)
+}
+
 const WRITE_NOW = 'Write it now.'
 const SUBMIT_TOOL = 'submit_draft'
 /** A Template Session's profile writes nothing; a Grilling Session's may write plan/. */

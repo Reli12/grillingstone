@@ -9,7 +9,7 @@ import { createDraft, getDraft, updateDraft } from './drafts.ts'
 import { StaleWrite } from './errors.ts'
 import { writeJson } from './fsUtil.ts'
 import { getGlossary, saveGlossary } from './glossary.ts'
-import { safeId, templateTranscriptFile, transcriptFile } from './paths.ts'
+import { safeId, settingsFile, templateTranscriptFile, transcriptFile } from './paths.ts'
 import { createProject } from './projects.ts'
 import { getSettings, saveSettings } from './settings.ts'
 import { getTemplateTranscript, getTranscript, listTemplateTranscripts, listTranscripts } from './transcripts.ts'
@@ -55,11 +55,28 @@ describe('storage', () => {
   })
 
   it('cleans Settings on save', async () => {
-    expect(await saveSettings({ author: ' ', model: ' ', theme: 'neon' as never })).toMatchObject({
-      model: '',
+    const junk = {
+      author: ' ',
+      assistant: 'gpt' as never,
+      models: { claude: ' ', codex: ' o4 ' },
+      theme: 'neon' as never,
+    }
+    expect(await saveSettings(junk)).toMatchObject({
+      assistant: 'claude',
+      models: { claude: '', codex: 'o4' },
       theme: 'system',
     })
     expect((await getSettings()).author).toBeTruthy()
+  })
+
+  it('reads Settings saved before the Assistant choice as Claude, with the old model as Claude’s', async () => {
+    await writeJson(settingsFile, { author: 'dorijan', model: ' opus ', theme: 'dark' })
+    expect(await getSettings()).toEqual({
+      author: 'dorijan',
+      assistant: 'claude',
+      models: { claude: 'opus', codex: '' },
+      theme: 'dark',
+    })
   })
 })
 

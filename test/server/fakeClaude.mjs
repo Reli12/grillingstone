@@ -8,6 +8,12 @@ import readline from 'node:readline'
 
 import { fakeSubmission } from './fakeSubmission.mjs'
 
+// `claude auth status --json`: signed in, unless a test set FAKE_ASSISTANT_SIGNED_OUT.
+if (process.argv[2] === 'auth' && process.argv[3] === 'status') {
+  process.stdout.write(`${JSON.stringify({ loggedIn: !process.env.FAKE_ASSISTANT_SIGNED_OUT })}\n`)
+  process.exit(0)
+}
+
 const emit = (event) => process.stdout.write(`${JSON.stringify(event)}\n`)
 const say = (text) => emit({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
 const done = () => emit({ type: 'result', is_error: false })

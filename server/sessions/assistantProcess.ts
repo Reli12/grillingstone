@@ -1,6 +1,6 @@
 // What both Assistant adapters do with their process: keep the end of its stderr so a crash can be explained,
-// report how it ended, and stop it (SIGTERM, then SIGKILL after a grace period).
-import type { ChildProcess } from 'node:child_process'
+// report how it ended, and stop it (SIGTERM, then SIGKILL after a grace period). Also runs their status commands.
+import { type ChildProcess, execFile } from 'node:child_process'
 
 import type { AssistantEvents } from './assistant.ts'
 
@@ -10,6 +10,8 @@ const STDERR_TAIL_CHARS = 4000
 const STDERR_LINES_IN_ERROR = 5
 /** How long a stopped or closed session gets to exit before it is killed. */
 export const STOP_GRACE_MS = 3000
+/** How long a sign-in status command may take before the Assistant counts as not answering. */
+const STATUS_TIMEOUT_MS = 10_000
 
 interface ExitOptions {
   /** The Assistant's name in error text ("Claude Code", "Codex"). */
@@ -60,4 +62,22 @@ export function stopper(child: ChildProcess) {
     setTimeout(killIfStillRunning, STOP_GRACE_MS).unref()
   }
   return { running, stop }
+}
+
+/** What a status command did: the binary was not found, or it ran and exited with this code and output. */
+export type StatusRun = { found: false } | { found: true; code: number; stdout: string }
+
+/** Runs a short status command (`claude auth status`, `codex login status`) and reports how it went. */
+export function runStatus(bin: string, args: string[]): Promise<StatusRun> {
+  return new Promise((resolve) => {
+    execFile(bin, args, { timeout: STATUS_TIMEOUT_MS, encoding: 'utf8' }, (error, stdout) => {
+      const code = (error as { code?: unknown } | null)?.code
+      if (code === 'ENOENT' || code === 'EACCES') return resolve({ found: false })
+      // A number is the exit code; any other error (a timeout, a signal) counts as a failed status.
+      let exitCode = 0
+      if (typeof code === 'number') exitCode = code
+      else if (error) exitCode = 1
+      resolve({ found: true, code: exitCode, stdout })
+    })
+  })
 }

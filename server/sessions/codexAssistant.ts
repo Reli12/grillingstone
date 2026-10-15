@@ -4,13 +4,14 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import type { Availability } from '#core/contract/apiTypes.ts'
 import { SUBMIT_TOOL } from '#core/session/cardProtocol.ts'
 import { codexConfig, configArgs } from '#core/session/codexProfile.ts'
 import { CODEX_APPROVAL_REQUESTS, decideCodexRequest } from '#core/session/permissionGuard.ts'
 
 import { CODEX_BIN, DATA_DIR } from '../config.ts'
 import type { Assistant, AssistantEvents, AssistantLaunch, AssistantSession } from './assistant.ts'
-import { followExit, STOP_GRACE_MS, stopper } from './assistantProcess.ts'
+import { followExit, runStatus, STOP_GRACE_MS, stopper } from './assistantProcess.ts'
 import { turnFailedSteps } from './chatMessages.ts'
 import { readCodexNotification } from './codexEvents.ts'
 import { type CodexRpc, codexRpc, type IncomingRequest } from './codexRpc.ts'
@@ -179,10 +180,23 @@ function start(bin: string, launch: AssistantLaunch, events: AssistantEvents): A
   }
 }
 
+/** Installed and signed in, from `codex login status`, which exits 0 only when signed in. */
+async function checkAvailability(bin: string): Promise<Availability> {
+  const status = await runStatus(bin, ['login', 'status'])
+  if (!status.found)
+    return {
+      ready: false,
+      fix: `Codex isn’t installed (looked for \`${bin}\`). Install it with \`npm install -g @openai/codex\`, or point GRILLINGSTONE_CODEX_BIN at it.`,
+    }
+  if (status.code === 0) return { ready: true }
+  return { ready: false, fix: 'Codex isn’t signed in. Run `codex login` in a terminal, then try again.' }
+}
+
 /** The Codex adapter for the `codex` binary at `bin`. */
 export const codexAssistantAt = (bin: string): Assistant => ({
   name: 'codex',
   submitVia: { tool: SUBMIT_TOOL },
+  checkAvailability: () => checkAvailability(bin),
   start: (launch, events) => start(bin, launch, events),
 })
 

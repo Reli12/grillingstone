@@ -2,9 +2,11 @@
 // into steps, its stderr kept so a crash can be explained.
 import type { ChildProcess } from 'node:child_process'
 
+import type { Availability } from '#core/contract/apiTypes.ts'
+
 import { CLAUDE_BIN, SUBMIT_SCRIPT } from '../config.ts'
 import type { Assistant, AssistantEvents, AssistantLaunch, AssistantSession } from './assistant.ts'
-import { followExit, stopper } from './assistantProcess.ts'
+import { followExit, runStatus, stopper } from './assistantProcess.ts'
 import { sendMessage, spawnClaude } from './claudeProcess.ts'
 import { jsonLines } from './jsonLines.ts'
 import { type KnownTool, readStreamEvent } from './streamEvents.ts'
@@ -38,10 +40,33 @@ function start(bin: string, launch: AssistantLaunch, events: AssistantEvents): A
   }
 }
 
+/** Installed and signed in, from `claude auth status`, which prints JSON with `loggedIn`. */
+async function checkAvailability(bin: string): Promise<Availability> {
+  const status = await runStatus(bin, ['auth', 'status', '--json'])
+  if (!status.found)
+    return {
+      ready: false,
+      fix: `Claude Code isn’t installed (looked for \`${bin}\`). Install it with \`npm install -g @anthropic-ai/claude-code\`, or point GRILLINGSTONE_CLAUDE_BIN at it.`,
+    }
+  if (signedIn(status.stdout)) return { ready: true }
+  return { ready: false, fix: 'Claude Code isn’t signed in. Run `claude auth login` in a terminal, then try again.' }
+}
+
+/** Whether `claude auth status --json` says it is signed in; output that is not that JSON means it is not. */
+function signedIn(stdout: string): boolean {
+  try {
+    return (JSON.parse(stdout) as { loggedIn?: unknown }).loggedIn === true
+  } catch {
+    // Not the JSON status (an old version, an error page): nothing says it is signed in.
+    return false
+  }
+}
+
 /** The Claude adapter for the `claude` binary at `bin`. */
 export const claudeAssistantAt = (bin: string): Assistant => ({
   name: 'claude',
   submitVia: { command: `node "${SUBMIT_SCRIPT}"` },
+  checkAvailability: () => checkAvailability(bin),
   start: (launch, events) => start(bin, launch, events),
 })
 

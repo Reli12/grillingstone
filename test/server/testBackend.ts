@@ -13,7 +13,6 @@ import { createApp } from '../../server/app.ts'
 import { DATA_DIR, SERVER_PORT, SERVER_URL } from '../../server/config.ts'
 import { Hub } from '../../server/hub.ts'
 import { createServices } from '../../server/services/createServices.ts'
-import type { Assistant } from '../../server/sessions/assistant.ts'
 
 export interface Reply<T = any> {
   status: number
@@ -27,13 +26,12 @@ export async function resetTestData() {
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 
-/** `assistant` is the one sessions run on; Claude unless a test names another. */
-export async function startBackend(assistant?: Assistant) {
+export async function startBackend() {
   await resetTestData()
   const hub = new Hub()
   const events: ServerEvent[] = []
   vi.spyOn(hub, 'broadcast').mockImplementation((event) => void events.push(event))
-  const deps = createServices(hub, assistant)
+  const deps = createServices(hub)
   const { supervisor } = deps
   const server = http.createServer(createApp(deps))
   await new Promise<void>((resolve) => server.listen(SERVER_PORT, '127.0.0.1', resolve))

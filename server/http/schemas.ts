@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { THEMES } from '#core/contract/apiTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
+import { ASSISTANT_NAMES } from '#core/session/assistantName.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
@@ -12,7 +13,10 @@ const ids = z.array(z.string()).default([])
 
 export const settingsBody = z.object({
   author: z.string(),
-  model: z.string().default(''),
+  assistant: z.enum(ASSISTANT_NAMES as ['claude', 'codex'], { error: 'Choose Claude or Codex.' }).default('claude'),
+  models: z
+    .object({ claude: z.string().default(''), codex: z.string().default('') })
+    .default({ claude: '', codex: '' }),
   theme: z.enum(THEMES as ['system', 'light', 'dark']).default('system'),
 })
 

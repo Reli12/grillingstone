@@ -21,7 +21,6 @@ import type { Reason } from '#core/shared/validation.ts'
 import { now } from '../services/clock.ts'
 import { getDraft } from '../storage/drafts.ts'
 import { allProjectIds } from '../storage/projects.ts'
-import { getSettings } from '../storage/settings.ts'
 import { getTemplate } from '../storage/templates.ts'
 import {
   getTranscript,
@@ -31,8 +30,8 @@ import {
   saveTranscript,
 } from '../storage/transcripts.ts'
 import type { Assistant, AssistantExit, AssistantSession } from './assistant.ts'
+import { readyAssistant, settingsView } from './assistants.ts'
 import { systemMessage } from './chatMessages.ts'
-import { claudeAssistant } from './claudeAssistant.ts'
 import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
 import { SessionError } from './sessionError.ts'
 import { type AnyTranscript, type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
@@ -108,12 +107,13 @@ export class Supervisor {
   /** `ended` promises of sessions whose Transcript is not saved yet — they may already be out of `live`. */
   private unsaved = new Set<Promise<void>>()
   private deps: GrillingDeps & TemplateSessionDeps
-  /** The Assistant every new session runs on. */
-  private assistant: Assistant
-
-  constructor(deps: GrillingDeps & TemplateSessionDeps, assistant: Assistant = claudeAssistant) {
+  constructor(deps: GrillingDeps & TemplateSessionDeps) {
     this.deps = deps
-    this.assistant = assistant
+  }
+
+  /** Refuses, with the fix, when the Assistant in Settings cannot run a session now. */
+  async ensureAssistantReady() {
+    await readyAssistant()
   }
 
   /** Sessions cannot survive a backend restart; mark the ones that were running. */
@@ -145,8 +145,9 @@ export class Supervisor {
 
   async start(request: SessionRequest): Promise<SessionSummary> {
     if (this.liveForDraft(request.draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
-    const args = { ...request, assistant: this.assistant }
-    return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
+    const { assistant, model } = await readyAssistant()
+    const prepared = await prepareGrillingSession({ ...request, assistant }, this.deps)
+    return summaryOf(await this.launch(prepared, assistant, model))
   }
 
   /** A Continuation (ADR-0014): a new session that resumes an ended one's conversation. */
@@ -157,7 +158,8 @@ export class Supervisor {
     const draft = await getDraft(projectId, draftId)
     // A deleted Template has no latest version; continuation() then decides without one.
     const latest = await getTemplate(draft.template.id).catch(() => undefined)
-    const next = continuation(summaryOf(earlier), draft, latest?.version)
+    const { assistant } = await settingsView()
+    const next = continuation(summaryOf(earlier), draft, { assistant, latestTemplateVersion: latest?.version })
     if (!next.ok) throw new SessionError(next.reason)
     return this.start({
       projectId,
@@ -172,23 +174,22 @@ export class Supervisor {
   async startTemplate(request: TemplateRequest): Promise<TemplateSessionSummary> {
     if (this.liveTemplateSession())
       throw new SessionError('A Template Session is already running — continue or stop it first.')
-    return summaryOf(await this.launch(await prepareTemplateSession(request, this.assistant, this.deps)))
+    const { assistant, model } = await readyAssistant()
+    const prepared = await prepareTemplateSession(request, assistant, this.deps)
+    return summaryOf(await this.launch(prepared, assistant, model))
   }
 
-  private async launch<T extends AnyTranscript>({
-    transcript,
-    scope,
-    seed,
-    intro,
-    resume,
-  }: PreparedSession<T>): Promise<T> {
+  private async launch<T extends AnyTranscript>(
+    { transcript, scope, seed, intro, resume }: PreparedSession<T>,
+    assistant: Assistant,
+    model: string,
+  ): Promise<T> {
     const token = randomUUID()
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
-    const model = (await getSettings()).model
     const submit = (payload: unknown) => this.submit(transcript.id, token, payload)
     const launch = { sessionId: transcript.id, token, scope, seed, model, conversation, submit }
     const live = newLive(transcript, scope, token)
-    live.session = this.assistant.start(launch, {
+    live.session = assistant.start(launch, {
       onStep: (step) => this.queueStep(live, step),
       onExit: (exit) => this.onExit(live, exit),
     })

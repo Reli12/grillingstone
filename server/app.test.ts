@@ -1,7 +1,7 @@
 // End-to-end tests of the HTTP API: each test boots the real backend with a fake Assistant and data in
 // data-test/, then drives Projects, Drafts, sessions and Templates the way the browser would. Everything that
 // runs a session runs once per Assistant, against fakeClaude.mjs and fakeCodex.mjs.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
@@ -11,17 +11,11 @@ import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import { startBackend } from '../test/server/testBackend.ts'
-import type { Assistant } from './sessions/assistant.ts'
-import { claudeAssistant } from './sessions/claudeAssistant.ts'
-import { codexAssistant } from './sessions/codexAssistant.ts'
 
 let backend: Awaited<ReturnType<typeof startBackend>>
 const call = (...args: Parameters<typeof backend.call>) => backend.call(...args)
-/** The Assistant the next backend runs sessions on; a describe.each below switches it for its tests. */
-let assistantUnderTest: Assistant = claudeAssistant
-
 beforeEach(async () => {
-  backend = await startBackend(assistantUnderTest)
+  backend = await startBackend()
 })
 afterEach(() => backend.close())
 
@@ -83,13 +77,75 @@ describe('request guards', () => {
 
 describe('settings', () => {
   it('defaults, cleans and validates settings', async () => {
-    expect((await call('GET', '/api/settings')).body).toMatchObject({ model: '', theme: 'system' })
-    expect((await call('PUT', '/api/settings', { author: '@dorijan', model: ' opus ', theme: 'dark' })).body).toEqual({
+    expect((await call('GET', '/api/settings')).body).toMatchObject({
+      assistant: 'claude',
+      models: { claude: '', codex: '' },
+      theme: 'system',
+    })
+    const saved = await call('PUT', '/api/settings', {
+      author: '@dorijan',
+      assistant: 'codex',
+      models: { claude: ' opus ', codex: '' },
+      theme: 'dark',
+    })
+    expect(saved.body).toMatchObject({
       author: 'dorijan',
-      model: 'opus',
+      assistant: 'codex',
+      models: { claude: 'opus', codex: '' },
       theme: 'dark',
     })
     expect((await call('PUT', '/api/settings', { author: 42 })).status).toBe(400)
+    expect((await call('PUT', '/api/settings', { author: 'x', assistant: 'gpt' })).status).toBe(400)
+  })
+})
+
+describe('the Assistant choice', () => {
+  afterEach(() => {
+    delete process.env.FAKE_ASSISTANT_SIGNED_OUT
+  })
+
+  it('shows whether each Assistant can run, and records nothing when the chosen one cannot', async () => {
+    expect((await call('GET', '/api/settings')).body.availability).toEqual({
+      claude: { ready: true },
+      codex: { ready: true },
+    })
+    // The fakes report signed out while this variable is set.
+    process.env.FAKE_ASSISTANT_SIGNED_OUT = '1'
+    expect((await call('GET', '/api/settings')).body.availability.claude).toEqual({
+      ready: false,
+      fix: expect.stringContaining('claude auth login'),
+    })
+    const project = await newProject()
+    const refused = await call('POST', `/api/projects/${project.id}/drafts`, {
+      workItemType: 'PBI',
+      templateId: defaultPbiTemplate.id,
+      requirement: 'Managers archive devices.',
+    })
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: expect.stringContaining('claude auth login'), code: 'assistant-unavailable' },
+    })
+    expect((await call('GET', `/api/projects/${project.id}/drafts`)).body).toEqual([])
+  })
+
+  it('runs new sessions on the Assistant in Settings, and continues one only on the Assistant that held it', async () => {
+    const grilled = await grillingDraft()
+    await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
+    await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+
+    const settings = (await call('GET', '/api/settings')).body
+    await call('PUT', '/api/settings', { ...settings, assistant: 'codex' })
+    const base = `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`
+    const refused = await call('POST', `${base}/sessions/${grilled.sessionId}/continue`, {})
+    expect(refused).toMatchObject({
+      status: 409,
+      body: { error: expect.stringContaining('Claude held this conversation') },
+    })
+
+    const fresh = await call('POST', `${base}/sessions`, { kind: 'first' })
+    expect(fresh.body).toMatchObject({ assistant: 'codex' })
+    await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')
+    expect((await transcripts(grilled.projectId, grilled.draftId)).at(-1)?.conversationId).toMatch(/^codex-/)
   })
 })
 
@@ -131,14 +187,12 @@ describe('projects and Glossary', () => {
 })
 
 describe.each([
-  { assistant: claudeAssistant, prefix: 'claude' },
-  { assistant: codexAssistant, prefix: 'codex' },
-])('with $assistant.name', ({ assistant, prefix }) => {
-  beforeAll(() => {
-    assistantUnderTest = assistant
-  })
-  afterAll(() => {
-    assistantUnderTest = claudeAssistant
+  { assistant: 'claude', prefix: 'claude' },
+  { assistant: 'codex', prefix: 'codex' },
+])('with $assistant', ({ assistant, prefix }) => {
+  beforeEach(async () => {
+    const settings = (await call('GET', '/api/settings')).body
+    await call('PUT', '/api/settings', { ...settings, assistant })
   })
 
   describe('Drafts and Grilling Sessions', () => {
@@ -290,7 +344,7 @@ describe.each([
       await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
       const [stopped] = await transcripts(grilled.projectId, grilled.draftId)
       expect(stopped).toMatchObject({
-        assistant: assistant.name,
+        assistant,
         conversationId: expect.stringMatching(new RegExp(`^${prefix}-`)),
       })
 
@@ -298,7 +352,7 @@ describe.each([
       expect(continued.body).toMatchObject({
         kind: 'first',
         continues: grilled.sessionId,
-        assistant: assistant.name,
+        assistant,
         conversationId: stopped.conversationId,
       })
       await waitForStatus(grilled.projectId, grilled.draftId, 'waiting')

@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { DATA_DIR } from '../config.ts'
@@ -73,10 +73,46 @@ beforeEach(async () => {
 })
 
 describe.each([
-  { label: 'Claude Code', at: claudeAssistantAt, bin: fake('fakeClaude.mjs'), prefix: 'claude' },
-  { label: 'Codex', at: codexAssistantAt, bin: fake('fakeCodex.mjs'), prefix: 'codex' },
-])('the $label adapter', ({ label, at, bin, prefix }) => {
+  {
+    label: 'Claude Code',
+    at: claudeAssistantAt,
+    bin: fake('fakeClaude.mjs'),
+    prefix: 'claude',
+    signIn: 'claude auth login',
+    binVariable: 'GRILLINGSTONE_CLAUDE_BIN',
+  },
+  {
+    label: 'Codex',
+    at: codexAssistantAt,
+    bin: fake('fakeCodex.mjs'),
+    prefix: 'codex',
+    signIn: 'codex login',
+    binVariable: 'GRILLINGSTONE_CODEX_BIN',
+  },
+])('the $label adapter', ({ label, at, bin, prefix, signIn, binVariable }) => {
   const assistant = at(bin)
+
+  describe('availability', () => {
+    afterEach(() => {
+      delete process.env.FAKE_ASSISTANT_SIGNED_OUT
+    })
+
+    it('is ready when installed and signed in', async () => {
+      expect(await assistant.checkAvailability()).toEqual({ ready: true })
+    })
+
+    it('says how to install it, or where to point it, when it is not found', async () => {
+      const availability = await at(MISSING_BINARY).checkAvailability()
+      expect(availability).toEqual({ ready: false, fix: expect.stringContaining(`${label} isn’t installed`) })
+      expect(availability).toEqual({ ready: false, fix: expect.stringContaining(binVariable) })
+    })
+
+    it('names the sign-in command when it is not signed in', async () => {
+      // The fakes report signed out while this variable is set.
+      process.env.FAKE_ASSISTANT_SIGNED_OUT = '1'
+      expect(await assistant.checkAvailability()).toEqual({ ready: false, fix: expect.stringContaining(signIn) })
+    })
+  })
 
   it('names the conversation, shows tool calls with their outcome, and turns text into question cards', async () => {
     const { session, steps, exit, nextTurn } = started(assistant)

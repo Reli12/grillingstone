@@ -15,7 +15,10 @@ export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
     (await listDrafts(params.projectId)).map(summarize),
   )
   router.post('/api/projects/:projectId/drafts', async ({ params, body }) => {
-    const draft = await drafts.create(params.projectId, parse(newDraftBody, body))
+    const request = parse(newDraftBody, body)
+    // Checked before the Draft exists, so an Assistant that cannot run leaves no empty Draft behind.
+    await supervisor.ensureAssistantReady()
+    const draft = await drafts.create(params.projectId, request)
     const session = await supervisor.start({ projectId: params.projectId, draftId: draft.id, kind: 'first' })
     return { draft, session }
   })

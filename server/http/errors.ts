@@ -23,9 +23,16 @@ const STATUS: [new (...args: never[]) => Error, number][] = [
   [TemplateError, 409],
 ]
 
+type ErrorBody = { error: string; code?: string }
+
 /** The status and body to answer with, or null for an unexpected error. */
-export function knownError(error: unknown): { status: number; body: { error: string } } | null {
+export function knownError(error: unknown): { status: number; body: ErrorBody } | null {
   if (error instanceof HttpError) return { status: error.status, body: { error: error.message } }
   const match = STATUS.find(([type]) => error instanceof type)
-  return match ? { status: match[1], body: { error: (error as Error).message } } : null
+  if (!match) return null
+  const { message, code } = error as Error & { code?: unknown }
+  // Only the sessions layer's own codes (strings) reach the browser, not a system error's errno name.
+  const body: ErrorBody =
+    error instanceof SessionError && typeof code === 'string' ? { error: message, code } : { error: message }
+  return { status: match[1], body }
 }
