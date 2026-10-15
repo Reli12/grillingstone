@@ -1,9 +1,10 @@
 // Permission Guard (ADR-0006): the decision behind the PreToolUse hook of every headless session.
 // Deny by default. Pattern-based permissions alone are bypassable, so paths are normalised and
-// symlink-resolved, and the single allowed Bash command is matched exactly.
+// symlink-resolved, and the single allowed Bash command is matched exactly. For Codex, it answers what the
+// sandbox sends out to the backend (ADR-0019).
 import path from 'node:path'
 
-import { SUBMIT_HEREDOC } from '#core/session/cardProtocol.ts'
+import { SUBMIT_HEREDOC, SUBMIT_TOOL } from '#core/session/cardProtocol.ts'
 
 export interface GuardContext {
   /** Absolute, symlink-resolved Project folder. */
@@ -19,6 +20,9 @@ export interface GuardContext {
 export type Decision = { allow: true } | { allow: false; reason: string }
 
 export const ALLOWED_SKILLS = ['grill-with-docs']
+/** What a Grilling Session may write inside its Project: the Glossary, and decision records in this folder. */
+export const GLOSSARY_FILE = 'CONTEXT.md'
+export const DECISIONS_FOLDER = 'plan'
 /** Tools a session is started with (`--tools`); everything else does not even exist for it. */
 export const SESSION_TOOLS = [
   'Read',
@@ -68,8 +72,8 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
     'Sessions may edit only the Glossary (CONTEXT.md) and markdown decision records under plan/. Drafts change only through the submit command.'
   if (!filePath) return deny(`No file_path given. ${why}`)
   const real = resolve(ctx, filePath)
-  if (real === path.join(ctx.projectDir, 'CONTEXT.md')) return ALLOW
-  const planDir = path.join(ctx.projectDir, 'plan')
+  if (real === path.join(ctx.projectDir, GLOSSARY_FILE)) return ALLOW
+  const planDir = path.join(ctx.projectDir, DECISIONS_FOLDER)
   if (inside(planDir, real) && real.endsWith('.md') && real !== planDir) return ALLOW
   return deny(`Writing "${filePath}" is not allowed. ${why}`)
 }
@@ -127,4 +131,25 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
     default:
       return deny(`${tool} is not available in a Grilling Session.`)
   }
+}
+
+/** What each kind of Codex approval request is declined with. */
+const CODEX_DECLINED: Record<string, string> = {
+  'item/commandExecution/requestApproval':
+    'Commands run only inside the sandbox: read the Project folder, with no network. Submit with submit_draft.',
+  'item/fileChange/requestApproval':
+    'Sessions may edit only the Glossary (CONTEXT.md) and decision records under plan/. Drafts change only through submit_draft.',
+}
+
+/** The Codex requests that ask to leave the sandbox; app-server expects a decision on them, not an error. */
+export const CODEX_APPROVAL_REQUESTS = Object.keys(CODEX_DECLINED)
+
+/**
+ * The answer to a request Codex's app-server sends the backend. The sandbox already holds the session to its
+ * folder, and no legitimate step needs to leave it, so only the call to submit_draft is allowed.
+ */
+export function decideCodexRequest(method: string, params: Record<string, unknown>): Decision {
+  if (method === 'item/tool/call')
+    return params.tool === SUBMIT_TOOL ? ALLOW : deny(`Only the ${SUBMIT_TOOL} tool is available.`)
+  return deny(CODEX_DECLINED[method] ?? `${method} is not available in a session.`)
 }

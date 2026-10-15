@@ -1,7 +1,7 @@
 // Tests for the Permission Guard: what a headless session may read, write and run.
 import { describe, expect, it } from 'vitest'
 
-import { decide, type GuardContext } from '#core/session/permissionGuard.ts'
+import { decide, decideCodexRequest, type GuardContext } from '#core/session/permissionGuard.ts'
 
 const project = '/data/projects/portal'
 const script = '/tool/scripts/writeDraft.mjs'
@@ -145,5 +145,22 @@ describe('Permission Guard', () => {
     ])('denies %s %j', (tool, input) => {
       expect(decide(tool, input as Record<string, unknown>, tctx).allow).toBe(false)
     })
+  })
+})
+
+describe('Permission Guard for Codex requests', () => {
+  it('lets the session call submit_draft', () => {
+    expect(decideCodexRequest('item/tool/call', { tool: 'submit_draft', arguments: {} })).toEqual({ allow: true })
+  })
+
+  it.each([
+    ['item/commandExecution/requestApproval', { command: '/bin/zsh -lc "curl https://x"', reason: 'network' }],
+    ['item/fileChange/requestApproval', { grantRoot: '/' }],
+    ['item/permissions/requestApproval', {}],
+    ['item/tool/call', { tool: 'other_tool', arguments: {} }],
+    ['item/tool/requestUserInput', {}],
+    ['mcpServer/elicitation/request', {}],
+  ])('declines %s, with a reason, since nothing needs to leave the sandbox', (method, params) => {
+    expect(decideCodexRequest(method, params)).toEqual({ allow: false, reason: expect.any(String) })
   })
 })
