@@ -1,5 +1,5 @@
-// Tests for AppLayout: the header's Project switcher, New Project link and home link.
-import { screen } from '@testing-library/react'
+// Tests for AppLayout: the header's Project switcher, New Project link and home link, and the footer.
+import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
@@ -39,6 +39,14 @@ describe('AppLayout', () => {
     await user.click(await screen.findByRole('button', { name: /Billing/ }))
     await user.click(screen.getByRole('button', { name: /New Project/ }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
+  })
+
+  it('ends every page with the copyright and a link to the Legal page', () => {
+    server.use(http.get(`*${endpoints.projects}`, () => HttpResponse.json([])))
+    render(<AppLayout />, { route: '/', path: '/' })
+    const footer = screen.getByRole('contentinfo')
+    expect(footer).toHaveTextContent('© 2026 Dorijan Polanc · MIT License')
+    expect(within(footer).getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal')
   })
 
   it('hides the switcher without Projects', () => {

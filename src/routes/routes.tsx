@@ -14,6 +14,7 @@ const NewTemplatePage = lazy(() => import('@/pages/NewTemplatePage/NewTemplatePa
 const TemplateSessionPage = lazy(() => import('@/pages/TemplateSessionPage/TemplateSessionPage'))
 const TemplateEditorPage = lazy(() => import('@/pages/TemplateEditorPage/TemplateEditorPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage/GuidePage'))
+const LegalPage = lazy(() => import('@/pages/LegalPage/LegalPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage/SettingsPage'))
 
 export const routesPaths = {
@@ -27,6 +28,7 @@ export const routesPaths = {
   templateSession: (sessionId: string) => `/templates/session/${sessionId}`,
   template: (templateId: string) => `/templates/${templateId}`,
   guide: '/how-it-works',
+  legal: '/legal',
   settings: '/settings',
 }
 
@@ -48,6 +50,7 @@ const routes: RouteObject[] = [
       { path: routesPaths.templateSession(':sessionId'), element: page(<TemplateSessionPage />) },
       { path: routesPaths.template(':templateId'), element: page(<TemplateEditorPage />) },
       { path: routesPaths.guide, element: page(<GuidePage />) },
+      { path: routesPaths.legal, element: page(<LegalPage />) },
       { path: routesPaths.settings, element: page(<SettingsPage />) },
     ],
   },

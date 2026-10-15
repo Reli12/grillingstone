@@ -20,4 +20,10 @@ describe('GuidePage', () => {
     const firstStep = screen.getByRole('heading', { name: 'Create a Project' })
     expect(nameSection.compareDocumentPosition(firstStep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
+
+  it('closes with either way to sign in to Claude and a link to the Legal page', () => {
+    render(<GuidePage />)
+    expect(screen.getByText(/a Claude subscription or an Anthropic API key/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal')
+  })
 })

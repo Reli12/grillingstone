@@ -12,7 +12,7 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-xl px-4 py-10">
         <h1 className="font-serif text-[30px] leading-tight font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-ink-soft">
-          Sessions run as headless Claude Code on your own subscription, inside each Project’s folder.
+          Sessions run as headless Claude Code on your own Claude account, inside each Project’s folder.
         </p>
         <div className="mt-8 space-y-10">
           <ThemeChoice settings={settings} />

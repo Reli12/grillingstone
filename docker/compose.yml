@@ -19,7 +19,7 @@ services:
     volumes:
       # Projects, Drafts, Templates and settings stay in the repository's data/ folder.
       - ../data:/app/data
-      # Claude Code's subscription login and conversation copies.
+      # Claude Code's login and conversation copies.
       - claude-home:/home/node/.claude
     # Longer than the backend's own 4 s shutdown, so sessions save their Transcripts.
     stop_grace_period: 10s
