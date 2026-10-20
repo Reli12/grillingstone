@@ -1,4 +1,6 @@
 // Legal page: how the tool runs Claude Code, set against Anthropic's conditions for tools that run it.
+import { ASSISTANT_SETUP } from '#core/session/assistantName.ts'
+
 import { InlineCode } from '@/components/atoms/inlineCode/inlineCode'
 import { ProseSection } from '@/components/composite/proseSection/proseSection'
 
@@ -18,8 +20,8 @@ export function HowItUsesClaudeCode() {
         </li>
         <li>
           <strong>Your own sign-in.</strong> You sign in to Claude Code through Anthropic’s own flow (
-          <InlineCode>claude auth login</InlineCode>), with a Claude subscription or an Anthropic API key. Grilling
-          Stone never sees, stores or passes on your credentials.
+          <InlineCode>{ASSISTANT_SETUP.claude.signIn}</InlineCode>), with a Claude subscription or an Anthropic API key.
+          Grilling Stone never sees, stores or passes on your credentials.
         </li>
         <li>
           <strong>Your own account.</strong> Every session is billed to your account under your own agreement with
