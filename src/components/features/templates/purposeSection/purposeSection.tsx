@@ -4,10 +4,12 @@ import { Link } from 'react-router'
 
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { TextArea } from '@/components/atoms/textArea/textArea'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { type NewTemplateFormData } from '@/lib/formSchemas/newTemplateSchema'
 import { routesPaths } from '@/routes/routes'
 
 export function PurposeSection({ register }: Readonly<{ register: UseFormRegister<NewTemplateFormData> }>) {
+  const assistant = useAssistantLabel()
   return (
     <section>
       <Link to={routesPaths.templates} className="text-sm text-ink-faint hover:text-ink">
@@ -17,8 +19,8 @@ export function PurposeSection({ register }: Readonly<{ register: UseFormRegiste
         What is this Template for?
       </h1>
       <p className="mt-2 max-w-lg text-ink-soft">
-        Describe the kind of work item and who reads it. Claude grills this into Sections and a writing method — or it
-        seeds the Purpose if you build it yourself.
+        Describe the kind of work item and who reads it. {assistant} grills this into Sections and a writing method — or
+        it seeds the Purpose if you build it yourself.
       </p>
       <TextArea
         autoFocus
@@ -32,7 +34,7 @@ export function PurposeSection({ register }: Readonly<{ register: UseFormRegiste
       <div className="mt-6">
         <FieldLabel
           htmlFor="examples"
-          hint="Paste one or more real work items written the way you like. Claude learns the house style from them. Leave out client names — Templates are shared."
+          hint={`Paste one or more real work items written the way you like. ${assistant} learns the house style from them. Leave out client names — Templates are shared.`}
         >
           Example work items (optional)
         </FieldLabel>

@@ -1,7 +1,8 @@
-// New Draft: tick other written Drafts Claude may read as References.
+// New Draft: tick other written Drafts the Assistant may read as References.
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { cn } from '@/lib/cn'
 
 interface ReferencePickerProps {
@@ -12,9 +13,10 @@ interface ReferencePickerProps {
 }
 
 export function ReferencePicker({ referable, references, onToggle }: Readonly<ReferencePickerProps>) {
+  const assistant = useAssistantLabel()
   return (
     <fieldset className="mt-6">
-      <FieldLabel hint="Claude may read these Drafts as context. No hierarchy — each Draft stands on its own.">
+      <FieldLabel hint={`${assistant} may read these Drafts as context. No hierarchy — each Draft stands on its own.`}>
         References (optional)
       </FieldLabel>
       <div className="flex flex-wrap gap-2">

@@ -8,6 +8,7 @@ import { type SectionTarget } from '#core/shared/adoFields.ts'
 import { Button } from '@/components/atoms/button/button'
 import { FieldError } from '@/components/atoms/fieldError/fieldError'
 import { SectionRow } from '@/components/features/templates/sectionRow/sectionRow'
+import { SectionsIntro } from '@/components/features/templates/sectionsIntro/sectionsIntro'
 import type { useTemplateForm } from '@/hooks/templates/useTemplateForm'
 import type { FormPartProps, SectionFormData } from '@/types/templateForm'
 
@@ -35,11 +36,7 @@ export function SectionsEditor({ editor, targetOptions, firstTarget, ...formPart
   const { errors, readOnly } = formPart
   return (
     <section className="mt-10">
-      <h2 className="font-serif text-xl font-semibold">Sections</h2>
-      <p className="mt-1 text-sm text-ink-soft">
-        In this order Claude must write them — every one, with “N/A — reason” when empty. Locked Sections can never be
-        discarded or left empty.
-      </p>
+      <SectionsIntro />
       <FieldError message={errors.sections?.message ?? errors.sections?.root?.message} />
       <ol className="mt-4 space-y-2">
         {fields.map((field, i) => (

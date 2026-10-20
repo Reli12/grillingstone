@@ -25,7 +25,7 @@ export const templateSchema = z
     workItemType: z.enum(WORK_ITEM_TYPES),
     iterationLogHeading: z.string().trim().min(1, 'Name the Iteration Log heading'),
     iterationLogTarget: target,
-    method: z.string().trim().min(1, 'Describe how Claude should write'),
+    method: z.string().trim().min(1, 'Describe how the Sections should be written'),
     sections: z.array(templateSectionSchema).min(1, 'A Template needs at least one Section'),
   })
   .superRefine((template, ctx) => {

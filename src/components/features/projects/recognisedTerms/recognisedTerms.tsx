@@ -3,17 +3,20 @@ import { AlertTriangle } from 'lucide-react'
 
 import { type GlossaryTerm } from '#core/glossary/glossary.ts'
 
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
+
 /** How many recognised terms the preview names before it trails off with "…". */
 const NAMED_TERMS = 6
 
 /** Under the preview: which terms the Glossary parser recognised, or a warning that it found none. */
 export function RecognisedTerms({ terms }: Readonly<{ terms: GlossaryTerm[] }>) {
+  const assistant = useAssistantLabel()
   if (!terms.length)
     return (
       <p className="flex items-start gap-2 text-[13px] text-mark-ink">
         <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-        No terms in the Glossary format were found. Claude will still read it, but the Glossary panel won’t list its
-        terms.
+        No terms in the Glossary format were found. {assistant} will still read it, but the Glossary panel won’t list
+        its terms.
       </p>
     )
   const named = terms

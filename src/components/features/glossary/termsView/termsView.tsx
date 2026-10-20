@@ -2,6 +2,7 @@
 import { TermEditor } from '@/components/features/glossary/termEditor/termEditor'
 import { TermList } from '@/components/features/glossary/termList/termList'
 import type { useGlossaryEditing } from '@/hooks/glossary/useGlossaryEditing'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import type { TermRow } from '@/types/glossary'
 
 /** The list place of an open term no longer in the Glossary shown (a live update removed or renamed it). */
@@ -18,6 +19,7 @@ interface TermsViewProps {
 
 /** The listed Glossary: the (filtered) term lines, the open term's editor, and what to say when nothing is listed. */
 export function TermsView({ rows, total, query, editing, highlighted }: Readonly<TermsViewProps>) {
+  const assistant = useAssistantLabel()
   const { edit } = editing
   const editor = edit && (
     <TermEditor
@@ -36,7 +38,7 @@ export function TermsView({ rows, total, query, editing, highlighted }: Readonly
     <div className="rounded-lg border border-line bg-sheet p-2">
       {total === 0 && !edit && (
         <p className="p-2 text-sm text-ink-soft">
-          No terms yet. Claude adds them as they are settled during grilling, or add one yourself.
+          No terms yet. {assistant} adds them as they are settled during grilling, or add one yourself.
         </p>
       )}
       {total > 0 && listed.length === 0 && (

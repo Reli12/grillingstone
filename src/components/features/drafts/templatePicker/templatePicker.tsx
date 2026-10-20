@@ -3,6 +3,7 @@ import type { Template } from '#core/template/templateTypes.ts'
 
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { Tag } from '@/components/atoms/tag/tag'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { cn } from '@/lib/cn'
 
 interface TemplatePickerProps {
@@ -13,9 +14,10 @@ interface TemplatePickerProps {
 }
 
 export function TemplatePicker({ templates, chosenId, onChoose }: Readonly<TemplatePickerProps>) {
+  const assistant = useAssistantLabel()
   return (
     <fieldset>
-      <FieldLabel hint="Decides the Sections Claude must write and how.">Template</FieldLabel>
+      <FieldLabel hint={`Decides the Sections ${assistant} must write and how.`}>Template</FieldLabel>
       <div className="space-y-1.5">
         {templates.map((template) => (
           <label

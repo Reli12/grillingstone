@@ -1,7 +1,8 @@
-// New Template: "Build it myself" or "Grill it with Claude".
+// New Template: "Build it myself" or "Grill it with" the Assistant.
 import { Link } from 'react-router'
 
 import { Button } from '@/components/atoms/button/button'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { routesPaths } from '@/routes/routes'
 
 interface StartActionsProps {
@@ -22,6 +23,7 @@ export function StartActions({
   onGrill,
   onBuild,
 }: Readonly<StartActionsProps>) {
+  const assistant = useAssistantLabel()
   return (
     <div className="space-y-2">
       {runningId ? (
@@ -33,7 +35,7 @@ export function StartActions({
         </div>
       ) : (
         <Button variant="claude" size="lg" className="w-full" disabled={!canGrill || starting} onClick={onGrill}>
-          {starting ? 'Starting…' : 'Grill it with Claude'}
+          {starting ? 'Starting…' : `Grill it with ${assistant}`}
         </Button>
       )}
       <Button variant="outline" size="lg" className="w-full" disabled={creating} onClick={onBuild}>
@@ -41,8 +43,8 @@ export function StartActions({
       </Button>
       <p className="text-[13px] text-ink-faint">
         {canGrill
-          ? 'Claude asks one question at a time and writes nothing until you confirm.'
-          : 'Describe what the Template is for to grill it with Claude.'}
+          ? `${assistant} asks one question at a time and writes nothing until you confirm.`
+          : `Describe what the Template is for to grill it with ${assistant}.`}
       </p>
     </div>
   )

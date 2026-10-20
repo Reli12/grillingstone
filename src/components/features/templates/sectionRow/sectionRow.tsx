@@ -7,6 +7,7 @@ import type { RowButtonsProps } from '@/components/features/templates/rowButtons
 import { RowButtons } from '@/components/features/templates/rowButtons/rowButtons'
 import { SectionOptions } from '@/components/features/templates/sectionOptions/sectionOptions'
 import { inputCls } from '@/constants/TemplateEditorConstants'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { cn } from '@/lib/cn'
 import type { FormPartProps, SectionFormData } from '@/types/templateForm'
 
@@ -28,6 +29,7 @@ export function SectionRow({
   onMove,
   onRemove,
 }: Readonly<SectionRowProps>) {
+  const assistant = useAssistantLabel()
   const sectionErrors = errors.sections?.[index]
   return (
     <li className="rounded-lg border border-line bg-sheet p-3">
@@ -45,7 +47,7 @@ export function SectionRow({
         <input
           {...register(`sections.${index}.guidance`)}
           aria-label="Guidance"
-          placeholder="One line of guidance for Claude and for you"
+          placeholder={`One line of guidance for ${assistant} and for you`}
           className={cn(inputCls, 'sm:col-span-3')}
         />
         <SectionOptions index={index} register={register} isEntries={section?.shape === 'entries'} />

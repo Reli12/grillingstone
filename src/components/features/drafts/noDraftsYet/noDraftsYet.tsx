@@ -3,9 +3,11 @@ import { Link } from 'react-router'
 
 import { Button } from '@/components/atoms/button/button'
 import { EmptyState } from '@/components/composite/emptyState/emptyState'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { routesPaths } from '@/routes/routes'
 
 export function NoDraftsYet({ projectId }: Readonly<{ projectId: string }>) {
+  const assistant = useAssistantLabel()
   return (
     <EmptyState
       title="No Drafts in this Project yet"
@@ -17,8 +19,8 @@ export function NoDraftsYet({ projectId }: Readonly<{ projectId: string }>) {
         </Link>
       }
     >
-      Describe a requirement or a bug, pick its Work Item Type, and Claude grills it with you until it can be written
-      down.
+      Describe a requirement or a bug, pick its Work Item Type, and {assistant} grills it with you until it can be
+      written down.
     </EmptyState>
   )
 }

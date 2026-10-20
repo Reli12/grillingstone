@@ -9,6 +9,7 @@ import { ImportDialog } from '@/components/features/templates/importDialog/impor
 import { LiveSessionBanner } from '@/components/features/templates/liveSessionBanner/liveSessionBanner'
 import { PageActions } from '@/components/features/templates/pageActions/pageActions'
 import { TemplateLists } from '@/components/features/templates/templateLists/templateLists'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { useTemplateActions } from '@/hooks/templates/useTemplateActions'
 
 /** The set with the id removed if it was there, or added if it was not. */
@@ -20,6 +21,7 @@ function toggled(ids: Set<string>, id: string) {
 }
 
 export default function TemplatesPage() {
+  const assistant = useAssistantLabel()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bundle, setBundle] = useState<unknown>(null)
 
@@ -36,8 +38,8 @@ export default function TemplatesPage() {
           <div className="flex-1">
             <h1 className="font-serif text-[30px] leading-tight font-semibold tracking-tight">Templates</h1>
             <p className="mt-1 max-w-xl text-ink-soft">
-              A Template fixes the Sections a Draft must have and carries the method Claude writes them with. Editing
-              one affects only new Drafts.
+              A Template fixes the Sections a Draft must have and carries the method {assistant} writes them with.
+              Editing one affects only new Drafts.
             </p>
           </div>
           <PageActions

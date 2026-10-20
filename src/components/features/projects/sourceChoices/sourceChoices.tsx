@@ -2,6 +2,7 @@
 import { ClipboardPaste, Copy, FilePlus2 } from 'lucide-react'
 
 import { SourceChoice } from '@/components/features/projects/sourceChoice/sourceChoice'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import type { Source } from '@/types/project'
 
 interface SourceChoicesProps {
@@ -12,6 +13,7 @@ interface SourceChoicesProps {
 }
 
 export function SourceChoices({ current, offerCopy, onPick }: Readonly<SourceChoicesProps>) {
+  const assistant = useAssistantLabel()
   const shared = { current, onPick }
   return (
     <div className="space-y-2">
@@ -21,7 +23,7 @@ export function SourceChoices({ current, offerCopy, onPick }: Readonly<SourceCho
         value="empty"
         icon={<FilePlus2 size={14} />}
         label="Empty"
-        hint="Claude adds terms as you grill."
+        hint={`${assistant} adds terms as you grill.`}
       />
       <SourceChoice
         {...shared}

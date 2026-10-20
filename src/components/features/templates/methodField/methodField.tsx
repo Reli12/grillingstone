@@ -1,7 +1,8 @@
-// Template editor: the method Claude follows, as Markdown.
+// Template editor: the method the Assistant follows, as Markdown.
 import { type UseFormRegister } from 'react-hook-form'
 
 import { FieldError } from '@/components/atoms/fieldError/fieldError'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { type TemplateFormData } from '@/lib/formSchemas/templateSchema'
 
 interface MethodFieldProps {
@@ -11,11 +12,12 @@ interface MethodFieldProps {
 }
 
 export function MethodField({ register, readOnly, error }: Readonly<MethodFieldProps>) {
+  const assistant = useAssistantLabel()
   return (
     <section className="mt-10">
       <h2 className="font-serif text-xl font-semibold">Writing method</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        The instructions Claude follows for content, in markdown. They travel with the Template when you share it.
+        The instructions {assistant} follows for content, in markdown. They travel with the Template when you share it.
       </p>
       <textarea
         {...register('method')}
