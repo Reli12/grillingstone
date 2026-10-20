@@ -2,7 +2,7 @@
 // both clean the values, so a hand-edited, missing or older file still yields usable Settings.
 import type { Settings } from '#core/contract/apiTypes.ts'
 import { THEMES } from '#core/contract/apiTypes.ts'
-import { ASSISTANT_NAMES, type AssistantName } from '#core/session/assistantName.ts'
+import { ASSISTANT_NAMES, type AssistantName, DEFAULT_ASSISTANT } from '#core/session/assistantName.ts'
 
 import { DEFAULT_AUTHOR } from '../config.ts'
 import { readJson, writeJson } from './fsUtil.ts'
@@ -11,8 +11,6 @@ import { settingsFile } from './paths.ts'
 type Theme = Settings['theme']
 
 const DEFAULT_THEME: Theme = 'system'
-/** Installs from before the Assistant choice ran Claude Code, so they stay on it. */
-const DEFAULT_ASSISTANT: AssistantName = 'claude'
 
 /** A leading "@" typed before a handle; the author is stored as the bare name. */
 const LEADING_AT = /^@/
