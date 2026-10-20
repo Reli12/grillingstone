@@ -187,9 +187,9 @@ describe('projects and Glossary', () => {
 })
 
 describe.each([
-  { assistant: 'claude', prefix: 'claude' },
-  { assistant: 'codex', prefix: 'codex' },
-])('with $assistant', ({ assistant, prefix }) => {
+  { assistant: 'claude', prefix: 'claude', label: 'Claude' },
+  { assistant: 'codex', prefix: 'codex', label: 'Codex' },
+])('with $assistant', ({ assistant, prefix, label }) => {
   beforeEach(async () => {
     const settings = (await call('GET', '/api/settings')).body
     await call('PUT', '/api/settings', { ...settings, assistant })
@@ -216,6 +216,7 @@ describe.each([
       const grilled = await grillingDraft()
       const [transcript] = await transcripts(grilled.projectId, grilled.draftId)
       expect(transcript.messages.map((message) => message.role)).toEqual(['system', 'tool', 'claude'])
+      expect(transcript.messages[0]).toMatchObject({ text: expect.stringContaining(`${label} has the requirement`) })
       expect(transcript.messages[1]).toMatchObject({ role: 'tool', summary: 'Read CONTEXT.md', outcome: 'ok' })
       expect(
         (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.liveSession,
@@ -448,6 +449,9 @@ describe.each([
       await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('waiting'), {
         timeout: 8000,
         interval: 50,
+      })
+      expect((await call('GET', url)).body.messages[0]).toMatchObject({
+        text: expect.stringContaining(`${label} has the ${defaultPbiTemplate.name}`),
       })
       await call('POST', `/api/sessions/${session.id}/write`)
       await vi.waitFor(async () => expect((await call('GET', url)).body.status).toBe('finished'), {

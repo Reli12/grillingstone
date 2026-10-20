@@ -33,7 +33,7 @@ export class DraftService {
     if (template.workItemType !== input.workItemType)
       throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
     const requirement = input.requirement.trim()
-    if (!requirement) throw new DraftInputError('Describe the requirement so Claude has something to grill.')
+    if (!requirement) throw new DraftInputError('Describe the requirement so there is something to grill.')
     const references = await this.existingReferences(projectId, input.references)
     const draft = await drafts.createDraft(
       newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }),

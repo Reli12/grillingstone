@@ -1,4 +1,5 @@
 // A Template Session runs in an empty working folder — no Project, no Glossary — and writes one new Template.
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
 import type { TemplateRequest, TemplateTranscript } from '#core/session/sessionTypes.ts'
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -38,15 +39,15 @@ function templateSubmitter(request: TemplateRequest, transcript: TemplateTranscr
   }
 }
 
-/** The first system line: what Claude starts from, if anything. */
-function templateIntro(request: TemplateRequest, base: Template | undefined) {
+/** The first system line: what the Assistant starts from, if anything. */
+function templateIntro(request: TemplateRequest, base: Template | undefined, assistant: string) {
   const material = [
     base && `the ${base.name} as a starting point`,
     request.examples.trim() && 'your example work items',
   ]
     .filter(Boolean)
     .join(' and ')
-  const startingPoint = material ? ` Claude has ${material}.` : ''
+  const startingPoint = material ? ` ${assistant} has ${material}.` : ''
   return `Template Session started for a new ${request.workItemType} Template.${startingPoint} No Project or Glossary is involved.`
 }
 
@@ -70,7 +71,9 @@ export async function prepareTemplateSession(
   assistant: Pick<Assistant, 'name' | 'submitVia'>,
   deps: TemplateSessionDeps,
 ): Promise<PreparedSession<TemplateTranscript>> {
-  if (!request.purpose.trim()) throw new SessionError('Say what the Template is for, so Claude has something to grill.')
+  const assistantLabel = ASSISTANT_LABELS[assistant.name]
+  if (!request.purpose.trim())
+    throw new SessionError(`Say what the Template is for, so ${assistantLabel} has something to grill.`)
   const base = request.baseTemplateId ? await getTemplate(request.baseTemplateId) : undefined
   if (base && base.workItemType !== request.workItemType)
     throw new SessionError(`"${base.name}" is not a ${request.workItemType} Template.`)
@@ -93,7 +96,7 @@ export async function prepareTemplateSession(
     base,
     submitVia: assistant.submitVia,
   })
-  const intro = templateIntro(request, base)
+  const intro = templateIntro(request, base, assistantLabel)
   const cwd = await makeTemplateSessionDir(transcript.id)
   return { transcript, seed, intro, scope: templateScope(cwd, deps, templateSubmitter(request, transcript, deps)) }
 }

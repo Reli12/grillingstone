@@ -3,6 +3,7 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { parseGlossary } from '#core/glossary/glossary.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
@@ -134,20 +135,21 @@ function laterSessionName(kind: SessionKind, focus: Focus, upgradeTo: Template |
   return 'New Iteration on the whole Draft'
 }
 
-/** The first system line: what kind of session this is and what Claude has to work from. */
+/** The first system line: what kind of session this is and what the Assistant has to work from. */
 function grillingIntro({ args, draft, focus, upgradeTo, glossaryMarkdown, referenceCount }: IntroInput) {
+  const name = ASSISTANT_LABELS[args.assistant.name]
   const terms = plural(parseGlossary(glossaryMarkdown).length, 'term')
   const referencesPart = referenceCount ? ` and ${plural(referenceCount, 'Reference')}` : ''
   const context = `the Glossary (${terms})${referencesPart}`
   const what = laterSessionName(args.kind, focus, upgradeTo)
   const first = args.kind === 'first'
   if (args.continues && first)
-    return `Continuing the earlier conversation. Claude remembers it, and has the requirement and ${context} as they are now.`
+    return `Continuing the earlier conversation. ${name} remembers it, and has the requirement and ${context} as they are now.`
   if (args.continues)
-    return `Continuing the earlier conversation as a ${what}. Claude remembers it, and has Draft v${draft.version} and ${context} as they are now. Claude will return a Proposal.`
+    return `Continuing the earlier conversation as a ${what}. ${name} remembers it, and has Draft v${draft.version} and ${context} as they are now. ${name} will return a Proposal.`
   if (first)
-    return `Grilling Session started for a new ${draft.workItemType} Draft in the ${draft.template.name}. Claude has the requirement and ${context}.`
-  return `${what} started from Draft v${draft.version} and ${context}. Claude will return a Proposal.`
+    return `Grilling Session started for a new ${draft.workItemType} Draft in the ${draft.template.name}. ${name} has the requirement and ${context}.`
+  return `${what} started from Draft v${draft.version} and ${context}. ${name} will return a Proposal.`
 }
 
 function grillingScope(args: StartArgs, deps: GrillingDeps, submit: Scope['submit']): Scope {
