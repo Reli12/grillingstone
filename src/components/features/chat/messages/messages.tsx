@@ -1,4 +1,4 @@
-// All messages of one session, each drawn by its role; only Claude's latest turn can be answered.
+// All messages of one session, each drawn by its role; only the Assistant's latest turn can be answered.
 import { ClaudeTurn } from '@/components/features/chat/claudeTurn/claudeTurn'
 import { HumanBubble } from '@/components/features/chat/humanBubble/humanBubble'
 import { SystemLine } from '@/components/features/chat/systemLine/systemLine'

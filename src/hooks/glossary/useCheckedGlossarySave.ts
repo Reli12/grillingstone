@@ -1,5 +1,5 @@
 // Saving the Glossary against the version an edit started from. The server refuses a save made against an
-// older version (Claude or another tab changed it meanwhile); the caller then gets the latest Glossary.
+// older version (the Assistant or another tab changed it meanwhile); the caller then gets the latest Glossary.
 import { useQueryClient } from '@tanstack/react-query'
 
 import type { GlossaryDoc } from '#core/contract/apiTypes.ts'

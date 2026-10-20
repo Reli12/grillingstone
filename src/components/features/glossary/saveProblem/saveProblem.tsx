@@ -1,4 +1,4 @@
-// Why the last Glossary save did not go through: Claude or another tab changed the Glossary meanwhile, or the
+// Why the last Glossary save did not go through: the Assistant or another tab changed the Glossary meanwhile, or the
 // save failed for another reason. Shows nothing when there was no problem.
 import type { SaveStatus } from '@/types/glossary'
 

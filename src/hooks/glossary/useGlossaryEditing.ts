@@ -1,5 +1,5 @@
 // Editing the Glossary safely: every edit saves against the Glossary as it was when the edit opened, so a
-// term Claude or another tab added meanwhile is never silently dropped or overwritten. A refused save keeps
+// term the Assistant or another tab added meanwhile is never silently dropped or overwritten. A refused save keeps
 // the human's text, takes the latest Glossary as the new starting point, and finds the edited term by name.
 import { useState } from 'react'
 

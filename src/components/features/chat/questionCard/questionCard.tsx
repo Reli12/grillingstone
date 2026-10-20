@@ -1,4 +1,4 @@
-// A question Claude asked, as a card: one click for the recommended answer or an option, or a typed reply.
+// A question the Assistant asked, as a card: one click for the recommended answer or an option, or a typed reply.
 import { useForm } from 'react-hook-form'
 
 import { zodResolver } from '@hookform/resolvers/zod'

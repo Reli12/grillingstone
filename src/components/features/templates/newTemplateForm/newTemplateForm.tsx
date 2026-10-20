@@ -1,4 +1,4 @@
-// One start step for both ways of creating a Template: "Grill it with Claude" (a Template Session) or
+// One start step for both ways of creating a Template: grilling it with the Assistant (a Template Session) or
 // "Build it myself" (an editable Template right away, from nothing or as a copy of a base).
 
 import type { Template } from '#core/template/templateTypes.ts'

@@ -1,4 +1,4 @@
-// A line in the chat showing a tool Claude used, with an icon for the tool and its outcome.
+// A line in the chat showing a tool the Assistant used, with an icon for the tool and its outcome.
 import { createElement } from 'react'
 
 import { BookOpenText, FileText, Globe, Search, Send, ShieldAlert, Wrench } from 'lucide-react'

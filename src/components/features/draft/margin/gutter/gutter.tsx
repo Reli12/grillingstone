@@ -1,4 +1,4 @@
-// The ownership gutter: the margin says who wrote each part. Claude's ink is a thin graphite line; your
+// The ownership gutter: the margin says who wrote each part. The Assistant's ink is a thin graphite line; your
 // edits are a highlighter stroke; a Section or Entry you moved carries an arrow. These are exactly the
 // marks that turn a later change into a Conflict.
 import type { HTMLAttributes } from 'react'
