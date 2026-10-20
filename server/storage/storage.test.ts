@@ -1,20 +1,28 @@
 // Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup, old Transcripts.
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'
+import { PROJECT_APP_ENTRIES } from '#core/shared/projectFolder.ts'
 import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
 
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, getDraft, updateDraft } from './drafts.ts'
-import { StaleWrite } from './errors.ts'
+import { StaleWrite, UnsafeFile } from './errors.ts'
 import { writeJson } from './fsUtil.ts'
 import { getGlossary, saveGlossary } from './glossary.ts'
-import { safeId, settingsFile, templateTranscriptFile, transcriptFile } from './paths.ts'
+import { glossaryFile, projectDir, safeId, settingsFile, templateTranscriptFile, transcriptFile } from './paths.ts'
 import { createProject } from './projects.ts'
 import { getSettings, saveSettings } from './settings.ts'
 import { getTemplateTranscript, getTranscript, listTemplateTranscripts, listTranscripts } from './transcripts.ts'
 
 beforeEach(resetTestData)
+
+/** Where macOS and Linux both keep mkfifo, called by full path rather than through PATH. */
+const MKFIFO = '/usr/bin/mkfifo'
 
 const draftIn = async () => {
   const project = await createProject('Ünïcode & Co!', meta.date)
@@ -34,6 +42,27 @@ describe('storage', () => {
     expect((await createProject('Ünïcode & Co!', meta.date)).id).toMatch(/^unicode-co-[a-z0-9]{5}$/)
     expect((await createProject('!!!', meta.date)).id).toMatch(/^project-/)
     expect(() => safeId('../etc')).toThrow('Invalid id')
+  })
+
+  it('keeps nothing in a Project folder but its Glossary and the entries Codex on Linux is kept from writing', async () => {
+    const draft = await draftIn()
+    await saveGlossary(draft.projectId, '# Glossary\n', (await getGlossary(draft.projectId)).version)
+    const entries = await fs.readdir(projectDir(draft.projectId))
+    expect(entries.toSorted()).toEqual(['CONTEXT.md', ...PROJECT_APP_ENTRIES].toSorted())
+  })
+
+  it('never reads the Glossary through a link a session put in its place', async () => {
+    const draft = await draftIn()
+    const secret = path.join(projectDir(draft.projectId), '..', 'secret.txt')
+    await fs.writeFile(secret, 'token')
+    await fs.symlink(secret, glossaryFile(draft.projectId))
+    await expect(getGlossary(draft.projectId)).rejects.toThrow(UnsafeFile)
+  })
+
+  it('never blocks on a Glossary a session turned into a named pipe', async () => {
+    const draft = await draftIn()
+    execFileSync(MKFIFO, [glossaryFile(draft.projectId)])
+    await expect(getGlossary(draft.projectId)).rejects.toThrow(UnsafeFile)
   })
 
   it('serialises Draft updates and skips writes that change nothing', async () => {

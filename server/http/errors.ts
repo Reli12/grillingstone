@@ -3,7 +3,7 @@ import { DraftOpError } from '#core/draft/humanOps.ts'
 
 import { DraftInputError } from '../services/draftService.ts'
 import { SessionError } from '../sessions/sessionError.ts'
-import { NotFound, StaleWrite } from '../storage/errors.ts'
+import { NotFound, StaleWrite, UnsafeFile } from '../storage/errors.ts'
 import { TemplateError } from '../storage/templates.ts'
 
 export class HttpError extends Error {
@@ -18,6 +18,7 @@ const STATUS: [new (...args: never[]) => Error, number][] = [
   [DraftInputError, 400],
   [NotFound, 404],
   [StaleWrite, 409],
+  [UnsafeFile, 409],
   [DraftOpError, 409],
   [SessionError, 409],
   [TemplateError, 409],
