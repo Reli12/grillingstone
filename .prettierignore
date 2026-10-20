@@ -5,3 +5,5 @@ plan
 /data*/
 .playwright-mcp
 package-lock.json
+# Docker's default seccomp profile plus Codex's calls, kept in Docker's own layout so it diffs against upstream.
+docker/seccomp-codex.json

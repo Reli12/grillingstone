@@ -1,0 +1,3 @@
+# Shell scripts run inside the Linux container. Git for Windows would otherwise check them out with Windows line
+# endings, and a carriage return on the first line ("bash\r") stops the container from starting.
+*.sh text eol=lf
