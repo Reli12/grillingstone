@@ -1,39 +1,47 @@
 # Grilling Stone
 
-A local tool where you and Claude grill a requirement into a single, well-written Azure DevOps work item.
+A local tool where you and your AI coding agent, **Claude Code** or **Codex**, grill a requirement into a single,
+well-written Azure DevOps work item. Grilling Stone calls whichever one you choose the **Assistant**.
 
-You describe a requirement, or a bug you saw. Claude interrogates it one question at a time until it is clear, then
-writes it as an **Epic, Feature, PBI, Task or Bug** in your Template. You edit the result like a document, ask Claude to
-rework any part, and copy it into Azure DevOps. Claude writes the copy; you stay the editor.
+You describe a requirement, or a bug you saw. The Assistant interrogates it one question at a time until it is clear,
+then writes it as an **Epic, Feature, PBI, Task or Bug** in your Template. You edit the result like a document, ask the
+Assistant to rework any part, and copy it into Azure DevOps. The Assistant writes the copy; you stay the editor.
 
 > **Why "Grilling Stone"?** A grilling stone holds the heat, and whatever you put on it gets turned until it's done all
-> the way through. Here your requirement goes on the stone and Claude's questions are the heat: every vague word gets
+> the way through. Here your requirement goes on the stone and the Assistant's questions are the heat: every vague word gets
 > turned over until nothing raw is left.
 
 ## How it works
 
-1. **Create a Project** for the product you work on. Each Project keeps its own **Glossary**, which can start empty,
+1. **Choose your Assistant** in Settings: Claude or Codex, whichever you have set up. You can switch at any time.
+2. **Create a Project** for the product you work on. Each Project keeps its own **Glossary**, which can start empty,
    from text you paste, or as a copy of another Project's. Terms settled in one Draft are known in the next.
-2. **Start a Draft.** Describe the requirement, pick its Work Item Type and Template, and start grilling.
-3. **Answer Claude's questions.** Each comes as a card with a recommended answer. Claude never writes until you confirm,
+3. **Start a Draft.** Describe the requirement, pick its Work Item Type and Template, and start grilling.
+4. **Answer the Assistant's questions.** Each comes as a card with a recommended answer. Nothing is written until you
+   confirm,
    either at its Ready Check or with **Enough — write it**.
-4. **Edit v1 like a document.** Reorder, edit or discard Sections and Entries. Locked Sections (e.g. a PBI's User Story
+5. **Edit v1 like a document.** Reorder, edit or discard Sections and Entries. Locked Sections (e.g. a PBI's User Story
    and Acceptance Criteria) can be edited and moved, but never discarded.
-5. **Refine with Claude.** Press **Grill this** on any Section for a Focused Session. Later sessions never overwrite
-   your work; they return a **Proposal**. Changes to text only Claude wrote can be accepted in bulk; changes touching
+6. **Refine with the Assistant.** Press **Grill this** on any Section for a Focused Session. Later sessions never overwrite
+   your work; they return a **Proposal**. Changes to text only the Assistant wrote can be accepted in bulk; changes touching
    your edits arrive as **Conflicts** you decide one at a time.
-6. **Copy for Azure DevOps.** Each field is rendered and copied as formatted text, ready to paste.
+7. **Copy for Azure DevOps.** Each field is rendered and copied as formatted text, ready to paste.
 
-**Templates** define a Draft's Sections and the writing method Claude follows. Default Templates ship for every Work
-Item Type; you can edit copies, build your own, or let Claude grill you about how your team writes a work item in a
+**Templates** define a Draft's Sections and the writing method the Assistant follows. Default Templates ship for every
+Work Item Type; you can edit copies, build your own, or let the Assistant grill you about how your team writes a work item in a
 **Template Session**. Templates can be exported and imported to share with your team.
 
 The domain language (Draft, Section, Proposal, Conflict, Iteration…) is defined in [CONTEXT.md](CONTEXT.md).
 
-## How Claude runs
+## How the Assistant runs
 
-Grilling Stone doesn't call an API. It runs your installed **Claude Code** as a headless child process, one per session,
-started and supervised by the local backend:
+Grilling Stone doesn't call an AI API. It runs the Assistant chosen in **Settings** as a child process on your machine,
+one per session, started and supervised by the local backend. Both Assistants get the same seed, ask through the same
+cards and submit through the same validation; they differ in how they are driven and guarded.
+
+### Claude Code
+
+The backend runs your installed **Claude Code** headless:
 
 ```
 browser ──HTTP/websocket──▶ backend ──stdin/stdout (stream-json)──▶ claude -p   (cwd: the Project's folder)
@@ -69,17 +77,45 @@ default. It allows:
 
 Drafts themselves can only change through the submit script. Only one session runs per Draft at a time.
 
+### Codex
+
+The backend runs your installed **Codex** as `codex app-server`, speaking JSON-RPC over its stdin and stdout:
+
+1. **Launch and seed.** Each session starts `codex app-server` with a permission profile passed as `-c` overrides, then
+   opens a thread (`thread/start`) with the grilling seed as developer instructions, the model chosen in Settings,
+   and one extra tool, `submit_draft`. Each turn is a `turn/start`; its notifications become the Transcript.
+2. **Sandbox.** Codex runs every command inside its own OS sandbox, set by the profile: it may read the Project's
+   folder and nothing else of yours, write only the Glossary (`CONTEXT.md`) and the Project's `plan/` folder, and its
+   commands get no network. Live web search stays available to Codex itself.
+3. **Permission Guard.** Every approval Codex asks for is answered by the same Guard that checks Claude: command and
+   file-change approvals are declined, and anything it doesn't recognise is declined. Both the sandbox and the Guard
+   have to allow an action.
+4. **Writing.** Codex submits by calling `submit_draft` with the Draft or Proposal; the backend validates it exactly as
+   it validates the submit script, and the reply tells Codex whether it was accepted or what to fix.
+5. **Ending and Continue.** **Stop** ends the process as for Claude. **Continue** resumes the thread with
+   `thread/resume`; Codex keeps its own copy of the conversation under `~/.codex`.
+
+A session is held by one Assistant: **Continue** works only while that Assistant is the one in Settings. A new session
+on any Draft works with either.
+
+### Template Sessions
+
 A **Template Session** runs the same way with a stricter scope. It works in its own empty folder, writes no files,
 loads no skills and has no Glossary. It submits a Template instead of a Draft, and isn't kept for continuing.
 
 ## Requirements
 
 - **Node.js 23.6 or newer.** The backend runs TypeScript directly through Node's type stripping, with no build step.
-- **[Claude Code](https://claude.com/claude-code)**, installed and logged in. Grilling Stone runs it headless
-  (`claude -p`) on your own Claude account: a Claude subscription or an Anthropic API key, whichever you signed in
-  with. Choose the model in **Settings**; leave it empty for Claude Code's default.
+- **One Assistant**, installed and signed in. You need only the one you will use:
+  - **[Claude Code](https://claude.com/claude-code)**: `npm install -g @anthropic-ai/claude-code`, then
+    `claude auth login`, with a Claude subscription or an Anthropic API key.
+  - **[Codex](https://developers.openai.com/codex)**: `npm install -g @openai/codex`, then `codex login`, with a
+    ChatGPT plan or an OpenAI API key.
 
-Or neither of them: with Docker you need only Docker and a Claude account (see
+Choose the Assistant and its model in **Settings**; leave the model empty for the Assistant's default. Settings show
+whether each Assistant is ready, or what is still missing.
+
+Or neither Node.js nor an Assistant: with Docker you need only Docker and a Claude account (see
 [Running with Docker](#running-with-docker)).
 
 ## Getting started
@@ -92,9 +128,10 @@ npm run dev
 Open <http://127.0.0.1:5310>. `npm run dev` starts both processes side by side: the React frontend (Vite, port 5310)
 and the Node backend (port 5311), which restarts when `server/` or `core/` changes. Both listen on `127.0.0.1` only.
 
-No separate Claude terminal is needed: the backend starts and stops Claude Code for each session. Just log in to
-Claude Code once (run `claude` in any terminal and sign in), and make sure `claude` is on the `PATH` of the shell that
-runs `npm run dev`. If it isn't, point `GRILLINGSTONE_CLAUDE_BIN` at the binary.
+No separate Assistant terminal is needed: the backend starts and stops the Assistant for each session. Just sign in
+once (`claude auth login` or `codex login` in any terminal), and make sure `claude` or `codex` is on the `PATH` of the
+shell that runs `npm run dev`. If it isn't, point `GRILLINGSTONE_CLAUDE_BIN` or `GRILLINGSTONE_CODEX_BIN` at the
+binary.
 
 The **How it works** page inside the app walks through every step.
 
@@ -136,10 +173,14 @@ details, including Linux file permissions, are in [docker/README.md](docker/READ
 ## Your data and privacy
 
 - Everything Grilling Stone produces (Projects, Drafts, Glossaries, Transcripts, Templates, settings) lives in the
-  git-ignored `data/` folder inside this repository. Nothing is sent anywhere except to Claude, through Claude Code.
-- Claude Code also keeps its own copy of each grilling conversation (under `~/.claude/projects/`), which is what lets an
-  ended session be continued.
-- Claude sees only what a session is seeded with and its own Project's folder (see [How Claude runs](#how-claude-runs)).
+  git-ignored `data/` folder inside this repository. Nothing is sent anywhere except through your Assistant: Claude Code
+  sends sessions to Anthropic, and Codex to OpenAI, each on your own account.
+- The Assistant also keeps its own copy of each grilling conversation (Claude Code under `~/.claude/projects/`, Codex
+  under `~/.codex`), which is what lets an ended session be continued.
+- The Assistant sees only what a session is seeded with and its own Project's folder (see
+  [How the Assistant runs](#how-the-assistant-runs)).
+- The terms that apply to your account, and how Grilling Stone meets each maker's rules, are on the app's **Legal**
+  page.
 
 ## Configuration
 
@@ -151,29 +192,31 @@ Optional environment variables, mainly for running isolated copies (the test sui
 | `GRILLINGSTONE_SERVER_PORT` | `5311`   | Backend port                                                                |
 | `GRILLINGSTONE_DATA_DIR`    | `data`   | Data folder; must be named `data…` and sit directly in the repository       |
 | `GRILLINGSTONE_CLAUDE_BIN`  | `claude` | The Claude Code binary to run                                               |
+| `GRILLINGSTONE_CODEX_BIN`   | `codex`  | The Codex binary to run                                                     |
 
 ## Project structure
 
 | Folder                | What lives there                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------------ |
 | `core/`               | Pure domain logic shared by frontend and backend, grouped by concept (draft, proposal, session…) |
-| `server/`             | Local Node backend: HTTP routes → services → storage, and the supervisor of Claude sessions      |
+| `server/`             | Local Node backend: HTTP routes → services → storage, and the supervisor of Assistant sessions   |
 | `src/`                | React 19 frontend: React Router, TanStack Query, React Hook Form + Zod, Tailwind v4              |
 | `scripts/`            | `dev.mjs`, the submit script sessions write Drafts through, and the permission hook              |
 | `defaults/templates/` | The Default Templates for Epic, Feature, PBI, Task and Bug                                       |
-| `test/`               | Test support: a fake Claude, MSW mocks, setup                                                    |
+| `test/`               | Test support: a fake Claude and a fake Codex, MSW mocks, setup                                   |
 | `e2e/`                | Playwright browser smoke tests                                                                   |
 
 ## Testing
 
-| Command                 | What it runs                                                                                        |
-| ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `npm test`              | Vitest: `core/` unit tests, `server/` end-to-end tests against a fake Claude, `src/` tests in jsdom |
-| `npm run test:coverage` | The same, with coverage (80% threshold)                                                             |
-| `npm run test:e2e`      | Playwright smoke tests in Chromium: the real backend with fake Claude, plus the Vite dev server     |
-| `npm run test:e2e:ui`   | The smoke tests in Playwright's UI mode, for writing and debugging                                  |
+| Command                 | What it runs                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `npm test`              | Vitest: `core/` unit tests, `server/` end-to-end tests against both fake Assistants, `src/` tests in jsdom |
+| `npm run test:coverage` | The same, with coverage (80% threshold)                                                                    |
+| `npm run test:e2e`      | Playwright smoke tests in Chromium: the real backend with fake Claude, plus the Vite dev server            |
+| `npm run test:e2e:ui`   | The smoke tests in Playwright's UI mode, for writing and debugging                                         |
 
-Neither suite needs Claude Code or a network: `test/server/fakeClaude.mjs` plays Claude's side of a session. The e2e
+Neither suite needs an Assistant or a network: `test/server/fakeClaude.mjs` and `test/server/fakeCodex.mjs` play each
+Assistant's side of a session. The e2e
 suite uses its own ports (5398/5399) and data folder (`data-e2e/`), so it can run beside `npm run dev` and `npm test`.
 If Playwright reports a missing browser, run `npx playwright install chromium` once.
 
@@ -182,6 +225,6 @@ Other checks: `npm run typecheck`, `npm run lint`, `npm run format:check`. An op
 
 ## License
 
-[MIT](LICENSE). The license covers this repository's code only. Claude Code is Anthropic's software: you install it
-separately, and your use of it and of Claude is governed by Anthropic's terms. Grilling Stone is an independent
-project, not affiliated with or endorsed by Anthropic or Microsoft.
+[MIT](LICENSE). The license covers this repository's code only. Claude Code is Anthropic's software and Codex is
+OpenAI's: you install them separately, and your use of each is governed by its maker's terms. Grilling Stone is an
+independent project, not affiliated with or endorsed by Anthropic, OpenAI or Microsoft.
