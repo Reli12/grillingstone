@@ -2,6 +2,9 @@
 // checked to be a single safe path segment first.
 import path from 'node:path'
 
+import { GLOSSARY_FILE } from '#core/session/permissionGuard.ts'
+import { DRAFTS_FOLDER, PROJECT_FILE, TRANSCRIPTS_FOLDER } from '#core/shared/projectFolder.ts'
+
 import { DATA_DIR } from '../config.ts'
 import { NotFound } from './errors.ts'
 import { isSafeId } from './fsUtil.ts'
@@ -14,14 +17,14 @@ export const safeId = (value: string) => {
 
 export const projectsDir = path.join(DATA_DIR, 'projects')
 export const projectDir = (projectId: string) => path.join(projectsDir, safeId(projectId))
-export const projectFile = (projectId: string) => path.join(projectDir(projectId), 'project.json')
-export const draftsDir = (projectId: string) => path.join(projectDir(projectId), 'drafts')
+export const projectFile = (projectId: string) => path.join(projectDir(projectId), PROJECT_FILE)
+export const draftsDir = (projectId: string) => path.join(projectDir(projectId), DRAFTS_FOLDER)
 export const draftFile = (projectId: string, draftId: string, ext: 'json' | 'md') =>
   path.join(draftsDir(projectId), `${safeId(draftId)}.${ext}`)
-export const transcriptsDir = (projectId: string) => path.join(projectDir(projectId), 'transcripts')
+export const transcriptsDir = (projectId: string) => path.join(projectDir(projectId), TRANSCRIPTS_FOLDER)
 export const transcriptFile = (projectId: string, sessionId: string) =>
   path.join(transcriptsDir(projectId), `${safeId(sessionId)}.json`)
-export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
+export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), GLOSSARY_FILE)
 
 /** Each Template Session runs in its own empty folder; its Transcript is kept beside it, out of its reach. */
 export const templateSessionsDir = path.join(DATA_DIR, 'template-sessions')

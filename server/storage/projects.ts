@@ -5,6 +5,7 @@ import path from 'node:path'
 
 import type { Project, ProjectSummary } from '#core/contract/apiTypes.ts'
 import { newId } from '#core/shared/ids.ts'
+import { DRAFTS_FOLDER, PROJECT_FILE } from '#core/shared/projectFolder.ts'
 
 import { NotFound } from './errors.ts'
 import { isSafeId, readJson, writeJson } from './fsUtil.ts'
@@ -32,12 +33,12 @@ const slug = (name: string) =>
 /** How many Drafts a Project folder holds; a Project without a drafts folder simply has none. */
 async function countDrafts(folderName: string) {
   // A missing drafts folder means no Drafts yet, which is a count of zero, not an error.
-  const files = await fs.readdir(path.join(projectsDir, folderName, 'drafts')).catch(() => [])
+  const files = await fs.readdir(path.join(projectsDir, folderName, DRAFTS_FOLDER)).catch(() => [])
   return files.filter((file) => file.endsWith('.json')).length
 }
 
 async function summaryOf(folderName: string): Promise<ProjectSummary | null> {
-  const project = await readJson<Project>(path.join(projectsDir, folderName, 'project.json'))
+  const project = await readJson<Project>(path.join(projectsDir, folderName, PROJECT_FILE))
   if (!project) return null
   return { ...project, drafts: await countDrafts(folderName) }
 }
