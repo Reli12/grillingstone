@@ -8,6 +8,8 @@ const input = {
   mode: 'grilling' as const,
   sessionTmp: '/p/data/tmp/sess-1',
   runtimeReadPaths: ['/opt/node'],
+  platform: 'darwin' as const,
+  codexHome: '/home/me/.codex',
 }
 
 /** The permission profile the config names as its default. */
@@ -20,6 +22,32 @@ describe('codexConfig', () => {
     const profile = profileOf(config)
     expect(profile.workspace_roots).toEqual({ '/p/project': true })
     expect(profile.filesystem[':workspace_roots']).toEqual({ '.': 'read', 'CONTEXT.md': 'write', plan: 'write' })
+  })
+
+  it('on Linux, lets a Grilling Session write its Project folder but not the app’s own files or instructions', () => {
+    const config = codexConfig({ ...input, platform: 'linux' })
+    const profile = profileOf(config)
+    expect(profile.filesystem[':workspace_roots']).toEqual({
+      '.': 'write',
+      'project.json': 'read',
+      drafts: 'read',
+      transcripts: 'read',
+      'AGENTS.md': 'deny',
+      'AGENTS.override.md': 'deny',
+    })
+  })
+
+  it('on Linux, reads the folder Codex starts its sandbox helper from, and no other part of its home', () => {
+    const linux = profileOf(codexConfig({ ...input, platform: 'linux' })).filesystem
+    expect(linux['/home/me/.codex/tmp/arg0']).toEqual({ '.': 'read' })
+    expect(Object.keys(linux).filter((key) => key.startsWith('/home/me/.codex'))).toEqual(['/home/me/.codex/tmp/arg0'])
+    const mac = profileOf(codexConfig(input)).filesystem
+    expect(Object.keys(mac).some((key) => key.startsWith('/home/me/.codex'))).toBe(false)
+  })
+
+  it('on Linux too, lets a Template Session write none of its working folder', () => {
+    const config = codexConfig({ ...input, mode: 'template', platform: 'linux' })
+    expect(profileOf(config).filesystem[':workspace_roots']).toEqual({ '.': 'read' })
   })
 
   it('lets a Template Session read its working folder and write none of it', () => {

@@ -178,6 +178,14 @@ describe.each([
 describe('the Codex adapter', () => {
   const codex = codexAssistantAt(fake('fakeCodex.mjs'))
 
+  it('is unavailable on native Windows, where its sandbox is not checked against the profile', async () => {
+    const onWindows = codexAssistantAt(fake('fakeCodex.mjs'), 'win32')
+    expect(await onWindows.checkAvailability()).toEqual({
+      ready: false,
+      fix: expect.stringMatching(/Docker.*WSL/),
+    })
+  })
+
   it("hands a submit_draft call to the session's submit, and Codex the answer", async () => {
     const submitted: unknown[] = []
     const submit = (payload: unknown) => {

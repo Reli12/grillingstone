@@ -2,6 +2,7 @@
 // sandbox profile (ADR-0019). Its notifications become steps, and every request it sends out goes to the Guard.
 import { type ChildProcess, spawn } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 
 import type { Availability } from '#core/contract/apiTypes.ts'
@@ -22,6 +23,8 @@ import type { KnownTool, StreamStep } from './streamEvents.ts'
 /** Each running session's own temp folder lives here: shells need one, and the system temp folders are denied. */
 export const SESSION_TMP_DIR = path.join(DATA_DIR, 'session-tmp')
 
+/** Where Codex keeps its sign-in, threads and helpers, as Codex itself resolves it. */
+const CODEX_HOME = process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex')
 /** Folders commands must read to run at all: the Node install Codex and its bundled ripgrep live in. */
 const RUNTIME_READ_PATHS = [path.dirname(path.dirname(process.execPath))]
 /** Codex asks before anything leaves the sandbox; commands that stay inside run without asking. */
@@ -92,7 +95,14 @@ async function openThread(rpc: CodexRpc, launch: AssistantLaunch, events: Assist
 
 function spawnCodex(bin: string, launch: AssistantLaunch, sessionTmp: string): ChildProcess {
   const { cwd, guardMode } = launch.scope
-  const config = codexConfig({ projectDir: cwd, mode: guardMode, sessionTmp, runtimeReadPaths: RUNTIME_READ_PATHS })
+  const config = codexConfig({
+    projectDir: cwd,
+    mode: guardMode,
+    sessionTmp,
+    runtimeReadPaths: RUNTIME_READ_PATHS,
+    platform: process.platform,
+    codexHome: CODEX_HOME,
+  })
   return spawn(bin, ['app-server', ...configArgs(config)], { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
 }
 
@@ -181,8 +191,17 @@ function start(bin: string, launch: AssistantLaunch, events: AssistantEvents): A
   }
 }
 
+/**
+ * Where Codex's sandbox has been checked against this profile: macOS (Seatbelt) and Linux (bubblewrap). Native
+ * Windows has neither, and a session must never run unguarded (ADR-0019), so there Codex isn't offered at all.
+ */
+const SANDBOXED_PLATFORMS: NodeJS.Platform[] = ['darwin', 'linux']
+const UNSUPPORTED_PLATFORM_FIX =
+  'Codex isn’t available on native Windows yet: its sandbox there hasn’t been checked against Grilling Stone’s, so sessions would not be guarded. Run Grilling Stone in Docker or WSL2 to use Codex, or choose Claude.'
+
 /** Installed and signed in, from `codex login status`, which exits 0 only when signed in. */
-async function checkAvailability(bin: string): Promise<Availability> {
+async function checkAvailability(bin: string, platform: NodeJS.Platform): Promise<Availability> {
+  if (!SANDBOXED_PLATFORMS.includes(platform)) return { ready: false, fix: UNSUPPORTED_PLATFORM_FIX }
   const status = await runStatus(bin, ['login', 'status'])
   if (!status.found)
     return {
@@ -196,11 +215,11 @@ async function checkAvailability(bin: string): Promise<Availability> {
   }
 }
 
-/** The Codex adapter for the `codex` binary at `bin`. */
-export const codexAssistantAt = (bin: string): Assistant => ({
+/** The Codex adapter for the `codex` binary at `bin`, on this machine's platform unless a test names another. */
+export const codexAssistantAt = (bin: string, platform: NodeJS.Platform = process.platform): Assistant => ({
   name: 'codex',
   submitVia: { tool: SUBMIT_TOOL },
-  checkAvailability: () => checkAvailability(bin),
+  checkAvailability: () => checkAvailability(bin, platform),
   start: (launch, events) => start(bin, launch, events),
 })
 
