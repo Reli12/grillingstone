@@ -26,6 +26,11 @@ HTMLDialogElement.prototype.close = function () {
   this.dispatchEvent(new Event('close'))
 }
 
+// jsdom has no pointer capture; Sonner captures the pointer when a toast is pressed, to track a swipe.
+Element.prototype.setPointerCapture ??= () => {}
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.hasPointerCapture ??= () => false
+
 // jsdom has no matchMedia; Sonner reads it to follow the system theme.
 window.matchMedia ??= (query: string) =>
   ({
