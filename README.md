@@ -85,8 +85,11 @@ The backend runs your installed **Codex** as `codex app-server`, speaking JSON-R
    opens a thread (`thread/start`) with the grilling seed as developer instructions, the model chosen in Settings,
    and one extra tool, `submit_draft`. Each turn is a `turn/start`; its notifications become the Transcript.
 2. **Sandbox.** Codex runs every command inside its own OS sandbox, set by the profile: it may read the Project's
-   folder and nothing else of yours, write only the Glossary (`CONTEXT.md`) and the Project's `plan/` folder, and its
-   commands get no network. Live web search stays available to Codex itself.
+   folder and nothing else of yours, and its commands get no network. On macOS it may write only the Glossary
+   (`CONTEXT.md`) and the Project's `plan/` folder. Linux's sandbox can't grant writes to a single file, so there it
+   may write the Project folder while `project.json`, `drafts/` and `transcripts/` stay read-only and `AGENTS.md`
+   stays shut. Either way, Drafts change only through a validated submission. Live web search stays available to
+   Codex itself.
 3. **Permission Guard.** Every approval Codex asks for is answered by the same Guard that checks Claude: command and
    file-change approvals are declined, and anything it doesn't recognise is declined. Both the sandbox and the Guard
    have to allow an action.
@@ -115,8 +118,12 @@ loads no skills and has no Glossary. It submits a Template instead of a Draft, a
 Choose the Assistant and its model in **Settings**; leave the model empty for the Assistant's default. Settings show
 whether each Assistant is ready, or what is still missing.
 
-Or neither Node.js nor an Assistant: with Docker you need only Docker and a Claude account (see
+Or neither Node.js nor an Assistant: with Docker you need only Docker and a Claude or ChatGPT account (see
 [Running with Docker](#running-with-docker)).
+
+**On Windows,** run Grilling Stone in [Docker Desktop](#running-with-docker) or inside WSL2 (Ubuntu), where it behaves
+as on Linux. Native Windows isn't tested: Codex is offered only where its sandbox has been checked (macOS and Linux),
+so Settings show it as unavailable there.
 
 ## Getting started
 
@@ -137,9 +144,10 @@ The **How it works** page inside the app walks through every step.
 
 ## Running with Docker
 
-No Node.js or Claude Code on your machine? Run Grilling Stone in Docker instead. You need only
-[Docker](https://www.docker.com/products/docker-desktop/) and a Claude account: a subscription (Pro or Max) or an
-Anthropic API key. The container holds the backend, the frontend and Claude Code.
+No Node.js or Assistant on your machine? Run Grilling Stone in Docker instead. You need only
+[Docker](https://www.docker.com/products/docker-desktop/) and an account for one Assistant: Claude (a subscription or
+an Anthropic API key) or Codex (a ChatGPT plan or an OpenAI API key). The container holds the backend, the frontend,
+Claude Code and Codex.
 
 From the repository root:
 
@@ -147,9 +155,11 @@ From the repository root:
 # 1. Build the image (again after every git pull)
 docker compose -f docker/compose.yml build
 
-# 2. Sign in to Claude, once. Open the link it prints, sign in with your Claude account, paste the code back.
-#    Using an Anthropic API key instead? Add --console after login and sign in to your Console account.
-docker compose -f docker/compose.yml run --rm grillingstone login
+# 2. Sign in to your Assistant, once. Open the link it prints and sign in.
+#    Claude: paste the code back. Using an Anthropic API key instead? Add --console after `login claude`.
+docker compose -f docker/compose.yml run --rm grillingstone login claude
+#    Codex: enter the one-time code it prints on the page it links to.
+docker compose -f docker/compose.yml run --rm grillingstone login codex
 
 # 3. Start Grilling Stone
 docker compose -f docker/compose.yml up
@@ -159,15 +169,18 @@ Open <http://localhost:5310>. Stop it with `Ctrl+C`, or with `docker compose -f 
 it with `up -d`.
 
 - **Your data** stays in this repository's `data/` folder, the same one `npm run dev` uses. Don't run both at once.
-- **Your Claude login** is kept in the `grillingstone_claude-home` Docker volume, with Claude Code's chat copies, so it
-  survives restarts and rebuilds. `down -v` deletes it: you sign in again, and ended sessions can no longer be
-  Continued.
+- **Your logins** are kept in Docker volumes with each Assistant's conversation copies: Claude's in
+  `grillingstone_claude-home`, Codex's in `grillingstone_codex-home`. They survive restarts and rebuilds. `down -v`
+  deletes them: you sign in again, and ended sessions can no longer be Continued.
+- **Codex needs its sandbox,** which the Docker setup allows narrowly. On Ubuntu 23.10 and later hosts it may also need
+  user namespaces allowed; see [docker/README.md](docker/README.md#how-it-runs).
 - **Sessions can't be Continued across the two setups:** one started under `npm run dev` can't be Continued in Docker,
   nor the other way round.
 - **Port 5310 only, and only from your machine.** The backend accepts browser calls only from `localhost:5310`, and the
   port is bound to `127.0.0.1` because Grilling Stone has no login of its own.
 
-Check your login with `docker compose -f docker/compose.yml run --rm grillingstone claude auth status --text`. More
+Check your logins with `… run --rm grillingstone claude auth status --text` or `… codex login status`, or open
+**Settings**, which shows whether each Assistant is ready. More
 details, including Linux file permissions, are in [docker/README.md](docker/README.md).
 
 ## Your data and privacy
@@ -212,12 +225,13 @@ Optional environment variables, mainly for running isolated copies (the test sui
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `npm test`              | Vitest: `core/` unit tests, `server/` end-to-end tests against both fake Assistants, `src/` tests in jsdom |
 | `npm run test:coverage` | The same, with coverage (80% threshold)                                                                    |
-| `npm run test:e2e`      | Playwright smoke tests in Chromium: the real backend with fake Claude, plus the Vite dev server            |
+| `npm run test:e2e`      | Playwright smoke tests in Chromium: the real backend with the fake Assistants, plus the Vite dev server    |
 | `npm run test:e2e:ui`   | The smoke tests in Playwright's UI mode, for writing and debugging                                         |
 
 Neither suite needs an Assistant or a network: `test/server/fakeClaude.mjs` and `test/server/fakeCodex.mjs` play each
-Assistant's side of a session. The e2e
-suite uses its own ports (5398/5399) and data folder (`data-e2e/`), so it can run beside `npm run dev` and `npm test`.
+Assistant's side of a session. The e2e suite runs every spec on Claude, then the main journey and the Template Session
+again on Codex (the `chromium-codex` project). It uses its own ports (5398/5399) and data folder (`data-e2e/`), so it
+can run beside `npm run dev` and `npm test`.
 If Playwright reports a missing browser, run `npx playwright install chromium` once.
 
 Other checks: `npm run typecheck`, `npm run lint`, `npm run format:check`. An optional local SonarQube is wired up in
