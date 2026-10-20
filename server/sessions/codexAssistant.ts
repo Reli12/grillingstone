@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import type { Availability } from '#core/contract/apiTypes.ts'
+import { ASSISTANT_SETUP } from '#core/session/assistantName.ts'
 import { SUBMIT_TOOL } from '#core/session/cardProtocol.ts'
 import { codexConfig, configArgs } from '#core/session/codexProfile.ts'
 import { CODEX_APPROVAL_REQUESTS, decideCodexRequest } from '#core/session/permissionGuard.ts'
@@ -186,10 +187,13 @@ async function checkAvailability(bin: string): Promise<Availability> {
   if (!status.found)
     return {
       ready: false,
-      fix: `Codex isn’t installed (looked for \`${bin}\`). Install it with \`npm install -g @openai/codex\`, or point GRILLINGSTONE_CODEX_BIN at it.`,
+      fix: `Codex isn’t installed (looked for \`${bin}\`). Install it with \`${ASSISTANT_SETUP.codex.install}\`, or point GRILLINGSTONE_CODEX_BIN at it.`,
     }
   if (status.code === 0) return { ready: true }
-  return { ready: false, fix: 'Codex isn’t signed in. Run `codex login` in a terminal, then try again.' }
+  return {
+    ready: false,
+    fix: `Codex isn’t signed in. Run \`${ASSISTANT_SETUP.codex.signIn}\` in a terminal, then try again.`,
+  }
 }
 
 /** The Codex adapter for the `codex` binary at `bin`. */

@@ -3,6 +3,7 @@
 import type { ChildProcess } from 'node:child_process'
 
 import type { Availability } from '#core/contract/apiTypes.ts'
+import { ASSISTANT_SETUP } from '#core/session/assistantName.ts'
 
 import { CLAUDE_BIN, SUBMIT_SCRIPT } from '../config.ts'
 import type { Assistant, AssistantEvents, AssistantLaunch, AssistantSession } from './assistant.ts'
@@ -46,10 +47,13 @@ async function checkAvailability(bin: string): Promise<Availability> {
   if (!status.found)
     return {
       ready: false,
-      fix: `Claude Code isn’t installed (looked for \`${bin}\`). Install it with \`npm install -g @anthropic-ai/claude-code\`, or point GRILLINGSTONE_CLAUDE_BIN at it.`,
+      fix: `Claude Code isn’t installed (looked for \`${bin}\`). Install it with \`${ASSISTANT_SETUP.claude.install}\`, or point GRILLINGSTONE_CLAUDE_BIN at it.`,
     }
   if (signedIn(status.stdout)) return { ready: true }
-  return { ready: false, fix: 'Claude Code isn’t signed in. Run `claude auth login` in a terminal, then try again.' }
+  return {
+    ready: false,
+    fix: `Claude Code isn’t signed in. Run \`${ASSISTANT_SETUP.claude.signIn}\` in a terminal, then try again.`,
+  }
 }
 
 /** Whether `claude auth status --json` says it is signed in; output that is not that JSON means it is not. */
