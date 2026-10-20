@@ -1,7 +1,10 @@
 // The name, explained once at the top: the questions are the heat on the grilling stone.
 
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
+
 /** The name, explained once at the top: the questions are the heat on the grilling stone. */
 export function WhyGrillingStone() {
+  const assistant = useAssistantLabel()
   return (
     <section
       aria-labelledby="why-grilling-stone"
@@ -12,7 +15,7 @@ export function WhyGrillingStone() {
       </h2>
       <p className="mt-2">
         A grilling stone holds the heat, and whatever you put on it gets turned until it’s done all the way through.
-        Here your requirement goes on the stone and Claude’s questions are the heat. That is what{' '}
+        Here your requirement goes on the stone and {assistant}’s questions are the heat. That is what{' '}
         <strong className="text-ink">grilling</strong> means in this tool: every vague word gets turned over until
         nothing raw is left. What comes off the stone is yours to edit.
       </p>

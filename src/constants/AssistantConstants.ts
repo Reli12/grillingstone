@@ -1,4 +1,4 @@
-// How the Settings page describes each Assistant: which account it runs on, and its model field.
+// How the UI describes each Assistant: which account it runs on (Settings and the Guide), and its model field.
 import type { AssistantName } from '#core/session/assistantName.ts'
 
 /** The tool behind each Assistant and the accounts it signs in with. */

@@ -3,22 +3,23 @@ import { Lock } from 'lucide-react'
 
 import { Tag } from '@/components/atoms/tag/tag'
 import { ExampleFrame } from '@/components/composite/exampleFrame/exampleFrame'
-import { NumberedStep } from '@/components/composite/numberedStep/numberedStep'
 import { Gutter } from '@/components/features/draft/margin/gutter/gutter'
 import { GutterLegend } from '@/components/features/draft/margin/gutterLegend/gutterLegend'
-import { STEPS } from '@/constants/GuideConstants'
+import { GuideStep } from '@/components/features/guide/guideStep/guideStep'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 
 /** Sample lines for the ownership-margin example: one per mark. */
-const OWNERSHIP_EXAMPLES = [
-  { edited: false, moved: false, text: 'Given an Account Admin views an invoice — written by Claude' },
+const ownershipExamples = (assistant: string) => [
+  { edited: false, moved: false, text: `Given an Account Admin views an invoice — written by ${assistant}` },
   { edited: true, moved: false, text: 'Given a Member opens an invoice — edited by you' },
   { edited: false, moved: true, text: 'Acceptance Criteria — moved by you' },
 ]
 
-/** Step 4: Editing the Draft by hand, Locked Sections and the ownership margin. */
+/** Editing the Draft by hand, Locked Sections and the ownership margin. */
 export function StepDraft() {
+  const assistant = useAssistantLabel()
   return (
-    <NumberedStep n={4} id="draft" title={STEPS[3].title}>
+    <GuideStep id="draft">
       <p>
         From v1 on, the conversation sits on the left and the live Draft on the right. The Draft is yours to edit:{' '}
         <strong>click any text</strong> to change it, <strong>drag</strong> Sections and Entries into a new order,{' '}
@@ -33,11 +34,13 @@ export function StepDraft() {
       </p>
       <p>
         The margin beside every Section and Entry shows who wrote it. That is not decoration: it decides what happens
-        when Claude later proposes changes.
+        when {assistant} later proposes changes.
       </p>
-      <ExampleFrame caption="The ownership margin: Claude’s text keeps a thin line; anything you edit gets a highlighter stroke; an arrow means you moved it.">
+      <ExampleFrame
+        caption={`The ownership margin: ${assistant}’s text keeps a thin line; anything you edit gets a highlighter stroke; an arrow means you moved it.`}
+      >
         <div className="space-y-3">
-          {OWNERSHIP_EXAMPLES.map((example) => (
+          {ownershipExamples(assistant).map((example) => (
             <div key={example.text} className="flex min-h-9 gap-2">
               <Gutter size="entry" edited={example.edited} moved={example.moved} />
               <p className="font-serif text-ink">{example.text}</p>
@@ -48,6 +51,6 @@ export function StepDraft() {
           </div>
         </div>
       </ExampleFrame>
-    </NumberedStep>
+    </GuideStep>
   )
 }

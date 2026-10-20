@@ -1,6 +1,7 @@
 // How it works: the steps, in order (ids are the page anchors).
 
 export const STEPS = [
+  { id: 'assistant', title: 'Choose your Assistant' },
   { id: 'project', title: 'Create a Project' },
   { id: 'start', title: 'Start a Draft' },
   { id: 'grill', title: 'Get grilled' },
@@ -9,3 +10,6 @@ export const STEPS = [
   { id: 'publish', title: 'Copy into Azure DevOps' },
   { id: 'templates', title: 'Make it your team’s' },
 ] as const
+
+/** The anchor id of one How it works step. */
+export type StepId = (typeof STEPS)[number]['id']
