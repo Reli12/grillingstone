@@ -1,6 +1,7 @@
 // The composer's buttons: Send, "Enough — write it" and Stop, enabled by the session's status.
 import { Square } from 'lucide-react'
 
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
 import type { SessionBase } from '#core/session/sessionTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
@@ -27,7 +28,7 @@ export function ComposerActions({ session, canSend, onSend, onWriteNow, onStop }
         variant="proof"
         disabled={!yourTurn || session.status === 'writing'}
         onClick={onWriteNow}
-        title={`Stop here: Claude writes ${writeTarget(session.kind)} now and decides open points with its recommended defaults`}
+        title={`Stop here: ${ASSISTANT_LABELS[session.assistant]} writes ${writeTarget(session.kind)} now and decides open points with its recommended defaults`}
       >
         Enough — write it
       </Button>

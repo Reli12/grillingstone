@@ -1,4 +1,6 @@
-// One turn of Claude in the chat: its text, plus a Question or Ready Check card when it asks one.
+// One turn of the Assistant in the chat: its text, plus a Question or Ready Check card when it asks one.
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
+
 import { RichText } from '@/components/atoms/richText/richText'
 import { QuestionCard } from '@/components/features/chat/questionCard/questionCard'
 import { ReadyCard } from '@/components/features/chat/readyCard/readyCard'
@@ -10,7 +12,7 @@ interface ClaudeTurnProps {
   transcript: AnyTranscript
   /** The human's reply to this turn, if one came after it. */
   answer?: HumanMessage
-  /** This is Claude's latest turn and the human may answer it now. */
+  /** This is the Assistant's latest turn and the human may answer it now. */
   actionable: boolean
   handlers: Handlers
 }
@@ -35,6 +37,7 @@ export function ClaudeTurn({ message, transcript, answer, actionable, handlers }
           <ReadyCard
             key={index}
             summary={segment.summary}
+            assistant={ASSISTANT_LABELS[transcript.assistant]}
             target={writeTarget(transcript.kind)}
             open={actionable && !answer}
             onWrite={() => handlers.onWrite(transcript.id)}

@@ -1,17 +1,17 @@
-// The pulsing-dots status that says Claude (or a page) is busy.
+// The pulsing-dots status that says the Assistant (or a page) is busy.
 import { cn } from '@/lib/cn'
 
 const DOTS = [0, 1, 2]
 /** Each dot starts its pulse this much after the previous one, so the pulse travels left to right. */
 const DOT_STAGGER_MS = 180
 
-/** Three dots that pulse in turn — Claude is working. */
+/** Three dots that pulse in turn, beside what is being waited on. */
 interface ThinkingProps {
   className?: string
-  label?: string
+  label: string
 }
 
-export function Thinking({ className, label = 'Claude is thinking' }: Readonly<ThinkingProps>) {
+export function Thinking({ className, label }: Readonly<ThinkingProps>) {
   return (
     <span className={cn('inline-flex items-center gap-2 text-sm text-claude', className)} role="status">
       <span className="inline-flex gap-1" aria-hidden>

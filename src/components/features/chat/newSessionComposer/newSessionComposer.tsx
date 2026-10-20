@@ -8,6 +8,8 @@ import { sendOnEnter } from '@/lib/sendOnEnter'
 import type { Continuing } from '@/types/chat'
 
 interface NewSessionComposerProps {
+  /** The Assistant's name, as the chat shows it. */
+  assistant: string
   placeholder: string
   /** Shown under the box. */
   hint?: string
@@ -23,9 +25,10 @@ interface NewSessionComposerProps {
 
 /**
  * The message box when no session is running: sending starts a new session with the message as its first
- * words, or continues the ended one the human picked. Either way Claude gets the current Draft.
+ * words, or continues the ended one the human picked. Either way the Assistant gets the current Draft.
  */
 export function NewSessionComposer({
+  assistant,
   placeholder,
   hint,
   blockedReason,
@@ -54,7 +57,7 @@ export function NewSessionComposer({
             disabled={disabled}
             onKeyDown={sendOnEnter(send)}
             placeholder={blockedReason ?? placeholder}
-            aria-label="Message Claude"
+            aria-label={`Message ${assistant}`}
             className="block max-h-48 w-full resize-none bg-transparent px-3 pt-2.5 text-[15px] placeholder:text-ink-faint focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed"
           />
           <StartRow hint={blocked ? undefined : hint} starting={starting} canSend={canSend} onSend={send} />

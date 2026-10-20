@@ -1,9 +1,11 @@
-// The Ready Check: Claude says it has enough, and the human writes now or adds something first.
+// The Ready Check: the Assistant says it has enough, and the human writes now or adds something first.
 import { Button } from '@/components/atoms/button/button'
 import { cn } from '@/lib/cn'
 
 interface ReadyCardProps {
   summary: string
+  /** The Assistant's name, as the chat shows it. */
+  assistant: string
   target: string
   open: boolean
   onWrite: () => void
@@ -11,7 +13,7 @@ interface ReadyCardProps {
 }
 
 /** `target` is what gets written, e.g. "the Draft", "the Proposal", "the Template". */
-export function ReadyCard({ summary, target, open, onWrite, onAdd }: Readonly<ReadyCardProps>) {
+export function ReadyCard({ summary, assistant, target, open, onWrite, onAdd }: Readonly<ReadyCardProps>) {
   return (
     <div
       className={cn('rounded-lg border-2 px-4 py-3.5', open ? 'border-proof bg-proof-wash' : 'border-line bg-sheet')}
@@ -20,7 +22,7 @@ export function ReadyCard({ summary, target, open, onWrite, onAdd }: Readonly<Re
       {summary && <p className="mt-1 text-sm text-ink">{summary}</p>}
       {open ? (
         <>
-          <p className="mt-2 text-sm text-ink-soft">Anything you want to add before Claude writes it?</p>
+          <p className="mt-2 text-sm text-ink-soft">Anything you want to add before {assistant} writes it?</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button variant="proof" onClick={onWrite}>
               Write {target}

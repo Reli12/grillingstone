@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
 import type { SessionBase } from '#core/session/sessionTypes.ts'
 
 import { ComposerActions } from '@/components/features/chat/composerActions/composerActions'
@@ -32,6 +33,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
   })
 
   const yourTurn = session.status === 'waiting'
+  const assistant = ASSISTANT_LABELS[session.assistant]
   const { ref: fieldRef, ...field } = register('text')
 
   const send = handleSubmit(({ text }) => {
@@ -47,8 +49,8 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
         ref={bothRefs(fieldRef, ref)}
         rows={2}
         onKeyDown={sendOnEnter(send)}
-        placeholder={yourTurn ? 'Answer, add context, or push back…' : 'Claude is replying…'}
-        aria-label="Message Claude"
+        placeholder={yourTurn ? 'Answer, add context, or push back…' : `${assistant} is replying…`}
+        aria-label={`Message ${assistant}`}
         className="block max-h-48 w-full resize-none bg-transparent px-3 pt-2.5 text-[15px] placeholder:text-ink-faint focus:outline-none focus-visible:outline-none"
       />
       <ComposerActions

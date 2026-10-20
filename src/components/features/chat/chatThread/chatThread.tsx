@@ -3,6 +3,8 @@
 // cards and the Ready Check. An ended one may offer Continue (ADR-0014).
 import { useState } from 'react'
 
+import { ASSISTANT_LABELS } from '#core/session/assistantName.ts'
+
 import { Thinking } from '@/components/atoms/thinking/thinking'
 import { ThreadSession } from '@/components/features/chat/threadSession/threadSession'
 import { writeTarget } from '@/constants/SessionConstants'
@@ -22,7 +24,8 @@ export function ChatThread({ transcripts, liveSessionId, className, ...options }
   const latest = transcripts.at(-1)
   const live = transcripts.find((transcript) => transcript.id === liveSessionId)
   const messageCount = transcripts.reduce((total, transcript) => total + transcript.messages.length, 0)
-  const claudeBusy = live?.status === 'thinking' || live?.status === 'starting'
+  const assistantBusy = live?.status === 'thinking' || live?.status === 'starting'
+  const assistant = live && ASSISTANT_LABELS[live.assistant]
   const scroller = useStickToBottom(messageCount, live?.status)
 
   // The latest and the live session are always open; older ones open when the human asks.
@@ -46,9 +49,9 @@ export function ChatThread({ transcripts, liveSessionId, className, ...options }
             handlers={handlers}
           />
         ))}
-        {claudeBusy && <Thinking className="pl-3" />}
+        {assistantBusy && <Thinking className="pl-3" label={`${assistant} is thinking`} />}
         {live?.status === 'writing' && (
-          <Thinking className="pl-3" label={`Claude is writing ${writeTarget(live.kind)}`} />
+          <Thinking className="pl-3" label={`${assistant} is writing ${writeTarget(live.kind)}`} />
         )}
       </div>
     </div>

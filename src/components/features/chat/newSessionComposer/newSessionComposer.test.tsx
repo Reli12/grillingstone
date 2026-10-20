@@ -8,7 +8,9 @@ import { NewSessionComposer } from '@/components/features/chat/newSessionCompose
 describe('NewSessionComposer', () => {
   it('starts a session with the trimmed message', async () => {
     const onStart = vi.fn()
-    render(<NewSessionComposer placeholder="Message" hint="A hint" starting={false} onStart={onStart} />)
+    render(
+      <NewSessionComposer assistant="Claude" placeholder="Message" hint="A hint" starting={false} onStart={onStart} />,
+    )
     expect(screen.getByText('A hint')).toBeInTheDocument()
     await userEvent.type(screen.getByRole('textbox'), ' More context {Enter}')
     expect(onStart).toHaveBeenCalledWith('More context')
@@ -17,7 +19,7 @@ describe('NewSessionComposer', () => {
 
   it('starts with the button, not with blank text', async () => {
     const onStart = vi.fn()
-    render(<NewSessionComposer placeholder="Message" starting={false} onStart={onStart} />)
+    render(<NewSessionComposer assistant="Claude" placeholder="Message" starting={false} onStart={onStart} />)
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
     await userEvent.type(screen.getByRole('textbox'), '  {Enter}x')
     await userEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -27,6 +29,7 @@ describe('NewSessionComposer', () => {
   it('is blocked with a reason', () => {
     render(
       <NewSessionComposer
+        assistant="Claude"
         placeholder="Message"
         blockedReason="Triage first"
         hint="hidden"
@@ -40,7 +43,7 @@ describe('NewSessionComposer', () => {
   })
 
   it('shows that it is starting', () => {
-    render(<NewSessionComposer placeholder="Message" starting onStart={() => {}} />)
+    render(<NewSessionComposer assistant="Claude" placeholder="Message" starting onStart={() => {}} />)
     expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled()
   })
 })

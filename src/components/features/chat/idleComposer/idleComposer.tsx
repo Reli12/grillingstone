@@ -5,9 +5,12 @@ import { type Transcript } from '#core/session/sessionTypes.ts'
 import { NewSessionComposer } from '@/components/features/chat/newSessionComposer/newSessionComposer'
 import { SESSION_TITLES } from '@/constants/SessionConstants'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
+import type { Continuing } from '@/types/chat'
 import type { Continuable } from '@/types/draftPage'
 
-const PROPOSAL_OPEN_REASON = 'Triage the Proposal in the Draft first — Claude can have only one open at a time.'
+const proposalOpenReason = (assistant: string) =>
+  `Triage the Proposal in the Draft first — ${assistant} can have only one open at a time.`
 
 /** "Focused Session on Scope", or just the session's title when it had no focus. */
 function continuationLabel(transcript: Transcript) {
@@ -16,20 +19,28 @@ function continuationLabel(transcript: Transcript) {
   return `${title} on ${transcript.focus.heading}`
 }
 
+/** The chosen Continuation as the message box shows it, with the way back to a new session. */
+function continuingChoice(
+  continueFrom: Transcript,
+  onContinueFromChange: (transcript: Transcript | null) => void,
+): Continuing {
+  return { label: continuationLabel(continueFrom), onCancel: () => onContinueFromChange(null) }
+}
+
 /** What the idle message box says: continuing a session, re-grilling before v1, or a New Iteration after. */
-function idleComposerText(continuing: boolean, beforeV1: boolean) {
+function idleComposerText(assistant: string, continuing: boolean, beforeV1: boolean) {
   if (continuing)
     return {
-      placeholder: 'Tell Claude why you are back…',
-      hint: 'Claude remembers that conversation and gets the current Draft',
+      placeholder: `Tell ${assistant} why you are back…`,
+      hint: `${assistant} remembers that conversation and gets the current Draft`,
     }
   if (beforeV1)
     return {
-      placeholder: 'Tell Claude more to start grilling again…',
+      placeholder: `Tell ${assistant} more to start grilling again…`,
       hint: 'Starts a new first session from your requirement',
     }
   return {
-    placeholder: 'Message Claude to start a new session on the whole Draft…',
+    placeholder: `Message ${assistant} to start a new session on the whole Draft…`,
     hint: 'Or press “Grill this” on a Section to focus on one part',
   }
 }
@@ -58,6 +69,8 @@ export function IdleComposer({
   onShowChat,
 }: Readonly<IdleComposerProps>) {
   const { start, continueSession } = mutations
+  // Only the Assistant in Settings can start or continue a session, so it is the one named here.
+  const assistant = useAssistantLabel()
   const beforeV1 = draft.version === 0
   const startByTyping = (text: string) => {
     if (!continueFrom) {
@@ -70,16 +83,15 @@ export function IdleComposer({
     }
     continueSession.mutate({ sessionId: continueFrom.id, humanNote: text }, { onSuccess })
   }
-  const continuing = continueFrom
-    ? { label: continuationLabel(continueFrom), onCancel: () => onContinueFromChange(null) }
-    : undefined
+  const continuing = continueFrom ? continuingChoice(continueFrom, onContinueFromChange) : undefined
   const offerLatest = latest && canContinue(latest) ? () => onContinueFromChange(latest) : undefined
-  const { placeholder, hint } = idleComposerText(!!continueFrom, beforeV1)
+  const { placeholder, hint } = idleComposerText(assistant, !!continueFrom, beforeV1)
   return (
     <NewSessionComposer
       starting={start.isPending || continueSession.isPending}
       onStart={startByTyping}
-      blockedReason={draft.proposal ? PROPOSAL_OPEN_REASON : undefined}
+      assistant={assistant}
+      blockedReason={draft.proposal ? proposalOpenReason(assistant) : undefined}
       onContinueLatest={offerLatest}
       continuing={continuing}
       placeholder={placeholder}

@@ -9,11 +9,11 @@ import type { SessionBase } from '#core/session/sessionTypes.ts'
 
 import { Composer } from '@/components/features/chat/composer/composer'
 
-const session = (status: SessionBase['status']): SessionBase => ({
+const session = (status: SessionBase['status'], assistant: SessionBase['assistant'] = 'claude'): SessionBase => ({
   id: 's1',
   kind: 'first',
   status,
-  assistant: 'claude',
+  assistant,
   writeConfirmed: false,
   startedAt: '',
 })
@@ -45,6 +45,11 @@ describe('Composer', () => {
     await userEvent.type(screen.getByRole('textbox'), 'hi{Enter}')
     expect(spies.onSend).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('names the Assistant that holds the session', () => {
+    render(<Composer session={session('thinking', 'codex')} sending={false} {...handlers()} />)
+    expect(screen.getByRole('textbox', { name: 'Message Codex' })).toHaveAttribute('placeholder', 'Codex is replying…')
   })
 
   it('writes now or stops', async () => {
