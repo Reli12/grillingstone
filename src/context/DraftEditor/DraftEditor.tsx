@@ -12,6 +12,8 @@ export interface DraftEditorValue {
   /** A session is running on this Draft — no new session can start. */
   sessionRunning: boolean
   busy: boolean
+  /** The name of the Assistant that wrote the open Proposal, for its change cards. */
+  proposalAssistant: string
   apply: (op: HumanOp) => void
   decide: (changeId: string, accept: boolean) => void
   grill: (target: { sectionId: string; entryId?: string; heading: string }) => void

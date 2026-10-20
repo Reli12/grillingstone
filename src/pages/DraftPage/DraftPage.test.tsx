@@ -242,6 +242,17 @@ describe('DraftPage from v1', () => {
     expect(await screen.findByRole('heading', { name: 'Archive devices' })).toBeInTheDocument()
   })
 
+  it('names the Assistant that wrote the Proposal, whichever one Settings name now', async () => {
+    const draft = withProposal()
+    const codexSession = transcript(draft, [], { id: 'sess-1', kind: 'focused', assistant: 'codex' })
+    draftBackend(draft, { transcripts: [codexSession] })
+    renderPage(draft)
+
+    const conflict = await screen.findByRole('group', { name: /^Conflict/ })
+    expect(await within(conflict).findByRole('button', { name: 'Take Codex’s' })).toBeInTheDocument()
+    expect(within(conflict).getByText('Codex proposes')).toBeInTheDocument()
+  })
+
   it('starts a Focused Session from "Grill this" with a note', async () => {
     const draft = v1Draft()
     const api = draftBackend(draft)

@@ -8,7 +8,7 @@ import { Diff } from '@/components/composite/diff/diff'
 const DISCARDED_MARKER = '(Discarded by you)'
 
 /** The text of the change: a Conflict side by side, a Clean Change as a diff, new content in green. */
-export function ChangeBody({ change }: Readonly<{ change: Change }>) {
+export function ChangeBody({ change, assistant }: Readonly<{ change: Change; assistant: string }>) {
   const { before, after } = change
   const bringsBack = before === DISCARDED_MARKER
   const hasBefore = before !== undefined && !bringsBack
@@ -18,7 +18,7 @@ export function ChangeBody({ change }: Readonly<{ change: Change }>) {
         <VersionBox caption="Yours">
           <p className="font-serif text-[15px] leading-7 whitespace-pre-wrap">{before}</p>
         </VersionBox>
-        <VersionBox caption="Claude proposes">
+        <VersionBox caption={`${assistant} proposes`}>
           <Diff before={before} after={after} />
         </VersionBox>
       </div>

@@ -5,6 +5,7 @@ import { ExampleFrame } from '@/components/composite/exampleFrame/exampleFrame'
 import { NumberedStep } from '@/components/composite/numberedStep/numberedStep'
 import { ChangeCard } from '@/components/features/draft/proposal/changeCard/changeCard'
 import { STEPS } from '@/constants/GuideConstants'
+import { useAssistantLabel } from '@/hooks/settings/useAssistantLabel'
 import { exampleOnly } from '@/lib/exampleOnly'
 
 const cleanExample: Change = {
@@ -31,6 +32,7 @@ const conflictExample: Change = {
 
 /** Step 5: Focused Sessions, New Iterations, Continue, and how Proposals are triaged. */
 export function StepRefine() {
+  const assistant = useAssistantLabel()
   return (
     <NumberedStep n={5} id="refine" title={STEPS[4].title}>
       <p>
@@ -48,10 +50,10 @@ export function StepRefine() {
         change would land:
       </p>
       <ExampleFrame caption="A Clean Change touches only what Claude wrote and you never touched — accept these in one go with “Accept all clean”.">
-        <ChangeCard change={cleanExample} busy={false} onDecide={exampleOnly} />
+        <ChangeCard change={cleanExample} assistant={assistant} busy={false} onDecide={exampleOnly} />
       </ExampleFrame>
       <ExampleFrame caption="A Conflict touches something you edited, moved or discarded — your version stands beside Claude’s, and you decide each one.">
-        <ChangeCard change={conflictExample} busy={false} onDecide={exampleOnly} />
+        <ChangeCard change={conflictExample} assistant={assistant} busy={false} onDecide={exampleOnly} />
       </ExampleFrame>
       <p>
         When nothing is left to decide, the Draft becomes the next version and the <strong>Iteration Log</strong> gains

@@ -9,12 +9,18 @@ interface ChangesProps {
 }
 
 export function Changes({ changes }: Readonly<ChangesProps>) {
-  const { decide, busy } = useDraftEditor()
+  const { decide, busy, proposalAssistant } = useDraftEditor()
   if (!changes.length) return null
   return (
     <div className="mt-2 space-y-2">
       {changes.map((change) => (
-        <ChangeCard key={change.id} change={change} busy={busy} onDecide={(accept) => decide(change.id, accept)} />
+        <ChangeCard
+          key={change.id}
+          change={change}
+          assistant={proposalAssistant}
+          busy={busy}
+          onDecide={(accept) => decide(change.id, accept)}
+        />
       ))}
     </div>
   )

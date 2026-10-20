@@ -9,7 +9,7 @@ const WHITESPACE_RUN = /\s+/g // any run of spaces, tabs or newlines
 
 /** The Draft's Title, editable in place, with any pending retitle beneath it. */
 export function TitleBlock() {
-  const { draft, pending, apply, decide, busy } = useDraftEditor()
+  const { draft, pending, apply, decide, busy, proposalAssistant } = useDraftEditor()
   const titleChanges = pending.filter((change) => change.kind === 'retitle')
   // A title is one line: newlines typed into the editor collapse to single spaces.
   const saveTitle = (body: string) => apply({ op: 'retitle', title: body.replace(WHITESPACE_RUN, ' ') })
@@ -22,7 +22,12 @@ export function TitleBlock() {
         </EditableText>
         {titleChanges.map((change) => (
           <div key={change.id} className="mt-2">
-            <ChangeCard change={change} busy={busy} onDecide={(accept) => decide(change.id, accept)} />
+            <ChangeCard
+              change={change}
+              assistant={proposalAssistant}
+              busy={busy}
+              onDecide={(accept) => decide(change.id, accept)}
+            />
           </div>
         ))}
       </div>

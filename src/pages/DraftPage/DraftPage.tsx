@@ -39,7 +39,7 @@ export default function DraftPage() {
 
   const draft = data?.draft
   const live = data?.liveSession ?? undefined
-  const editor = useDraftEditorValue(draft, live, mutations, ui.setIntent)
+  const editor = useDraftEditorValue(draft, live, transcripts, mutations, ui.setIntent)
 
   if (error) return <div className="p-10 text-center text-ink-soft">{error.message}</div>
   if (!draft || !transcripts || !editor) return <PageLoading />

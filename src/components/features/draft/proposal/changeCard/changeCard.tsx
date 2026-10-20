@@ -1,5 +1,5 @@
 // One change of a Proposal, shown inline where it would land. Clean Changes read as a proofreader's
-// diff; Conflicts put the human's version beside Claude's and always need their own decision.
+// diff; Conflicts put the human's version beside the Assistant's and always need their own decision.
 
 import type { Change } from '#core/proposal/proposalTypes.ts'
 
@@ -9,11 +9,13 @@ import { cn } from '@/lib/cn'
 
 interface ChangeCardProps {
   change: Change
+  /** The name of the Assistant that proposed it. */
+  assistant: string
   busy: boolean
   onDecide: (accept: boolean) => void
 }
 
-export function ChangeCard({ change, busy, onDecide }: Readonly<ChangeCardProps>) {
+export function ChangeCard({ change, assistant, busy, onDecide }: Readonly<ChangeCardProps>) {
   const { conflict } = change
   const kindLabel = conflict ? 'Conflict' : 'Clean Change'
   return (
@@ -31,11 +33,11 @@ export function ChangeCard({ change, busy, onDecide }: Readonly<ChangeCardProps>
         {change.conflictReason && <span className="text-[13px] text-redpencil">{change.conflictReason}</span>}
       </div>
 
-      <ChangeBody change={change} />
+      <ChangeBody change={change} assistant={assistant} />
 
       <div className="mt-2.5 flex gap-2">
         <Button size="sm" variant={conflict ? 'ink' : 'proof'} disabled={busy} onClick={() => onDecide(true)}>
-          {conflict ? 'Take Claude’s' : 'Accept'}
+          {conflict ? `Take ${assistant}’s` : 'Accept'}
         </Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide(false)}>
           {conflict ? 'Keep mine' : 'Reject'}
