@@ -1,18 +1,18 @@
-// A Template Session in a real browser: Claude (the fake) grills how a team writes a work item until it can be
+// A Template Session in a real browser: the (fake) Assistant grills how a team writes a work item until it can be
 // written down as a new Template, which then opens in the editor and appears among the Templates.
 import { answerQuestion, expect, test } from './fixtures.ts'
 
-// The Template fakeClaude.mjs writes in a Template Session. Templates belong to no Project, so a repeat within one
+// The Template both fakes write in a Template Session. Templates belong to no Project, so a repeat within one
 // run saves it again as "Spike PBI (copy)"; the spec takes the saved name from the editor.
 const WRITTEN_TEMPLATE = /^Spike PBI/
 
-test('a Template Session writes a new Template that opens in the editor', async ({ page }) => {
+test('a Template Session writes a new Template that opens in the editor', async ({ page, assistantLabel }) => {
   await page.goto('/templates')
   await page.getByRole('link', { name: 'New Template' }).click()
   await page
     .getByRole('textbox', { name: 'What the Template is for' })
     .fill('Spike PBIs: timeboxed investigations that end in a written recommendation.')
-  await page.getByRole('button', { name: 'Grill it with Claude' }).click()
+  await page.getByRole('button', { name: `Grill it with ${assistantLabel}` }).click()
 
   await answerQuestion(page, 'One week at most')
   await page.getByRole('button', { name: 'Enough — write it' }).click()
