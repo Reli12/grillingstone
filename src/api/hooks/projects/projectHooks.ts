@@ -14,6 +14,17 @@ export const useDrafts = (projectId: string) =>
 export const useGlossary = (projectId: string) =>
   useQuery({ queryKey: queryKeys.glossary(projectId), queryFn: () => projectsApi.getGlossary(projectId) })
 export const useSettings = () => useQuery({ queryKey: queryKeys.settings, queryFn: projectsApi.getSettings })
+/**
+ * Only the chosen Assistant, for wording. It never goes stale, because only this app changes it and its save
+ * writes the cache; staleTime is per observer, so the Settings page still refetches availability on mount.
+ */
+export const useChosenAssistant = () =>
+  useQuery({
+    queryKey: queryKeys.settings,
+    queryFn: projectsApi.getSettings,
+    staleTime: Infinity,
+    select: (settings) => settings.assistant,
+  })
 
 export function useCreateProject() {
   const qc = useQueryClient()
