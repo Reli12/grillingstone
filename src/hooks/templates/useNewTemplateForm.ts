@@ -4,14 +4,15 @@ import { useNavigate } from 'react-router'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { ADO_FIELDS } from '#core/shared/adoFields.ts'
-import { type WorkItemType } from '#core/shared/workItemType.ts'
-import type { Template } from '#core/template/templateTypes.ts'
+import { DEFAULT_TRACKER, type Tracker } from '#core/shared/tracker.ts'
+import { allowedTargets, type WorkItemType } from '#core/shared/workItemType.ts'
+import { type Template, templateTracker } from '#core/template/templateTypes.ts'
 import { methodSkeleton } from '#core/template/templateValidator.ts'
 
 import { useCreateTemplate } from '@/api/hooks/templates/templateHooks'
 import { useStartTemplateSession } from '@/api/hooks/templates/templateSessionHooks'
 import { DEFAULT_NAME_PREFIX } from '@/constants/TemplateConstants'
+import { useTemplateTrackerChoice } from '@/hooks/templates/useTemplateTrackerChoice'
 import { type NewTemplateFormData, newTemplateSchema } from '@/lib/formSchemas/newTemplateSchema'
 import { routesPaths } from '@/routes/routes'
 
@@ -19,11 +20,12 @@ import { routesPaths } from '@/routes/routes'
 const SKELETON_PURPOSE = 'What this work item is for and who reads it (BA, developer, tester).'
 
 /** A Template built by hand from nothing: one Section and the method skeleton as a nudge. `purpose` is trimmed. */
-function blankTemplate(workItemType: WorkItemType, purpose: string): Template {
+function blankTemplate(tracker: Tracker, workItemType: WorkItemType, purpose: string): Template {
   const name = `New ${workItemType} Template`
   const method = purpose ? methodSkeleton(name).replace(SKELETON_PURPOSE, purpose) : methodSkeleton(name)
   return {
     id: '',
+    tracker,
     workItemType,
     name,
     version: 1,
@@ -35,7 +37,7 @@ function blankTemplate(workItemType: WorkItemType, purpose: string): Template {
         shape: 'prose',
         locked: false,
         guidance: '',
-        target: ADO_FIELDS.description,
+        target: allowedTargets(tracker, workItemType)[0],
       },
     ],
     method,
@@ -54,34 +56,34 @@ const copyOfBase = (base: Template): Template => ({
 /** The form's state, and its two submits: start a Template Session, or create a Template to edit. */
 export function useNewTemplateForm(templates: Template[]) {
   const navigate = useNavigate()
-  const { register, handleSubmit, control, setValue } = useForm<NewTemplateFormData>({
+  const { register, handleSubmit, control, setValue, getFieldState } = useForm<NewTemplateFormData>({
     resolver: zodResolver(newTemplateSchema),
-    defaultValues: { workItemType: 'PBI', baseId: '', purpose: '', examples: '' },
+    defaultValues: { tracker: DEFAULT_TRACKER, workItemType: 'PBI', baseId: '', purpose: '', examples: '' },
   })
   const create = useCreateTemplate()
   const start = useStartTemplateSession()
 
-  const [type, baseId, purpose, examples] = useWatch({
+  const [tracker, type, baseId, purpose, examples] = useWatch({
     control,
-    name: ['workItemType', 'baseId', 'purpose', 'examples'],
+    name: ['tracker', 'workItemType', 'baseId', 'purpose', 'examples'],
   })
-  const values: NewTemplateFormData = { workItemType: type, baseId, purpose, examples }
-  const forType = templates.filter((template) => template.workItemType === type)
+  const values: NewTemplateFormData = { tracker, workItemType: type, baseId, purpose, examples }
+  const forType = templates.filter(
+    (template) => templateTracker(template) === tracker && template.workItemType === type,
+  )
   const base = forType.find((template) => template.id === values.baseId)
 
-  const chooseType = (nextType: WorkItemType) => {
-    setValue('workItemType', nextType)
-    setValue('baseId', '')
-  }
+  const { chooseType, chooseTracker } = useTemplateTrackerChoice({ setValue, getFieldState }, type)
   const buildMyself = handleSubmit(({ purpose }) => {
-    const template = base ? copyOfBase(base) : blankTemplate(type, purpose)
+    const template = base ? copyOfBase(base) : blankTemplate(tracker, type, purpose)
     create.mutate(template, { onSuccess: (saved) => void navigate(routesPaths.template(saved.id)) })
   })
-  const grill = handleSubmit(({ workItemType, purpose, examples }) =>
+  const grill = handleSubmit(({ tracker, workItemType, purpose, examples }) =>
     start.mutate(
-      { workItemType, purpose, examples, ...(base ? { baseTemplateId: base.id } : {}) },
+      { tracker, workItemType, purpose, examples, ...(base ? { baseTemplateId: base.id } : {}) },
       { onSuccess: (session) => void navigate(routesPaths.templateSession(session.id)) },
     ),
   )
-  return { register, values, type, forType, setValue, chooseType, buildMyself, grill, create, start }
+  const choice = { tracker, type, chooseType, chooseTracker }
+  return { ...choice, register, values, forType, setValue, buildMyself, grill, create, start }
 }

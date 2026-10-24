@@ -1,4 +1,5 @@
-// Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup.
+// Tests for the file store: safe Project ids, serialised Draft updates, Glossary versioning, Settings cleanup,
+// and each Project's Tracker.
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { newDraft } from '#core/draft/draft.ts'
@@ -6,16 +7,17 @@ import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
 
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, getDraft, updateDraft } from './drafts.ts'
-import { StaleWrite } from './errors.ts'
+import { Conflict, StaleWrite } from './errors.ts'
+import { writeJson } from './fsUtil.ts'
 import { getGlossary, saveGlossary } from './glossary.ts'
-import { safeId } from './paths.ts'
-import { createProject } from './projects.ts'
+import { projectFile, safeId } from './paths.ts'
+import { createProject, getProject, listProjects, updateProject } from './projects.ts'
 import { getSettings, saveSettings } from './settings.ts'
 
 beforeEach(resetTestData)
 
 const draftIn = async () => {
-  const project = await createProject('Ünïcode & Co!', meta.date)
+  const project = await createProject('Ünïcode & Co!', 'azure-devops', meta.date)
   return createDraft(
     newDraft({
       projectId: project.id,
@@ -29,8 +31,8 @@ const draftIn = async () => {
 
 describe('storage', () => {
   it('slugs Project names into safe ids', async () => {
-    expect((await createProject('Ünïcode & Co!', meta.date)).id).toMatch(/^unicode-co-[a-z0-9]{5}$/)
-    expect((await createProject('!!!', meta.date)).id).toMatch(/^project-/)
+    expect((await createProject('Ünïcode & Co!', 'azure-devops', meta.date)).id).toMatch(/^unicode-co-[a-z0-9]{5}$/)
+    expect((await createProject('!!!', 'azure-devops', meta.date)).id).toMatch(/^project-/)
     expect(() => safeId('../etc')).toThrow('Invalid id')
   })
 
@@ -53,10 +55,36 @@ describe('storage', () => {
   })
 
   it('cleans Settings on save', async () => {
-    expect(await saveSettings({ author: ' ', model: ' ', theme: 'neon' as never })).toMatchObject({
-      model: '',
-      theme: 'system',
-    })
+    const dirty = { author: ' ', model: ' ', theme: 'neon' as never, defaultTracker: 'linear' as never }
+    expect(await saveSettings(dirty)).toMatchObject({ model: '', theme: 'system', defaultTracker: 'azure-devops' })
     expect((await getSettings()).author).toBeTruthy()
+  })
+
+  describe("a Project's Tracker", () => {
+    it('can change while the Project has no Draft', async () => {
+      const project = await createProject('Portal', 'azure-devops', meta.date)
+      expect((await updateProject(project.id, { tracker: 'jira' })).tracker).toBe('jira')
+      expect((await getProject(project.id)).tracker).toBe('jira')
+    })
+
+    it('is fixed once the Project has a Draft, while a rename still works', async () => {
+      const { projectId } = await draftIn()
+      await expect(updateProject(projectId, { tracker: 'jira' })).rejects.toThrow(Conflict)
+      await expect(updateProject(projectId, { tracker: 'azure-devops', name: 'Renamed' })).resolves.toMatchObject({
+        name: 'Renamed',
+        tracker: 'azure-devops',
+      })
+    })
+
+    it('reads as Azure DevOps for a Project saved before Trackers existed', async () => {
+      const project = await createProject('Old', 'jira', meta.date)
+      await writeJson(projectFile(project.id), { id: project.id, name: 'Old', createdAt: meta.date })
+      expect((await getProject(project.id)).tracker).toBe('azure-devops')
+      expect((await listProjects()).find((summary) => summary.id === project.id)?.tracker).toBe('azure-devops')
+    })
+
+    it('reads Settings saved before Trackers existed with Azure DevOps as the Default Tracker', async () => {
+      expect((await getSettings()).defaultTracker).toBe('azure-devops')
+    })
   })
 })

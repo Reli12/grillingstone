@@ -4,21 +4,33 @@ import { z } from 'zod'
 
 import { THEMES } from '#core/contract/apiTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
+import { TRACKERS } from '#core/shared/tracker.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
-const workItemType = z.enum(WORK_ITEM_TYPES, { error: 'Choose Epic, Feature, PBI, Task or Bug.' })
+// Whether the type belongs to the Project's or Template's Tracker is checked where that Tracker is known.
+const workItemType = z.enum(WORK_ITEM_TYPES, {
+  error: `Choose a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.`,
+})
+const tracker = z.enum(TRACKERS, { error: 'Choose a Tracker: azure-devops or jira.' })
 const ids = z.array(z.string()).default([])
 
 export const settingsBody = z.object({
   author: z.string(),
   model: z.string().default(''),
   theme: z.enum(THEMES as ['system', 'light', 'dark']).default('system'),
+  defaultTracker: tracker.default('azure-devops'),
 })
 
 export const projectNameBody = z.object({ name: z.string().trim().min(1, 'A Project needs a name.') })
 
-export const newProjectBody = projectNameBody.extend({ glossary: z.string().optional() })
+/** Absent Tracker means the Default Tracker from Settings. */
+export const newProjectBody = projectNameBody.extend({ glossary: z.string().optional(), tracker: tracker.optional() })
+
+export const projectUpdateBody = z.object({
+  name: z.string().trim().min(1, 'A Project needs a name.').optional(),
+  tracker: tracker.optional(),
+})
 
 export const glossaryBody = z.object({ markdown: z.string(), baseVersion: z.string() })
 
@@ -65,6 +77,8 @@ export const continueSessionBody = z.object({ humanNote: z.string().optional() }
 export const sayBody = z.object({ text: z.string(), kind: z.enum(['answer', 'message']).default('message') })
 
 export const templateSessionBody = z.object({
+  /** Ignored when the session starts from a Template, whose Tracker it keeps. */
+  tracker: tracker.default('azure-devops'),
   workItemType,
   purpose: z.string(),
   examples: z.string().default(''),

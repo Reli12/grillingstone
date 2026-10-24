@@ -26,7 +26,12 @@ export function NewTemplateForm({ templates }: Readonly<NewTemplateFormProps>) {
         <PurposeSection register={form.register} />
 
         <aside className="space-y-7 md:pt-12">
-          <TemplateTypePicker type={form.type} onChoose={form.chooseType} />
+          <TemplateTypePicker
+            tracker={form.tracker}
+            type={form.type}
+            onChooseTracker={form.chooseTracker}
+            onChoose={form.chooseType}
+          />
           <BasePicker
             templates={form.forType}
             baseId={form.values.baseId}

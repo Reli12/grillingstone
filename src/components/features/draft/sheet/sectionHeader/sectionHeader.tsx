@@ -1,14 +1,14 @@
-// The Section's heading line: name, lock, the ADO field it publishes to, and its actions.
+// The Section's heading line: name, lock, the Tracker field it is copied into, and its actions.
 import { Lock } from 'lucide-react'
 
-import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+import { fieldLabel } from '#core/shared/trackerFields.ts'
 
 import { Tag } from '@/components/atoms/tag/tag'
 import { RowActions } from '@/components/features/draft/sheet/rowActions/rowActions'
 import { useDraftEditor } from '@/context/DraftEditor/DraftEditor'
 import type { SectionProps } from '@/types/draft'
 
-/** The Section's heading line: name, lock, the ADO field it publishes to, and its actions. */
+/** The Section's heading line: name, lock, the Tracker field it is copied into, and its actions. */
 export function SectionHeader({ section }: Readonly<SectionProps>) {
   const { apply, grill, sessionRunning } = useDraftEditor()
   // A locked Section can never be discarded, so it offers no Discard action.
@@ -21,8 +21,8 @@ export function SectionHeader({ section }: Readonly<SectionProps>) {
           <Lock size={14} aria-label="Locked" />
         </span>
       )}
-      <Tag tone="claude" title="The Azure DevOps field this Section is copied into">
-        {ADO_FIELD_LABELS[section.target] ?? section.target}
+      <Tag tone="claude" title="The field this Section is copied into">
+        {fieldLabel(section.target)}
       </Tag>
       <span className="ml-auto" />
       <RowActions

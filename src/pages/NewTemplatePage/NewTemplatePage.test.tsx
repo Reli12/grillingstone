@@ -41,7 +41,12 @@ describe('NewTemplatePage', () => {
     await user.click(grill)
 
     await screen.findByTestId('navigated')
-    expect(started).toEqual({ workItemType: 'PBI', purpose: 'Spike PBIs', examples: 'Example' })
+    expect(started).toEqual({
+      tracker: 'azure-devops',
+      workItemType: 'PBI',
+      purpose: 'Spike PBIs',
+      examples: 'Example',
+    })
   })
 
   it('grills from a base Template of another type', async () => {

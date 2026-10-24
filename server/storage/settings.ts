@@ -1,6 +1,7 @@
-// The human's Settings (author, Claude model, theme) in data/settings.json. Reads and saves both clean the
+// The human's Settings (author, Claude model, theme, Default Tracker) in data/settings.json. Reads and saves both clean the
 // values, so a hand-edited or missing file still yields usable Settings.
 import { type Settings, THEMES } from '#core/contract/apiTypes.ts'
+import { trackerOrDefault } from '#core/shared/tracker.ts'
 
 import { DEFAULT_AUTHOR } from '../config.ts'
 import { readJson, writeJson } from './fsUtil.ts'
@@ -21,6 +22,7 @@ export async function getSettings(): Promise<Settings> {
     author: stored?.author?.trim() || DEFAULT_AUTHOR,
     model: stored?.model?.trim() ?? '',
     theme: theme(stored?.theme),
+    defaultTracker: trackerOrDefault(stored?.defaultTracker),
   }
 }
 
@@ -29,6 +31,7 @@ export async function saveSettings(settings: Settings): Promise<Settings> {
     author: settings.author.trim().replace(LEADING_AT, '') || DEFAULT_AUTHOR,
     model: settings.model.trim(),
     theme: theme(settings.theme),
+    defaultTracker: trackerOrDefault(settings.defaultTracker),
   }
   await writeJson(settingsFile, clean)
   return clean

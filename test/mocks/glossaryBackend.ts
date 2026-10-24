@@ -30,7 +30,7 @@ export function glossaryBackend(projectId: string, markdown: string, projectName
   }
   server.use(
     http.get(`*${endpoints.project(projectId)}`, () =>
-      HttpResponse.json({ id: projectId, name: projectName, createdAt: '' }),
+      HttpResponse.json({ id: projectId, name: projectName, createdAt: '', tracker: 'azure-devops' }),
     ),
     http.get(`*${endpoints.glossary(projectId)}`, () => HttpResponse.json(backend.current)),
     http.put(`*${endpoints.glossary(projectId)}`, async ({ request }) => {

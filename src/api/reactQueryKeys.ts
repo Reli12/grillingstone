@@ -8,7 +8,7 @@ export const queryKeys = {
   drafts: (projectId: string) => ['projects', projectId, 'drafts'] as const,
   draft: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId] as const,
   transcripts: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId, 'sessions'] as const,
-  render: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId, 'render'] as const,
+  copyFields: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId, 'copy'] as const,
   templates: ['templates'] as const,
   // Own root, so invalidating `templates` after an import does not re-run the preview.
   templateImportPreview: (bundle: unknown) => ['templateImportPreview', bundle] as const,

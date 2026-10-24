@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
-import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
+import { TRACKERS } from '#core/shared/tracker.ts'
+import { workItemTypes } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
+import { templateTracker } from '#core/template/templateTypes.ts'
 import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
@@ -82,8 +84,10 @@ describe('settings', () => {
       author: 'dorijan',
       model: 'opus',
       theme: 'dark',
+      defaultTracker: 'azure-devops',
     })
     expect((await call('PUT', '/api/settings', { author: 42 })).status).toBe(400)
+    expect((await call('PUT', '/api/settings', { author: 'a', defaultTracker: 'linear' })).status).toBe(400)
   })
 })
 
@@ -98,6 +102,25 @@ describe('projects and Glossary', () => {
     expect((await call('POST', '/api/projects', { name: '  ' })).status).toBe(400)
     expect((await call('GET', '/api/projects/missing')).status).toBe(404)
     expect((await call('GET', '/api/projects/..%2Fetc')).status).toBe(404)
+  })
+
+  it('gives a new Project the Default Tracker unless it names one, and fixes it once a Draft exists', async () => {
+    await call('PUT', '/api/settings', { author: 'a', defaultTracker: 'jira' })
+    const jira = (await call('POST', '/api/projects', { name: 'Jira one' })).body as { id: string; tracker: string }
+    expect(jira.tracker).toBe('jira')
+    const azure = (await call('POST', '/api/projects', { name: 'ADO one', tracker: 'azure-devops' })).body as {
+      id: string
+    }
+    expect((await call('PATCH', `/api/projects/${azure.id}`, { tracker: 'linear' })).status).toBe(400)
+    expect((await call('PATCH', `/api/projects/${azure.id}`, { tracker: 'jira' })).body).toMatchObject({
+      tracker: 'jira',
+    })
+
+    const story = { workItemType: 'Story', templateId: 'default-jira-story', requirement: 'x', references: [] }
+    expect((await call('POST', `/api/projects/${jira.id}/drafts`, story)).status).toBe(200)
+    const locked = await call('PATCH', `/api/projects/${jira.id}`, { tracker: 'azure-devops' })
+    expect(locked.status).toBe(409)
+    expect(locked.body).toMatchObject({ error: expect.stringContaining('stays Jira') })
   })
 
   it('starts a new Project from a Glossary the human brings, titled with the Project name', async () => {
@@ -176,9 +199,9 @@ describe('Drafts and Grilling Sessions', () => {
     expect((await call('GET', `/api/projects/${grilled.projectId}/drafts`)).body).toEqual([
       expect.objectContaining({ id: grilled.draftId, version: 1, pendingChanges: 0 }),
     ])
-    expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/render`)).body.title).toBe(
-      draft.title,
-    )
+    expect(
+      (await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}/copy`)).body.fields[0].text,
+    ).toBe(draft.title)
   })
 
   it('refuses human input the session cannot take', async () => {
@@ -342,13 +365,17 @@ describe('Focused Sessions', () => {
 })
 
 describe('Templates', () => {
-  it('ships one valid, read-only Default Template for every Work Item Type', async () => {
+  it("ships one valid, read-only Default Template for every Tracker's Work Item Types", async () => {
     const list = (await call('GET', '/api/templates')).body as Template[]
-    for (const type of WORK_ITEM_TYPES) {
-      const defaults = list.filter((template) => template.workItemType === type && template.isDefault)
-      expect(defaults, type).toHaveLength(1)
-      expect(validateTemplate(defaults[0]), type).toEqual({ ok: true })
-    }
+    for (const tracker of TRACKERS)
+      for (const type of workItemTypes(tracker)) {
+        const isOne = (template: Template) =>
+          templateTracker(template) === tracker && template.workItemType === type && template.isDefault
+        const defaults = list.filter(isOne)
+        expect(defaults, `${tracker} ${type}`).toHaveLength(1)
+        expect(validateTemplate(defaults[0]), `${tracker} ${type}`).toEqual({ ok: true })
+      }
+    expect(list.filter((template) => template.isDefault)).toHaveLength(10)
   })
 
   it('starts a Bug Draft from the Default Bug Template', async () => {
@@ -392,7 +419,9 @@ describe('Templates', () => {
   })
 
   it('grills a new Template in a Template Session', async () => {
-    expect((await call('POST', '/api/template-sessions', { workItemType: 'Story', purpose: 'x' })).status).toBe(400)
+    expect((await call('POST', '/api/template-sessions', { workItemType: 'Spike', purpose: 'x' })).status).toBe(400)
+    // Azure DevOps (the default Tracker) has no Story.
+    expect((await call('POST', '/api/template-sessions', { workItemType: 'Story', purpose: 'x' })).status).toBe(409)
     expect((await call('POST', '/api/template-sessions', { workItemType: 'PBI', purpose: ' ' })).status).toBe(409)
     const session = (
       await call('POST', '/api/template-sessions', {

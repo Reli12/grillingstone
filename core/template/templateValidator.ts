@@ -1,12 +1,27 @@
 // Template Validator: the gate every saved Template passes — hand-made, imported, or written by a
 // Template Session. Session output must also follow the method skeleton.
-import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+import { isTracker, type Tracker, TRACKER_LABELS, trackerOrDefault } from '#core/shared/tracker.ts'
+import {
+  customFieldName,
+  type CustomFieldTarget,
+  fieldLabel,
+  isCustomFieldTarget,
+  JIRA_FIELDS,
+} from '#core/shared/trackerFields.ts'
 import type { Reason, Validation } from '#core/shared/validation.ts'
-import { allowedTargets, isWorkItemType, WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
+import {
+  acceptsCustomFields,
+  allowedTargets,
+  isTrackerType,
+  type WorkItemType,
+  workItemTypes,
+} from '#core/shared/workItemType.ts'
 import type { TemplateSection } from '#core/template/templateTypes.ts'
 
 /** What defines a Template's meaning; ids, versions and timestamps are the store's business. */
 export interface TemplateContent {
+  /** Absent means Azure DevOps (Templates made before Trackers); a Template Session passes its Tracker as an option. */
+  tracker?: Tracker
   /** Absent in a Template Session's submission — the session knows its type and passes it as an option. */
   workItemType?: WorkItemType
   name: string
@@ -88,12 +103,35 @@ function skeletonReasons(method: string): Reason[] {
   return []
 }
 
-/** Which Azure DevOps fields Sections may target; `known` is false when the Work Item Type is unknown. */
+/** Which fields Sections may target; `known` is false when the Tracker or Work Item Type is unknown. */
 interface TargetRule {
   known: boolean
-  type: unknown
+  /** How the type is named in messages, e.g. "PBI" or "Jira Story". */
+  typeName: string
   targets: string[]
+  customFields: boolean
   fieldNames: string
+}
+
+/** Jira's own field names, lower-cased; a Custom Field may not take one. */
+const JIRA_SYSTEM_NAMES = Object.values(JIRA_FIELDS).map((field) => fieldLabel(field).toLowerCase())
+
+/** A Custom Field needs a name, and one no Jira system field has, so the copy buttons never look alike. */
+function customFieldReason(target: CustomFieldTarget, where: string): Reason | null {
+  const name = customFieldName(target).trim().toLowerCase()
+  if (name && !JIRA_SYSTEM_NAMES.includes(name)) return null
+  return {
+    code: 'bad-custom-field',
+    message: `${where}: a Custom Field needs its own name, not empty and not that of a system field.`,
+  }
+}
+
+/** Why `target` is refused for this Template, or null when it is allowed. */
+function targetReason(target: string, where: string, code: string, rule: TargetRule): Reason | null {
+  if (!rule.known || rule.targets.includes(target)) return null
+  if (rule.customFields && isCustomFieldTarget(target)) return customFieldReason(target, where)
+  const verb = rule.customFields ? 'copied' : 'Published'
+  return { code, message: `${where}: a ${rule.typeName} can be ${verb} only into ${rule.fieldNames}.` }
 }
 
 /** The checks for one Section whose key is valid and not a duplicate. */
@@ -110,12 +148,8 @@ function checkTemplateSection(section: TemplateSection, rule: TargetRule): Reaso
       ...at,
       message: `Section "${section.key}": Given / When / Then applies only to entries Sections.`,
     })
-  if (rule.known && !rule.targets.includes(section.target))
-    reasons.push({
-      code: 'unknown-target',
-      ...at,
-      message: `Section "${section.key}": a ${String(rule.type)} can be Published only into ${rule.fieldNames}.`,
-    })
+  const badTarget = targetReason(section.target, `Section "${section.key}"`, 'unknown-target', rule)
+  if (badTarget) reasons.push({ ...badTarget, ...at })
   if (typeof section.locked !== 'boolean')
     reasons.push({ code: 'bad-locked', ...at, message: `Section "${section.key}": locked must be true or false.` })
   return reasons
@@ -145,34 +179,57 @@ function checkTemplateSections(sections: TemplateSection[], rule: TargetRule): R
   return reasons
 }
 
-export function validateTemplate(
-  content: unknown,
-  opts: { requireSkeleton?: boolean; workItemType?: WorkItemType } = {},
-): Validation {
+interface ValidateOptions {
+  requireSkeleton?: boolean
+  /** A Template Session's fixed Tracker and type, which its submission leaves out. */
+  tracker?: Tracker
+  workItemType?: WorkItemType
+}
+
+/** The Tracker and type's field rule, adding a reason when either is unknown. */
+function targetRule(content: TemplateContent, opts: ValidateOptions, reasons: Reason[]): TargetRule {
+  const rawTracker = opts.tracker ?? content.tracker
+  if (rawTracker !== undefined && !isTracker(rawTracker)) {
+    reasons.push({ code: 'unknown-tracker', message: 'The Template needs a Tracker: Azure DevOps or Jira.' })
+    return { known: false, typeName: '', targets: [], customFields: false, fieldNames: '' }
+  }
+  const tracker = trackerOrDefault(rawTracker)
+  const type = opts.workItemType ?? content.workItemType
+  if (!isTrackerType(tracker, type)) {
+    reasons.push({
+      code: 'unknown-work-item-type',
+      message: `The Template needs a ${TRACKER_LABELS[tracker]} Work Item Type: one of ${workItemTypes(tracker).join(', ')}.`,
+    })
+    return { known: false, typeName: '', targets: [], customFields: false, fieldNames: '' }
+  }
+  const targets: string[] = allowedTargets(tracker, type)
+  const customFields = acceptsCustomFields(tracker)
+  const systemNames = targets.map(fieldLabel).join(', ')
+  return {
+    known: true,
+    typeName: tracker === 'jira' ? `Jira ${type}` : type,
+    targets,
+    customFields,
+    fieldNames: customFields ? `${systemNames}, or a Custom Field` : systemNames,
+  }
+}
+
+export function validateTemplate(content: unknown, opts: ValidateOptions = {}): Validation {
   if (!isContent(content))
     return { ok: false, reasons: [{ code: 'malformed-template', message: MALFORMED_TEMPLATE_MESSAGE }] }
 
   const reasons: Reason[] = []
-  const type = opts.workItemType ?? content.workItemType
-  const knownType = isWorkItemType(type)
-  if (!knownType)
-    reasons.push({
-      code: 'unknown-work-item-type',
-      message: `The Template needs a Work Item Type: one of ${WORK_ITEM_TYPES.join(', ')}.`,
-    })
-  const targets: string[] = knownType ? allowedTargets(type) : []
-  const fieldNames = targets.map((target) => ADO_FIELD_LABELS[target]).join(', ')
+  const rule = targetRule(content, opts, reasons)
   if (!content.name.trim()) reasons.push({ code: 'missing-name', message: 'The Template needs a name.' })
   if (!content.sections.length) reasons.push({ code: 'no-sections', message: 'A Template needs at least one Section.' })
 
-  reasons.push(...checkTemplateSections(content.sections, { known: knownType, type, targets, fieldNames }))
+  reasons.push(...checkTemplateSections(content.sections, rule))
 
-  const logTarget = content.iterationLogTarget
-  if (knownType && logTarget !== undefined && !targets.includes(logTarget))
-    reasons.push({
-      code: 'unknown-iteration-log-target',
-      message: `The Iteration Log of a ${type} can be Published only into ${fieldNames}.`,
-    })
+  if (content.iterationLogTarget !== undefined) {
+    const where = 'The Iteration Log'
+    const badLog = targetReason(content.iterationLogTarget, where, 'unknown-iteration-log-target', rule)
+    if (badLog) reasons.push(badLog)
+  }
 
   if (!content.method.trim()) reasons.push({ code: 'missing-method', message: 'The Template needs a writing method.' })
   else if (opts.requireSkeleton) reasons.push(...skeletonReasons(content.method))

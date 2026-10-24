@@ -2,6 +2,7 @@
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { Segment } from '#core/session/blockExtractor.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
+import type { Tracker } from '#core/shared/tracker.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 
 export type SessionStatus =
@@ -65,6 +66,8 @@ export interface Transcript extends SessionSummary {
 
 /** What the human asked for on the New Template start step. */
 export interface TemplateRequest {
+  /** Absent on Template Sessions from before Trackers existed, which were Azure DevOps. */
+  tracker?: Tracker
   workItemType: WorkItemType
   purpose: string
   examples: string

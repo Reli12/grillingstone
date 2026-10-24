@@ -1,5 +1,6 @@
 // The Template: the ordered Sections and writing method a Draft of one work item type is written to.
-import type { SectionTarget } from '#core/shared/adoFields.ts'
+import { type Tracker, trackerOrDefault } from '#core/shared/tracker.ts'
+import type { SectionTarget } from '#core/shared/trackerFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 
 export type SectionShape = 'prose' | 'entries'
@@ -18,6 +19,8 @@ export interface TemplateSection {
 
 export interface Template {
   id: string
+  /** Absent on Templates and Draft snapshots made before Trackers existed, which are Azure DevOps. */
+  tracker?: Tracker
   workItemType: WorkItemType
   name: string
   version: number
@@ -33,3 +36,6 @@ export interface Template {
   /** Set when a Template Session made it; local only — bundles leave it out. */
   origin?: { sessionId: string; at: string }
 }
+
+/** The Template's Tracker; one made before Trackers existed is Azure DevOps. */
+export const templateTracker = (template: Pick<Template, 'tracker'>): Tracker => trackerOrDefault(template.tracker)

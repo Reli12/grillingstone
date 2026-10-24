@@ -1,5 +1,6 @@
 // Turning a Template Session's validated submission into a Template the store can save.
-import type { SectionTarget } from '#core/shared/adoFields.ts'
+import type { Tracker } from '#core/shared/tracker.ts'
+import type { SectionTarget } from '#core/shared/trackerFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
 import type { TemplateContent } from '#core/template/templateValidator.ts'
@@ -8,7 +9,11 @@ import type { TemplateContent } from '#core/template/templateValidator.ts'
  * The Template a Template Session submitted (already validated), with only the fields a Template has and
  * text trimmed. The store assigns its id, a unique name and version 1.
  */
-export function templateFromSession(content: TemplateContent, workItemType: WorkItemType, now: string): Template {
+export function templateFromSession(
+  content: TemplateContent,
+  { tracker, workItemType }: { tracker: Tracker; workItemType: WorkItemType },
+  now: string,
+): Template {
   const sections: TemplateSection[] = content.sections.map((section) => ({
     key: section.key,
     heading: section.heading.trim(),
@@ -20,6 +25,7 @@ export function templateFromSession(content: TemplateContent, workItemType: Work
   }))
   return {
     id: '',
+    tracker,
     workItemType,
     name: content.name.trim(),
     version: 1,

@@ -1,4 +1,4 @@
-// The New Project dialog: a name, and where the Project's Glossary starts from.
+// The New Project dialog: its Tracker, a name, and where the Project's Glossary starts from.
 
 import { useProjects } from '@/api/hooks/projects/projectHooks'
 import { TextInput } from '@/components/atoms/textInput/textInput'
@@ -6,6 +6,7 @@ import { Dialog } from '@/components/composite/dialog/dialog'
 import { CreateProjectActions } from '@/components/features/projects/createProjectActions/createProjectActions'
 import { GlossaryStart } from '@/components/features/projects/glossaryStart/glossaryStart'
 import { SourceChoices } from '@/components/features/projects/sourceChoices/sourceChoices'
+import { TrackerField } from '@/components/features/projects/trackerField/trackerField'
 import { useCreateProjectForm } from '@/hooks/projects/useCreateProjectForm'
 
 interface CreateProjectDialogProps {
@@ -14,8 +15,9 @@ interface CreateProjectDialogProps {
 }
 
 /**
- * Names a new Project and chooses how its Glossary starts: empty, from text the human brings, or as a copy of
- * another Project's. The copy is taken once; the title is always the new Project's name.
+ * Picks a new Project's Tracker (the Default Tracker preselected), names it and chooses how its Glossary
+ * starts: empty, from text the human brings, or as a copy of another Project's. The copy is taken once; the
+ * title is always the new Project's name.
  */
 export function CreateProjectDialog({ open, onClose }: Readonly<CreateProjectDialogProps>) {
   const { data: projects = [] } = useProjects()
@@ -31,6 +33,7 @@ export function CreateProjectDialog({ open, onClose }: Readonly<CreateProjectDia
     >
       <form className="grid gap-5 md:grid-cols-[260px_1fr]" onSubmit={form.onSubmit}>
         <div className="space-y-4">
+          <TrackerField value={form.tracker} defaultTracker={form.defaultTracker} onChange={form.setTracker} />
           <div>
             <p className="mb-1.5 text-sm font-medium">Name</p>
             <TextInput

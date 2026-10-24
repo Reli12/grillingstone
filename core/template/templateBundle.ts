@@ -1,8 +1,9 @@
 // Sharing Templates between people: a bundle carries Templates only (never Projects, Drafts or Glossaries),
 // the preview compares by meaning, and an import never deletes anything.
 import { newId } from '#core/shared/ids.ts'
+import { isTracker } from '#core/shared/tracker.ts'
 import { defaultIterationLogTarget, isWorkItemType } from '#core/shared/workItemType.ts'
-import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
+import { type Template, type TemplateSection, templateTracker } from '#core/template/templateTypes.ts'
 
 export const BUNDLE_FORMAT = 'grillingstone/templates'
 /** Bundles exported before the tool was renamed from Whetstone still import. */
@@ -39,6 +40,8 @@ const pickSection = (section: TemplateSection): TemplateSection => ({
 /** Only a Template's own fields, so nothing else travels in a bundle. */
 const pickTemplate = (template: Template): Template => ({
   id: template.id,
+  // A bundle without Trackers was exported before they existed, so its Templates are Azure DevOps.
+  tracker: templateTracker(template),
   workItemType: template.workItemType,
   name: template.name,
   version: template.version,
@@ -65,10 +68,12 @@ const norm = (text: string) => text.replace(WHITESPACE_RUN, ' ').trim()
 /** What a Template means: structure, method and names — not its id, version, timestamps or whitespace. */
 const meaning = (template: Template) =>
   JSON.stringify({
+    tracker: templateTracker(template),
     type: template.workItemType,
     name: norm(template.name),
     log: norm(template.iterationLogHeading),
-    logTarget: template.iterationLogTarget ?? defaultIterationLogTarget(template.workItemType),
+    logTarget:
+      template.iterationLogTarget ?? defaultIterationLogTarget(templateTracker(template), template.workItemType),
     method: norm(template.method),
     sections: template.sections.map((section) => ({
       ...pickSection(section),
@@ -95,6 +100,7 @@ const isTemplate = (template: unknown): template is Template => {
     !!fields &&
     typeof fields.id === 'string' &&
     typeof fields.name === 'string' &&
+    (fields.tracker === undefined || isTracker(fields.tracker)) &&
     isWorkItemType(fields.workItemType) &&
     typeof fields.method === 'string' &&
     Array.isArray(fields.sections) &&
@@ -103,10 +109,14 @@ const isTemplate = (template: unknown): template is Template => {
   )
 }
 
-/** The local Template an imported one matches: the same id, or else the same type and name. */
+/** Templates of the same Tracker and type, which is where names must be unique. */
+const sameKind = (first: Template, second: Template) =>
+  templateTracker(first) === templateTracker(second) && first.workItemType === second.workItemType
+
+/** The local Template an imported one matches: the same id, or else the same Tracker, type and name. */
 const findMatch = (existing: Template[], template: Template) =>
   existing.find((local) => local.id === template.id) ??
-  existing.find((local) => local.workItemType === template.workItemType && norm(local.name) === norm(template.name))
+  existing.find((local) => sameKind(local, template) && norm(local.name) === norm(template.name))
 
 export function previewImport(
   bundle: unknown,
@@ -134,7 +144,8 @@ export function previewImport(
 
 /** The Templates to write for the selected items. Nothing is ever deleted; Defaults are never overwritten. */
 export function applyImport(existing: Template[], items: ImportItem[], now: string): Template[] {
-  const nameKey = (template: Template, name: string) => `${template.workItemType}/${norm(name)}`
+  const nameKey = (template: Template, name: string) =>
+    `${templateTracker(template)}/${template.workItemType}/${norm(name)}`
   const ids = new Set(existing.map((template) => template.id))
   const names = new Set(existing.map((template) => nameKey(template, template.name)))
   const writes: Template[] = []

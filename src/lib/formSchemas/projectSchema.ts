@@ -1,12 +1,16 @@
 // Validation for a Project's name, and for the New Project dialog.
 import { z } from 'zod'
 
+import { TRACKERS } from '#core/shared/tracker.ts'
+
 export const projectNameSchema = z.object({
   name: z.string().trim().min(1, 'Name the Project'),
 })
 export type ProjectNameFormData = z.infer<typeof projectNameSchema>
 
 export const newProjectSchema = projectNameSchema.extend({
+  /** Preselected from the Default Tracker; fixed once the Project has a Draft. */
+  tracker: z.enum(TRACKERS),
   /** Where the Glossary starts from: empty, text the human brings, or a copy of another Project's. */
   source: z.enum(['empty', 'paste', 'copy']),
   copyFrom: z.string(),

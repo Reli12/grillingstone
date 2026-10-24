@@ -50,7 +50,7 @@ function applyDraft(qc: QueryClient, event: EventOf<'draft'>) {
     draft: event.draft,
     liveSession: old?.liveSession ?? null,
   }))
-  void qc.invalidateQueries({ queryKey: queryKeys.render(event.projectId, event.draft.id) })
+  void qc.invalidateQueries({ queryKey: queryKeys.copyFields(event.projectId, event.draft.id) })
 }
 
 function applySession(qc: QueryClient, event: EventOf<'session'>) {

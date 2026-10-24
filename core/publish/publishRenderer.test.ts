@@ -1,10 +1,11 @@
-// Tests for the exact Azure DevOps field values a Draft Publishes as.
+// Tests for the exact field values a Draft is copied or Published as, for each Tracker and format.
 import { describe, expect, it } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
 import { render } from '#core/publish/publishRenderer.ts'
-import { ADO_FIELDS, type SectionTarget } from '#core/shared/adoFields.ts'
+import { ADO_FIELDS } from '#core/shared/adoFields.ts'
+import { customFieldTarget, JIRA_FIELDS, type SectionTarget } from '#core/shared/trackerFields.ts'
 import { sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 describe('Publish Renderer', () => {
@@ -100,6 +101,57 @@ describe('Publish Renderer', () => {
       const out = render(bugDraft())
       expect(out.fields[ADO_FIELDS.reproSteps]).toContain('PBI Iteration Log')
       expect(out.fields).not.toHaveProperty(ADO_FIELDS.description)
+    })
+  })
+
+  describe('a Jira Draft', () => {
+    /** The fixture Draft as a Jira Story: every Section in Description unless `targets` says otherwise. */
+    const jiraDraft = (targets: Record<string, SectionTarget> = {}): Draft => {
+      const draft = v1Draft()
+      const toJira = <T extends { key: string; target: SectionTarget }>(section: T) => ({
+        ...section,
+        target: targets[section.key] ?? JIRA_FIELDS.description,
+      })
+      return {
+        ...draft,
+        workItemType: 'Story',
+        sections: draft.sections.map(toJira),
+        template: {
+          ...draft.template,
+          tracker: 'jira',
+          workItemType: 'Story',
+          sections: draft.template.sections.map(toJira),
+        },
+      }
+    }
+
+    it('puts Acceptance Criteria into the Description under their own heading', () => {
+      const out = render(jiraDraft())
+      expect(Object.keys(out.fields)).toEqual([JIRA_FIELDS.description])
+      expect(out.fields[JIRA_FIELDS.description]).toMatch(
+        /<h2>Acceptance Criteria<\/h2>\s*<p><strong>AC01 - Archive single device/,
+      )
+    })
+
+    it('appends the Iteration Log to the Description', () => {
+      const description = render(jiraDraft()).fields[JIRA_FIELDS.description]
+      expect(description.trimEnd()).toMatch(/<h2>PBI Iteration Log<\/h2>\s*<p>22\.09\.2026 - @dorijan v1<\/p>$/)
+    })
+
+    it('gives a Custom Field its own field, named by the field rather than a heading', () => {
+      const acField = customFieldTarget('Acceptance Criteria')
+      const out = render(jiraDraft({ acceptanceCriteria: acField }))
+      expect(out.fields[acField]).toMatch(/^<p><strong>AC01 - Archive single device/)
+      expect(out.fields[JIRA_FIELDS.description]).not.toContain('AC01')
+    })
+
+    it('renders wiki markup on request', () => {
+      const description = render(jiraDraft(), 'jira-wiki').fields[JIRA_FIELDS.description]
+      expect(description).toMatch(/^h2\. User Story\nAs a Manager, I want to archive a device/)
+      expect(description).toContain('||Action||Admin||Manager||Technician||')
+      expect(description).toMatch(/\*AC01 - Archive single device[^*]*\*\n\*Given\* /)
+      expect(description.trimEnd()).toMatch(/h2\. PBI Iteration Log\n22\.09\.2026 - @dorijan v1$/)
+      expect(description).not.toContain('<')
     })
   })
 })

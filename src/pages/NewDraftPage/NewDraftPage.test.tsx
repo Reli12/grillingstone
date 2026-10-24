@@ -38,7 +38,7 @@ describe('NewDraftPage', () => {
     sent = undefined
     server.use(
       http.get(`*${endpoints.project('customer-portal')}`, () =>
-        HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '' }),
+        HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '', tracker: 'azure-devops' }),
       ),
       http.get(`*${endpoints.drafts('customer-portal')}`, () => HttpResponse.json([written])),
       http.get(`*${endpoints.templates}`, () =>
@@ -115,5 +115,33 @@ describe('NewDraftPage', () => {
     await user.click(ref)
     await user.click(ref)
     expect(ref).not.toBeChecked()
+  })
+
+  it("offers a Jira Project only Jira's types and Templates, starting on a Story", async () => {
+    const jiraStory = {
+      ...defaultPbiTemplate,
+      id: 'jira-story',
+      tracker: 'jira' as const,
+      workItemType: 'Story' as const,
+      name: 'Default Jira Story Template',
+    }
+    server.use(
+      http.get(`*${endpoints.project('customer-portal')}`, () =>
+        HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '', tracker: 'jira' }),
+      ),
+      http.get(`*${endpoints.templates}`, () => HttpResponse.json([defaultPbiTemplate, jiraStory])),
+    )
+    const { user } = renderPage()
+    expect(await screen.findByRole('radio', { name: 'Story' })).toHaveAttribute('aria-checked', 'true')
+    for (const type of ['Epic', 'Task', 'Sub-task', 'Bug'])
+      expect(screen.getByRole('radio', { name: type })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'PBI' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /Default PBI/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Default Jira Story Template/ })).toBeChecked()
+
+    await user.type(screen.getByRole('textbox', { name: 'Requirement' }), 'Archive devices')
+    await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+    expect(await screen.findByTestId('navigated')).toBeInTheDocument()
+    expect(sent).toMatchObject({ workItemType: 'Story', templateId: 'jira-story' })
   })
 })

@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Settings } from '#core/contract/apiTypes.ts'
+import type { Tracker } from '#core/shared/tracker.ts'
 
 import { projectsApi } from '@/api/projectsApi'
 import { queryKeys } from '@/api/reactQueryKeys'
@@ -28,6 +29,17 @@ export function useRenameProject(projectId: string) {
   return useMutation({
     mutationFn: (name: string) => projectsApi.renameProject(projectId, name),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
+  })
+}
+
+export function useChangeTracker(projectId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (tracker: Tracker) => projectsApi.changeTracker(projectId, tracker),
+    onSuccess: (project) => {
+      qc.setQueryData(queryKeys.project(projectId), project)
+      void qc.invalidateQueries({ queryKey: queryKeys.projects })
+    },
   })
 }
 

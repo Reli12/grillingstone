@@ -2,7 +2,7 @@
 // Sessions (start, continue, answer, write now, stop).
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
-import type { Rendered } from '#core/publish/publishRenderer.ts'
+import type { CopyPayload } from '#core/publish/copyFields.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -40,7 +40,7 @@ export const draftsApi = {
   decide: (projectId: string, draftId: string, changeId: string, accept: boolean) =>
     api.post<Draft>(endpoints.decide(projectId, draftId), { changeId, accept }),
   acceptAllClean: (projectId: string, draftId: string) => api.post<Draft>(endpoints.acceptClean(projectId, draftId)),
-  render: (projectId: string, draftId: string) => api.get<Rendered>(endpoints.render(projectId, draftId)),
+  copyFields: (projectId: string, draftId: string) => api.get<CopyPayload>(endpoints.copyFields(projectId, draftId)),
   getTranscripts: (projectId: string, draftId: string) =>
     api.get<Transcript[]>(endpoints.draftSessions(projectId, draftId)),
   startSession: (projectId: string, draftId: string, body: StartSessionRequest) =>

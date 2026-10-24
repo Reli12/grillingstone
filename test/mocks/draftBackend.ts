@@ -7,7 +7,7 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acceptAllClean, decide } from '#core/proposal/triage.ts'
-import { render } from '#core/publish/publishRenderer.ts'
+import { copyFields } from '#core/publish/copyFields.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { meta } from '#core/testing/fixtures.ts'
@@ -49,7 +49,7 @@ export function draftBackend(
 
   server.use(
     http.get(url(endpoints.project(projectId)), () =>
-      HttpResponse.json({ id: projectId, name: 'Customer Portal', createdAt: '' }),
+      HttpResponse.json({ id: projectId, name: 'Customer Portal', createdAt: '', tracker: 'azure-devops' }),
     ),
     http.get(url(endpoints.drafts(projectId)), () => HttpResponse.json(otherDrafts)),
     http.get(url(endpoints.glossary(projectId)), () => HttpResponse.json({ markdown: '', version: 'v0' })),
@@ -58,7 +58,7 @@ export function draftBackend(
       HttpResponse.json({ draft: state.draft, liveSession: state.live }),
     ),
     http.get(url(endpoints.draftSessions(projectId, draftId)), () => HttpResponse.json(transcripts)),
-    http.get(url(endpoints.render(projectId, draftId)), () => HttpResponse.json(render(state.draft))),
+    http.get(url(endpoints.copyFields(projectId, draftId)), () => HttpResponse.json(copyFields(state.draft))),
     http.post(url(endpoints.draftOps(projectId, draftId)), async ({ request }) => {
       state.draft = applyHumanEdit(state.draft, (await record(request)) as HumanOp)
       return HttpResponse.json(state.draft)

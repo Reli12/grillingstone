@@ -11,6 +11,7 @@ import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glos
 import { ProjectDrafts } from '@/components/features/projects/projectDrafts/projectDrafts'
 import { ProjectTabs } from '@/components/features/projects/projectTabs/projectTabs'
 import { ProjectTitle } from '@/components/features/projects/projectTitle/projectTitle'
+import { ProjectTracker } from '@/components/features/projects/projectTracker/projectTracker'
 import { routesPaths } from '@/routes/routes'
 
 export default function ProjectPage() {
@@ -26,7 +27,10 @@ export default function ProjectPage() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <ProjectTitle project={project} />
+          <div>
+            <ProjectTitle project={project} />
+            <ProjectTracker project={project} hasDrafts={drafts.length > 0} />
+          </div>
           <Link to={routesPaths.newDraft(projectId)}>
             <Button variant="ink" size="lg" tabIndex={-1}>
               <Plus size={17} /> New Draft

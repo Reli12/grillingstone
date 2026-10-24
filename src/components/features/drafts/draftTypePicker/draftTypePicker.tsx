@@ -1,20 +1,22 @@
-// New Draft: choose the Work Item Type, each with its one-line hint.
-import { WORK_ITEM_TYPE_HINTS, WORK_ITEM_TYPES, type WorkItemType } from '#core/shared/workItemType.ts'
+// New Draft: choose one of the Project's Tracker's Work Item Types, each with its one-line hint.
+import type { Tracker } from '#core/shared/tracker.ts'
+import { type WorkItemType, workItemTypeHint, workItemTypes } from '#core/shared/workItemType.ts'
 
 import { FieldLabel } from '@/components/atoms/fieldLabel/fieldLabel'
 import { cn } from '@/lib/cn'
 
 interface DraftTypePickerProps {
+  tracker: Tracker
   type: WorkItemType
   onChoose: (type: WorkItemType) => void
 }
 
-export function DraftTypePicker({ type, onChoose }: Readonly<DraftTypePickerProps>) {
+export function DraftTypePicker({ tracker, type, onChoose }: Readonly<DraftTypePickerProps>) {
   return (
     <fieldset>
       <FieldLabel>Work Item Type</FieldLabel>
       <div className="grid grid-cols-5 rounded-lg bg-fog-deep p-1" role="radiogroup">
-        {WORK_ITEM_TYPES.map((option) => (
+        {workItemTypes(tracker).map((option) => (
           <button
             key={option}
             type="button"
@@ -30,7 +32,7 @@ export function DraftTypePicker({ type, onChoose }: Readonly<DraftTypePickerProp
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[13px] text-ink-faint">{WORK_ITEM_TYPE_HINTS[type]}</p>
+      <p className="mt-2 text-[13px] text-ink-faint">{workItemTypeHint(tracker, type)}</p>
     </fieldset>
   )
 }

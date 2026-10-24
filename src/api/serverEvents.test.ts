@@ -41,7 +41,7 @@ function loadingWhenEventArrives<T>(qc: QueryClient, queryKey: readonly unknown[
 function seeded() {
   const qc = createTestQueryClient()
   for (const key of [
-    queryKeys.render(projectId, draft.id),
+    queryKeys.copyFields(projectId, draft.id),
     queryKeys.drafts(projectId),
     queryKeys.projects,
     queryKeys.glossary(projectId),
@@ -59,7 +59,7 @@ describe('applyServerEvent', () => {
     const next = { ...draft, version: 2 }
     applyServerEvent(qc, { type: 'draft', projectId, draft: next })
     expect(qc.getQueryData(queryKeys.draft(projectId, draft.id))).toEqual({ draft: next, liveSession: live })
-    expect(invalidated(qc, queryKeys.render(projectId, draft.id))).toBe(true)
+    expect(invalidated(qc, queryKeys.copyFields(projectId, draft.id))).toBe(true)
   })
 
   it('invalidates lists, Glossary and Templates', () => {

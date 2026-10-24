@@ -1,9 +1,4 @@
-// One field of the work item, ready to copy: HTML for ADO's rich-text boxes, `null` for plain ones.
+// How a Jira field is pasted: rich text for Jira Cloud (or Data Center's Visual mode), wiki markup for
+// Data Center's Text mode. Azure DevOps fields are always rich text.
 
-/** One field of the work item, ready to copy: HTML for ADO's rich-text boxes, `null` for plain ones. */
-export interface CopyField {
-  key: string
-  label: string
-  html: string | null
-  text: string
-}
+export type PasteFormat = 'rich' | 'wiki'

@@ -38,7 +38,7 @@ export function SectionRow({
           error={sectionErrors?.heading?.message}
           onChange={onHeadingChange}
         />
-        <select {...register(`sections.${index}.target`)} aria-label="Azure DevOps field" className={inputCls}>
+        <select {...register(`sections.${index}.target`)} aria-label="Field" className={inputCls}>
           {targetOptions}
         </select>
         <RowButtons index={index} count={count} readOnly={readOnly} onMove={onMove} onRemove={onRemove} />

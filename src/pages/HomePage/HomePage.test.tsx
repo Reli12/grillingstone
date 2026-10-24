@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { endpoints } from '@/api/endpoints/endpoints'
 import HomePage from '@/pages/HomePage/HomePage'
+import { settingsFixture } from '@test/mocks/handlers'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
@@ -26,7 +27,7 @@ describe('HomePage', () => {
     server.use(
       http.post(`*${endpoints.projects}`, async ({ request }) => {
         sent.push(await request.json())
-        return HttpResponse.json({ id: 'billing', name: 'Billing', createdAt: '' })
+        return HttpResponse.json({ id: 'billing', name: 'Billing', createdAt: '', tracker: 'azure-devops' })
       }),
     )
     return sent
@@ -48,7 +49,28 @@ describe('HomePage', () => {
     await user.click(create)
 
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
-    expect(sent).toEqual([{ name: 'Billing' }])
+    expect(sent).toEqual([{ name: 'Billing', tracker: 'azure-devops' }])
+  })
+
+  it('preselects the Default Tracker and sends the Tracker the human picks', async () => {
+    const sent = capture()
+    server.use(
+      http.get(`*${endpoints.settings}`, () => HttpResponse.json({ ...settingsFixture, defaultTracker: 'jira' })),
+    )
+    const { user } = render(<HomePage />, { path: '/' })
+    const dialog = await openDialog(user)
+    const trackers = within(dialog.getByRole('radiogroup', { name: 'Tracker' }))
+    await vi.waitFor(() =>
+      expect(trackers.getByRole('radio', { name: 'Jira' })).toHaveAttribute('aria-checked', 'true'),
+    )
+    expect(dialog.getByText(/Epic · Story · Task · Sub-task · Bug\. Your default from Settings\./)).toBeInTheDocument()
+
+    await user.type(dialog.getByRole('textbox', { name: 'Project name' }), 'Billing')
+    await user.click(trackers.getByRole('radio', { name: 'Azure DevOps' }))
+    expect(dialog.getByText(/Epic · Feature · PBI · Task · Bug\. Fixed once/)).toBeInTheDocument()
+    await user.click(dialog.getByRole('button', { name: 'Create Project' }))
+    expect(await screen.findByTestId('navigated')).toBeInTheDocument()
+    expect(sent).toEqual([{ name: 'Billing', tracker: 'azure-devops' }])
   })
 
   it('starts from pasted text, titled with the Project name, and says which terms it recognised', async () => {
@@ -71,7 +93,11 @@ describe('HomePage', () => {
 
     await vi.waitFor(() =>
       expect(sent).toEqual([
-        { name: 'Billing', glossary: '# Billing\n\n## Language\n\n**Invoice**:\nA request for payment.\n' },
+        {
+          name: 'Billing',
+          tracker: 'azure-devops',
+          glossary: '# Billing\n\n## Language\n\n**Invoice**:\nA request for payment.\n',
+        },
       ]),
     )
   })
@@ -99,7 +125,11 @@ describe('HomePage', () => {
     await user.click(dialog.getByRole('button', { name: 'Create Project' }))
     await vi.waitFor(() =>
       expect(sent).toEqual([
-        { name: 'Billing', glossary: '# Billing\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n' },
+        {
+          name: 'Billing',
+          tracker: 'azure-devops',
+          glossary: '# Billing\n\nDevices.\n\n## Language\n\n**Site**:\nA place.\n',
+        },
       ]),
     )
   })

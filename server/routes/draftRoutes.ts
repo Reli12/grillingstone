@@ -1,5 +1,5 @@
 // Draft routes: list, create (which starts the first Grilling Session), read, delete, human edits and Proposal triage.
-import { render } from '#core/publish/publishRenderer.ts'
+import { copyFields } from '#core/publish/copyFields.ts'
 
 import { parse } from '../http/body.ts'
 import { HttpError } from '../http/errors.ts'
@@ -39,5 +39,5 @@ export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
     return drafts.decide(params.projectId, params.draftId, changeId, accept)
   })
   router.post(`${DRAFT}/proposal/accept-clean`, ({ params }) => drafts.acceptAllClean(params.projectId, params.draftId))
-  router.get(`${DRAFT}/render`, async ({ params }) => render(await getDraft(params.projectId, params.draftId)))
+  router.get(`${DRAFT}/copy`, async ({ params }) => copyFields(await getDraft(params.projectId, params.draftId)))
 }

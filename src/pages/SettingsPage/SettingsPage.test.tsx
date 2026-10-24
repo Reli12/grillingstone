@@ -28,7 +28,9 @@ describe('SettingsPage', () => {
     await user.click(await screen.findByRole('radio', { name: /Dark/ }))
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('pbi.theme')).toBe('dark')
-    await vi.waitFor(() => expect(saves).toEqual([{ author: 'dorijan', model: '', theme: 'dark' }]))
+    await vi.waitFor(() =>
+      expect(saves).toEqual([{ author: 'dorijan', model: '', theme: 'dark', defaultTracker: 'azure-devops' }]),
+    )
   })
 
   it('saves author and model', async () => {
@@ -38,7 +40,9 @@ describe('SettingsPage', () => {
     expect(save).toBeDisabled()
     await user.type(screen.getByRole('textbox', { name: /Model for Grilling Sessions/ }), ' opus ')
     await user.click(save)
-    await vi.waitFor(() => expect(saves).toEqual([{ author: 'dorijan', model: 'opus', theme: 'system' }]))
+    await vi.waitFor(() =>
+      expect(saves).toEqual([{ author: 'dorijan', model: 'opus', theme: 'system', defaultTracker: 'azure-devops' }]),
+    )
     expect(await screen.findByText('Settings saved.')).toBeInTheDocument()
   })
 

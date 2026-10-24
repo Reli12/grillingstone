@@ -2,12 +2,19 @@
 // and sees no Glossary — a Template is reused across Projects and shared with colleagues — so its only
 // material is the purpose, the pasted examples and an optional base Template (read-only).
 import { cardProtocol, type Seed, submitUsage } from '#core/session/cardProtocol.ts'
-import { ADO_FIELD_LABELS, type SectionTarget } from '#core/shared/adoFields.ts'
-import { allowedTargets, defaultIterationLogTarget, type WorkItemType } from '#core/shared/workItemType.ts'
+import { type Tracker, TRACKER_LABELS } from '#core/shared/tracker.ts'
+import { fieldLabel, type SectionTarget } from '#core/shared/trackerFields.ts'
+import {
+  acceptsCustomFields,
+  allowedTargets,
+  defaultIterationLogTarget,
+  type WorkItemType,
+} from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 import { SKELETON_PARTS } from '#core/template/templateValidator.ts'
 
 export interface TemplateSeedInput {
+  tracker: Tracker
   workItemType: WorkItemType
   /** What the human wants the Template for, in their words. */
   purpose: string
@@ -35,20 +42,23 @@ const templateJson = (template: Pick<Template, 'name' | 'sections'>) =>
     2,
   )
 
-function roleSection(workItemType: WorkItemType): string {
+/** How a Custom Field target is written in the submitted JSON. */
+const CUSTOM_FIELD_PLACEHOLDER = '"custom:<Field name>"'
+
+function roleSection(trackerName: string, workItemType: WorkItemType): string {
   return `# Your role
-You run a Template Session: you interrogate how the human's team writes a ${workItemType}, until you can write it down as a new Template for Grilling Stone. A Template is an ordered list of Sections plus a writing method that Claude follows when it later grills requirements or observed defects into ${workItemType} Drafts for Azure DevOps.
-This session belongs to no Project: there is no Glossary, and you must keep the Template free of any one product's terms, because it is reused across Projects and shared with colleagues. You cannot read or write files; everything you need is in this conversation. You may search and fetch the web (e.g. to check an Azure DevOps field or a writing convention).
+You run a Template Session: you interrogate how the human's team writes a ${trackerName} ${workItemType}, until you can write it down as a new Template for Grilling Stone. A Template is an ordered list of Sections plus a writing method that Claude follows when it later grills requirements or observed defects into ${workItemType} Drafts for ${trackerName}.
+This session belongs to no Project: there is no Glossary, and you must keep the Template free of any one product's terms, because it is reused across Projects and shared with colleagues. You cannot read or write files; everything you need is in this conversation. You may search and fetch the web (e.g. to check a ${trackerName} field or a writing convention).
 You always create a new Template. A base Template, if given, is starting material only — it is never changed.`
 }
 
-function grillSection(workItemType: WorkItemType, fieldChoice: string): string {
+function grillSection(trackerName: string, workItemType: WorkItemType, fieldChoice: string): string {
   return `## How you grill
 - Ask exactly ONE question per message and wait for the answer. Every question carries your recommended answer.
 - Walk the decision tree in this order, resolving each before the next:
   1. purpose and audience — what this ${workItemType} is for and who reads it (BA, developer, tester, product owner);
   2. the Section list — which Sections, in which order;
-  3. per Section: its shape (prose, or Entries such as one Acceptance Criterion each), whether it is Locked (can never be empty or discarded), its target field in Azure DevOps (${fieldChoice}), and whether its Entries must be Given / When / Then;
+  3. per Section: its shape (prose, or Entries such as one Acceptance Criterion each), whether it is Locked (can never be empty or discarded), its target field in ${trackerName} (${fieldChoice}), and whether its Entries must be Given / When / Then;
   4. per Section: the rules and examples — what good content looks like and the common mistake to avoid;
   5. the guiding principle — the rules that hold across all Sections.
 - Stress-test with concrete scenarios from the examples ("In your second example the ACs mix setup and outcome — should the Template forbid that?").
@@ -70,9 +80,11 @@ Model the depth on a strong method: specific, opinionated, with examples a reade
 }
 
 function submitSection(input: TemplateSeedInput, targets: SectionTarget[]): string {
-  const { workItemType } = input
-  const targetValues = targets.map((target) => `"${target}"`).join(' | ')
-  const defaultLogField = ADO_FIELD_LABELS[defaultIterationLogTarget(workItemType)]
+  const { tracker, workItemType } = input
+  const systemValues = targets.map((target) => `"${target}"`)
+  const customValue = acceptsCustomFields(tracker) ? [CUSTOM_FIELD_PLACEHOLDER] : []
+  const targetValues = [...systemValues, ...customValue].join(' | ')
+  const defaultLogField = fieldLabel(defaultIterationLogTarget(tracker, workItemType))
   const example = `{"name": "Spike ${workItemType}", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "${targets[0]}"}], "method": "# Spike ${workItemType} Guide\\n\\n## Purpose\\n…"}`
   return `## How you submit
 You never write files. When the human has confirmed, submit the whole Template as JSON by running exactly this Bash command (the quoted heredoc delimiter is required):
@@ -84,7 +96,7 @@ ${example}
 
 - "sections": [{ "key": camelCase letters/digits, unique; "heading"; "shape": "prose" | "entries"; "locked": true | false; "guidance": one line; "target": ${targetValues}; "entryFormat": "gherkin" (entries Sections only, optional) }]
 - "iterationLogTarget": one of those fields — where the Iteration Log is appended (optional; defaults to ${defaultLogField})
-- The Work Item Type is fixed to ${workItemType}; do not include it.
+- The Tracker and Work Item Type are fixed to ${TRACKER_LABELS[tracker]} ${workItemType}; do not include them.
 
 The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`
 }
@@ -104,14 +116,18 @@ ${base.method.trim()}`
 }
 
 export function buildTemplateSeed(input: TemplateSeedInput): Seed {
-  const { workItemType } = input
-  const targets = allowedTargets(workItemType)
-  const targetNames = targets.map((target) => ADO_FIELD_LABELS[target])
+  const { tracker, workItemType } = input
+  const trackerName = TRACKER_LABELS[tracker]
+  const targets = allowedTargets(tracker, workItemType)
+  const fieldNames = targets.map(fieldLabel)
+  // A Jira team may have added its own field (e.g. Acceptance Criteria); the pasted examples show it.
+  if (acceptsCustomFields(tracker))
+    fieldNames.push(`a Custom Field the team added, written ${CUSTOM_FIELD_PLACEHOLDER}`)
   const fieldChoice =
-    targetNames.length > 1 ? `${targetNames.slice(0, -1).join(', ')} or ${targetNames.at(-1)}` : targetNames[0]
+    fieldNames.length > 1 ? `${fieldNames.slice(0, -1).join(', ')} or ${fieldNames.at(-1)}` : fieldNames[0]
   const systemPrompt = [
-    roleSection(workItemType),
-    grillSection(workItemType, fieldChoice),
+    roleSection(trackerName, workItemType),
+    grillSection(trackerName, workItemType, fieldChoice),
     cardProtocol('the Template', 'the Template'),
     CUT_SHORT_RULE,
     writeSection(),
@@ -127,7 +143,7 @@ ${input.examples.trim()}
     : ''
 
   const firstMessage = [
-    `Create a new ${workItemType} Template. There is no Project and no Glossary in this session.`,
+    `Create a new ${trackerName} ${workItemType} Template. There is no Project and no Glossary in this session.`,
     `## What the human wants it for\n"""\n${input.purpose.trim()}\n"""`,
     base,
     examples,

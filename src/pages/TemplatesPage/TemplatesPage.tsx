@@ -1,5 +1,5 @@
-// The Templates page: every Template by Work Item Type, with duplicate, export and import, and a link
-// to a running Template Session.
+// The Templates page: one Tracker's Templates by Work Item Type, with duplicate, export and import, and a
+// link to a running Template Session.
 import { useState } from 'react'
 
 import { useTemplates } from '@/api/hooks/templates/templateHooks'
@@ -9,6 +9,8 @@ import { ImportDialog } from '@/components/features/templates/importDialog/impor
 import { LiveSessionBanner } from '@/components/features/templates/liveSessionBanner/liveSessionBanner'
 import { PageActions } from '@/components/features/templates/pageActions/pageActions'
 import { TemplateLists } from '@/components/features/templates/templateLists/templateLists'
+import { TrackerSwitch } from '@/components/features/trackers/trackerSwitch/trackerSwitch'
+import { useShownTracker } from '@/hooks/templates/useShownTracker'
 import { useTemplateActions } from '@/hooks/templates/useTemplateActions'
 
 /** The set with the id removed if it was there, or added if it was not. */
@@ -25,9 +27,10 @@ export default function TemplatesPage() {
 
   const { data: templates } = useTemplates()
   const { data: live } = useLiveTemplateSession()
+  const { tracker, showTracker } = useShownTracker()
   const actions = useTemplateActions(selected, setBundle)
 
-  if (!templates) return <PageLoading />
+  if (!templates || !tracker) return <PageLoading />
 
   return (
     <div className="h-full overflow-y-auto">
@@ -50,7 +53,12 @@ export default function TemplatesPage() {
 
         {live?.session && <LiveSessionBanner session={live.session} />}
 
+        <div className="mt-8 max-w-xs">
+          <TrackerSwitch label="Show Templates for" value={tracker} onChange={showTracker} />
+        </div>
+
         <TemplateLists
+          tracker={tracker}
           templates={templates}
           selected={selected}
           duplicating={actions.duplicating}

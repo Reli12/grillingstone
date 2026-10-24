@@ -3,7 +3,7 @@ import { type ReactNode } from 'react'
 
 import { Plus } from 'lucide-react'
 
-import { type SectionTarget } from '#core/shared/adoFields.ts'
+import { type SectionTarget } from '#core/shared/trackerFields.ts'
 
 import { Button } from '@/components/atoms/button/button'
 import { FieldError } from '@/components/atoms/fieldError/fieldError'
