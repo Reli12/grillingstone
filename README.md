@@ -180,8 +180,15 @@ If Playwright reports a missing browser, run `npx playwright install chromium` o
 Other checks: `npm run typecheck`, `npm run lint`, `npm run format:check`. An optional local SonarQube is wired up in
 `compose.sonar.yml` (`npm run sonar:up`, then `npm run sonar`).
 
+## Acknowledgements
+
+The grilling method is built on Matt Pocock's open-source [skills](https://github.com/mattpocock/skills), in
+particular `grill-with-docs`, used under the MIT License. Matt Pocock is not involved in this project. The adapted
+files and his license notice are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## License
 
-[MIT](LICENSE). The license covers this repository's code only. Claude Code is Anthropic's software: you install it
+[MIT](LICENSE), with third-party notices in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The license covers
+this repository's code only. Claude Code is Anthropic's software: you install it
 separately, and your use of it and of Claude is governed by Anthropic's terms. Grilling Stone is an independent
 project, not affiliated with or endorsed by Anthropic or Microsoft.

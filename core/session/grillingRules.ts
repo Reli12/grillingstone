@@ -1,5 +1,7 @@
 // How a Grilling Session interviews the human — the method of grill-with-docs, inlined so every session
 // follows the same rules without reading a skill.
+// Adapted from https://github.com/mattpocock/skills (skills/engineering/grill-with-docs/SKILL.md), MIT,
+// Copyright (c) 2026 Matt Pocock; modified for Grilling Stone. See THIRD_PARTY_NOTICES.md.
 import { cardProtocol } from '#core/session/cardProtocol.ts'
 
 /** `first`: the session writes v1 directly; otherwise it ends in a Proposal. */

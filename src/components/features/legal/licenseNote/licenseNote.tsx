@@ -9,7 +9,9 @@ export function LicenseNote() {
       <p>
         Grilling Stone is free to use, copy, change and share under the MIT License; the full text is in the{' '}
         <InlineCode>LICENSE</InlineCode> file in the repository. It comes as is, without warranty of any kind. The
-        license covers this tool’s own code only, not Claude Code or Claude.
+        license covers this tool’s own code only, not Claude Code or Claude. The grilling method is adapted from Matt
+        Pocock’s open-source skills, also MIT; his notice is in <InlineCode>THIRD_PARTY_NOTICES.md</InlineCode>. He
+        isn’t involved in this project.
       </p>
     </ProseSection>
   )
