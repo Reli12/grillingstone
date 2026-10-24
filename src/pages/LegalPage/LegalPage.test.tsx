@@ -39,11 +39,11 @@ describe('LegalPage', () => {
     expect(section).toHaveTextContent('never receives, sees or stores your data')
   })
 
-  it('licenses its own code under MIT and claims no tie to Anthropic or Microsoft', () => {
+  it('licenses its own code under MIT and claims no tie to Anthropic, Microsoft or Atlassian', () => {
     render(<LegalPage />)
     expect(screen.getByRole('region', { name: 'License' })).toHaveTextContent('MIT License')
     expect(screen.getByRole('region', { name: 'Trademarks' })).toHaveTextContent(
-      'not affiliated with, endorsed by or sponsored by Anthropic or Microsoft',
+      'not affiliated with, endorsed by or sponsored by Anthropic, Microsoft or Atlassian',
     )
   })
 })
