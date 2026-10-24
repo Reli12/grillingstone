@@ -10,6 +10,12 @@ rework any part, and copy it into Azure DevOps. Claude writes the copy; you stay
 > the way through. Here your requirement goes on the stone and Claude's questions are the heat: every vague word gets
 > turned over until nothing raw is left.
 
+## Website
+
+[grillingstone.com](https://grillingstone.com) is the project's landing page: a one-page overview of what Grilling
+Stone does, how it works, what it needs and how to install it. It is built in a separate repository. This README stays
+the source of truth for setup and configuration details.
+
 ## How it works
 
 1. **Create a Project** for the product you work on. Each Project keeps its own **Glossary**, which can start empty,
