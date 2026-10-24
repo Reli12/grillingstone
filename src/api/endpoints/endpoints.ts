@@ -16,7 +16,7 @@ export const endpoints = {
   draftReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/references`,
   decide: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/decide`,
   acceptClean: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/accept-clean`,
-  render: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/render`,
+  copyFields: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/copy`,
   draftSessions: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/sessions`,
   continueSession: (projectId: string, draftId: string, sessionId: string) =>
     `${draftPath(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,

@@ -6,6 +6,6 @@ export const STEPS = [
   { id: 'grill', title: 'Get grilled' },
   { id: 'draft', title: 'Shape the Draft' },
   { id: 'refine', title: 'Refine with Proposals' },
-  { id: 'publish', title: 'Copy into Azure DevOps' },
+  { id: 'publish', title: 'Copy into Azure DevOps or Jira' },
   { id: 'templates', title: 'Make it your team’s' },
 ] as const

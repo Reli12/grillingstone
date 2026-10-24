@@ -5,10 +5,13 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
 import { acceptAllClean, decide } from '#core/proposal/triage.ts'
+import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
+import { templateTracker } from '#core/template/templateTypes.ts'
 
 import type { Hub } from '../hub.ts'
 import * as drafts from '../storage/drafts.ts'
+import { getProject } from '../storage/projects.ts'
 import { getTemplate } from '../storage/templates.ts'
 import { iterationMeta, now } from './clock.ts'
 
@@ -32,6 +35,10 @@ export class DraftService {
     const template = await getTemplate(input.templateId)
     if (template.workItemType !== input.workItemType)
       throw new DraftInputError(`"${template.name}" is not a ${input.workItemType} Template.`)
+    // The type is the Template's, so a Template of the Project's Tracker also brings a type that Tracker defines.
+    const project = await getProject(projectId)
+    if (templateTracker(template) !== project.tracker)
+      throw new DraftInputError(`"${template.name}" is not a ${TRACKER_LABELS[project.tracker]} Template.`)
     const requirement = input.requirement.trim()
     if (!requirement) throw new DraftInputError('Describe the requirement so Claude has something to grill.')
     const references = await this.existingReferences(projectId, input.references)

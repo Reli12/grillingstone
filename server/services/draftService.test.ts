@@ -20,7 +20,7 @@ beforeEach(async () => {
 
 describe('DraftService', () => {
   it('creates a Draft with only existing References and announces the list', async () => {
-    const { id: projectId } = await createProject('P', meta.date)
+    const { id: projectId } = await createProject('P', 'azure-devops', meta.date)
     const first = await service.create(projectId, {
       workItemType: 'PBI',
       templateId: defaultPbiTemplate.id,
@@ -49,8 +49,25 @@ describe('DraftService', () => {
     ).rejects.toThrow(DraftInputError)
   })
 
+  it("writes a Draft only in a Template of the Project's Tracker", async () => {
+    const { id: projectId } = await createProject('Jira P', 'jira', meta.date)
+    const pbiInJira = {
+      workItemType: 'PBI' as const,
+      templateId: defaultPbiTemplate.id,
+      requirement: 'x',
+      references: [],
+    }
+    await expect(service.create(projectId, pbiInJira)).rejects.toThrow('is not a Jira Template')
+    const story = await service.create(projectId, {
+      ...pbiInJira,
+      workItemType: 'Story',
+      templateId: 'default-jira-story',
+    })
+    expect([story.workItemType, story.template.tracker]).toEqual(['Story', 'jira'])
+  })
+
   it('announces a Draft only when it changed', async () => {
-    const { id: projectId } = await createProject('P', meta.date)
+    const { id: projectId } = await createProject('P', 'azure-devops', meta.date)
     const draft = await service.create(projectId, {
       workItemType: 'PBI',
       templateId: defaultPbiTemplate.id,

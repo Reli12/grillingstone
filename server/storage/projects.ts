@@ -5,8 +5,9 @@ import path from 'node:path'
 
 import type { Project, ProjectSummary } from '#core/contract/apiTypes.ts'
 import { newId } from '#core/shared/ids.ts'
+import { type Tracker, TRACKER_LABELS, trackerOrDefault } from '#core/shared/tracker.ts'
 
-import { NotFound } from './errors.ts'
+import { Conflict, NotFound } from './errors.ts'
 import { isSafeId, readJson, writeJson } from './fsUtil.ts'
 import { draftsDir, projectFile, projectsDir, transcriptsDir } from './paths.ts'
 
@@ -29,6 +30,9 @@ const slug = (name: string) =>
     .replace(EDGE_DASH, '')
     .slice(0, MAX_SLUG_LENGTH) || FALLBACK_SLUG
 
+/** A stored Project; one saved before Trackers existed is Azure DevOps. */
+const withTracker = (project: Project): Project => ({ ...project, tracker: trackerOrDefault(project.tracker) })
+
 /** How many Drafts a Project folder holds; a Project without a drafts folder simply has none. */
 async function countDrafts(folderName: string) {
   // A missing drafts folder means no Drafts yet, which is a count of zero, not an error.
@@ -39,7 +43,7 @@ async function countDrafts(folderName: string) {
 async function summaryOf(folderName: string): Promise<ProjectSummary | null> {
   const project = await readJson<Project>(path.join(projectsDir, folderName, 'project.json'))
   if (!project) return null
-  return { ...project, drafts: await countDrafts(folderName) }
+  return { ...withTracker(project), drafts: await countDrafts(folderName) }
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
@@ -59,21 +63,35 @@ export async function listProjects(): Promise<ProjectSummary[]> {
 export async function getProject(projectId: string): Promise<Project> {
   const project = await readJson<Project>(projectFile(projectId))
   if (!project) throw new NotFound(`No Project ${projectId}`)
-  return project
+  return withTracker(project)
 }
 
-export async function createProject(name: string, now: string): Promise<Project> {
+export async function createProject(name: string, tracker: Tracker, now: string): Promise<Project> {
   // newId('') is "-" followed by random characters; skip the dash and keep five of them.
   const suffix = newId('').slice(1, 6)
-  const project: Project = { id: `${slug(name)}-${suffix}`, name: name.trim(), createdAt: now }
+  const project: Project = { id: `${slug(name)}-${suffix}`, name: name.trim(), createdAt: now, tracker }
   await fs.mkdir(draftsDir(project.id), { recursive: true })
   await fs.mkdir(transcriptsDir(project.id), { recursive: true })
   await writeJson(projectFile(project.id), project)
   return project
 }
 
-export async function renameProject(projectId: string, name: string): Promise<Project> {
-  const project = { ...(await getProject(projectId)), name: name.trim() }
+/**
+ * Renames a Project and/or changes its Tracker. The Tracker is fixed once the Project has a Draft, because
+ * every Draft keeps a snapshot of a Template written for that Tracker.
+ */
+export async function updateProject(projectId: string, change: { name?: string; tracker?: Tracker }): Promise<Project> {
+  const current = await getProject(projectId)
+  const trackerChanges = change.tracker !== undefined && change.tracker !== current.tracker
+  if (trackerChanges && (await countDrafts(projectId)) > 0)
+    throw new Conflict(
+      `"${current.name}" already has Drafts, so it stays ${TRACKER_LABELS[current.tracker]}. Create a new Project for the other Tracker; its Glossary can start as a copy of this one.`,
+    )
+  const project: Project = {
+    ...current,
+    ...(change.name !== undefined ? { name: change.name.trim() } : {}),
+    ...(change.tracker !== undefined ? { tracker: change.tracker } : {}),
+  }
   await writeJson(projectFile(projectId), project)
   return project
 }

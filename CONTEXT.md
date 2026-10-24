@@ -5,7 +5,7 @@ A tool that runs only on the user's own machine, where a human and Claude grill 
 ## Language
 
 **Work Item Type**:
-The kind of item being written: Epic, Feature, PBI, Task or Bug. Epic, Feature, PBI and Task describe something to be built; a Bug describes a defect already observed. Chosen once, before grilling starts, and fixes what the Draft must contain.
+The kind of item being written, named as the Project's Tracker names it. Azure DevOps: Epic, Feature, PBI, Task or Bug. Jira: Epic, Story, Task, Sub-task or Bug. All but Bug describe something to be built; a Bug describes a defect already observed. Chosen once, before grilling starts, and fixes what the Draft must contain.
 _Avoid_: level, kind, ticket type
 
 **Grilling Session**:
@@ -17,15 +17,15 @@ The single document a Grilling Session produces, for one Work Item Type. It is a
 _Avoid_: output, file, result, PBI (when it is not yet published)
 
 **Template**:
-The ordered set of Sections a Draft of one Work Item Type is written in, plus the writing method used to fill them. Chosen by the human when a Draft is created. The tool ships a Default Template per Work Item Type; humans create, edit and share others.
+The ordered set of Sections a Draft of one Work Item Type is written in, for one Tracker, plus the writing method used to fill them. Chosen by the human when a Draft is created, from the Templates of the Project's Tracker. The tool ships a Default Template per Tracker and Work Item Type; humans create, edit and share others.
 _Avoid_: format, layout, schema
 
 **Template Session**:
-A conversation with Claude that interrogates how a team writes one Work Item Type until it can be written down as a Template. Belongs to no Project and is never challenged against a Glossary; it may start from an existing Template and from example work items the human pastes.
+A conversation with Claude that interrogates how a team writes one Work Item Type of one Tracker until it can be written down as a Template. Belongs to no Project and is never challenged against a Glossary; it may start from an existing Template, whose Tracker it then keeps, and from example work items the human pastes.
 _Avoid_: template wizard, template grilling, template builder
 
 **Default Template**:
-The Template the tool ships for a Work Item Type (for a PBI: based on `frontend-pbi`). Preselected, read-only and never deletable.
+The Template the tool ships for one Tracker and Work Item Type (for an Azure DevOps PBI: based on `frontend-pbi`). Preselected, read-only and never deletable.
 _Avoid_: built-in, standard template
 
 **Section**:
@@ -33,7 +33,7 @@ One named part of a Draft (e.g. Scope, Open Questions / Risks, Acceptance Criter
 _Avoid_: part, block, chapter
 
 **Locked Section**:
-A Section the human may edit and move but never discard, because a Draft without it is not a valid work item of its type (for a PBI: User Story, Acceptance Criteria; for a Bug: Steps to Reproduce, Expected Result, Actual Result; for a Task: Goal, Done When).
+A Section the human may edit and move but never discard, because a Draft without it is not a valid work item of its type (for a PBI or Story: User Story, Acceptance Criteria; for a Bug: Steps to Reproduce, Expected Result, Actual Result; for an Azure DevOps Task or a Jira Sub-task: Goal, Done When).
 _Avoid_: required section, mandatory section
 
 **Entry**:
@@ -43,6 +43,18 @@ _Avoid_: row, bullet, item
 **Project**:
 A body of work that shares one domain language (e.g. "Customer Portal", "Billing Platform"). Groups Drafts and owns one Glossary. Not a code repository.
 _Avoid_: repo, workspace, product, client
+
+**Tracker**:
+The work-tracking system a Project's Drafts are written for and copied into: Azure DevOps or Jira (Jira Cloud and Jira Data Center alike). Each Project has exactly one, chosen when the Project is created and fixed once the Project has its first Draft.
+_Avoid_: platform, target, type, ALM
+
+**Custom Field**:
+A field a Jira team added to its own work items (e.g. "Acceptance Criteria"), named by the human in a Jira Template so a Section can be copied into it. Default Templates never use one, since no two Jira instances share them.
+_Avoid_: extra field, customfield
+
+**Default Tracker**:
+The Tracker preselected when a new Project is created. Set once for the whole tool in Settings; it never changes an existing Project.
+_Avoid_: global tracker
 
 **Glossary**:
 The domain terms settled across a Project's Grilling Sessions (e.g. what "Archived Device" means). May start as a copy of a glossary the human brings or of another Project's Glossary; from then on it is this Project's own and changes independently. Belongs to the Project, never to this tool; visible and editable by the human, and every later session in the Project is challenged against it.
@@ -137,22 +149,26 @@ _Avoid_: sub-session, partial session
 ## Relationships
 
 - A **Project** has many **Drafts** and exactly one **Glossary**.
+- A **Project** has exactly one **Tracker**; many **Projects** may use the same **Tracker**.
 - A **Project** has at most one **Backlog**; a **Backlog** may serve many **Projects**.
+- **Publish**, **Backlog**, **Backlog Reference**, **Parent**, **Linked Work Item**, **Import**, **Published Snapshot** and **Drift** exist only for a Project whose **Tracker** is Azure DevOps. A Jira Project's Drafts leave the tool only by being copied.
 - A **Draft** may hold any number of **References** to other **Drafts** in the same Project; none is required.
-- A **Task** usually belongs to a **PBI** or a **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
+- An Azure DevOps **Task** usually belongs to a **PBI** or a **Bug**, and a Jira **Sub-task** to a **Story**, **Task** or **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
 - A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
-- A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**.
+- A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**, one of those the Project's **Tracker** defines.
+- A **Tracker** defines its own **Work Item Types**. An Azure DevOps Task and a Jira Sub-task both live inside another item; a Jira Task stands on its own beside a Story. Jira has no Feature and Azure DevOps has no Sub-task.
 - A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.
 - A **Draft** has any number of **Backlog References**, at most one of which is its **Parent**. A Parent must already exist in Azure DevOps, so a Task's PBI is Published before the Task can point to it.
 - Each **Publish** replaces the Draft's **Published Snapshot**. Bringing **Drift** into the Draft produces a **Proposal**, never a direct edit.
 - The first **Grilling Session** on a **Draft** writes v1 directly; every later session produces a **Proposal**, and each accepted **Proposal** is one **Iteration**.
 - A **Proposal** is split into **Clean Changes** and **Conflicts**.
 - A **Draft** has many **Grilling Sessions** over its life. Each session starts from the current **Draft**, the **Glossary** and the Draft's **References**. An ended session may be picked up by a **Continuation**, which also has the earlier chat but is told the current Draft wins. Every session's **Transcript** stays read-only.
-- A **Work Item Type** has many **Templates**, exactly one of which is its **Default Template**; a **Template** defines many **Sections**.
+- A **Template** belongs to exactly one **Tracker** and one **Work Item Type**; each pair of Tracker and Work Item Type has many **Templates**, exactly one of which is its **Default Template**. A **Template** defines many **Sections**.
+- Duplicating a **Template** keeps its **Tracker**.
 - A **Draft** is written in exactly one **Template**, chosen when the Draft is created, and keeps a snapshot of it. Later edits to the **Template** affect only new **Drafts**; an existing **Draft** moves to a newer Template version only through an explicit upgrade, which arrives as a **Proposal**.
 - A **Default Template** is read-only; customizing means duplicating it into a new **Template**.
-- A **Template Session** produces at most one **Template**; it never touches a **Project**, **Draft** or **Glossary**.
-- A **Section** holds either prose or many **Entries**, and names the Azure DevOps field it is **Published** into.
+- A **Template Session** produces at most one **Template**, for the **Tracker** chosen when the session starts; it never touches a **Project**, **Draft** or **Glossary**.
+- A **Section** holds either prose or many **Entries**, and names the field of its Template's **Tracker** it is copied or **Published** into.
 - A **Draft** has a title of its own, outside its **Sections**.
 - The **Template** decides what Claude must write and in what order; the human decides what the **Draft** finally keeps and in what order. Claude never omits a Section — an empty one says so, with a reason.
 

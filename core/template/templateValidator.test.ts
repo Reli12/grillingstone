@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
+import { customFieldTarget, JIRA_FIELDS } from '#core/shared/trackerFields.ts'
 import { methodSkeleton, type TemplateContent, validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
@@ -89,6 +90,66 @@ describe('Template Validator', () => {
       const { workItemType: _, ...untyped } = content()
       expect(codes(untyped)).toEqual(['unknown-work-item-type'])
       expect(codes({ ...untyped, workItemType: 'Story' })).toEqual(['unknown-work-item-type'])
+    })
+  })
+
+  describe('fields per Tracker', () => {
+    /** The Default PBI Template's content as a Jira Story, every Section in Description. */
+    const story = (): TemplateContent => ({
+      ...content(),
+      tracker: 'jira',
+      workItemType: 'Story',
+      sections: content().sections.map((section) => ({ ...section, target: JIRA_FIELDS.description })),
+    })
+
+    it('accepts a Jira Story written into Description', () => {
+      expect(codes(story())).toEqual([])
+    })
+
+    it("refuses an Azure DevOps field in a Jira Template, naming Jira's fields", () => {
+      const candidate = story()
+      candidate.sections[0] = { ...candidate.sections[0], target: ADO_FIELDS.description }
+      const result = validateTemplate(candidate)
+      expect(result.ok ? [] : result.reasons.map((reason) => reason.message)).toEqual([
+        'Section "userStory": a Jira Story can be copied only into Description, or a Custom Field.',
+      ])
+    })
+
+    it("refuses a type the Template's Tracker does not define", () => {
+      expect(codes({ ...story(), workItemType: 'PBI' })).toEqual(['unknown-work-item-type'])
+      expect(codes({ ...content(), workItemType: 'Sub-task' })).toEqual(['unknown-work-item-type'])
+    })
+
+    it('refuses an unknown Tracker', () => {
+      expect(codes({ ...story(), tracker: 'linear' as never })).toEqual(['unknown-tracker'])
+    })
+
+    it('accepts a named Custom Field in a Jira Template, also for the Iteration Log', () => {
+      const candidate = story()
+      const acField = customFieldTarget('Acceptance Criteria')
+      candidate.sections = candidate.sections.map((section) =>
+        section.key === 'acceptanceCriteria' ? { ...section, target: acField } : section,
+      )
+      expect(codes({ ...candidate, iterationLogTarget: acField })).toEqual([])
+    })
+
+    it('refuses a Custom Field without a name, or named like a system field', () => {
+      const candidate = story()
+      candidate.sections[0] = { ...candidate.sections[0], target: customFieldTarget('  ') }
+      candidate.sections[1] = { ...candidate.sections[1], target: customFieldTarget('environment') }
+      expect(codes(candidate)).toEqual(['bad-custom-field:userStory', 'bad-custom-field:roles'])
+    })
+
+    it('refuses a Custom Field in an Azure DevOps Template', () => {
+      const candidate = content()
+      candidate.sections[0] = { ...candidate.sections[0], target: customFieldTarget('Acceptance Criteria') }
+      expect(codes(candidate)).toEqual(['unknown-target:userStory'])
+    })
+
+    it("checks a Template Session's submission against the session's Tracker", () => {
+      const { workItemType: _, tracker: _tracker, ...submitted } = story()
+      expect(codes(submitted, { tracker: 'jira', workItemType: 'Story' })).toEqual([])
+      expect(codes(submitted, { workItemType: 'PBI' })).toHaveLength(content().sections.length)
     })
   })
 

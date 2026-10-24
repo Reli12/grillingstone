@@ -3,3 +3,5 @@
 export class NotFound extends Error {}
 /** A save was made against a version that has changed since. */
 export class StaleWrite extends Error {}
+/** A change the stored data no longer allows (e.g. switching the Tracker of a Project that has Drafts). */
+export class Conflict extends Error {}

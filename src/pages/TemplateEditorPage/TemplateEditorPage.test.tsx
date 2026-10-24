@@ -32,6 +32,15 @@ const mine: Template = {
   ],
 }
 const teamBug: Template = { ...defaultBugTemplate, id: 'team-bug', name: 'Team Bug', isDefault: false }
+const jiraStory: Template = {
+  ...mine,
+  id: 'jira-story',
+  tracker: 'jira',
+  workItemType: 'Story',
+  name: 'Team Story',
+  iterationLogTarget: 'description',
+  sections: mine.sections.map((section) => ({ ...section, target: 'description' })),
+}
 let saved: Template | undefined
 let deleted = false
 const renderPage = (id: string) =>
@@ -42,7 +51,7 @@ describe('TemplateEditorPage', () => {
     saved = undefined
     deleted = false
     server.use(
-      http.get(`*${endpoints.templates}`, () => HttpResponse.json([defaultPbiTemplate, mine, teamBug])),
+      http.get(`*${endpoints.templates}`, () => HttpResponse.json([defaultPbiTemplate, mine, teamBug, jiraStory])),
       http.put(`*${endpoints.templates}/:id`, async ({ request }) => {
         saved = ((await request.json()) as { template: Template }).template
         return HttpResponse.json({ ...saved, version: mine.version + 1 })
@@ -93,7 +102,7 @@ describe('TemplateEditorPage', () => {
 
   it('offers only the fields a Bug can be Published into, and keeps them when saving', async () => {
     const { user } = renderPage('team-bug')
-    const fields = (await screen.findAllByRole('combobox', { name: 'Azure DevOps field' }))[0]
+    const fields = (await screen.findAllByRole('combobox', { name: 'Field' }))[0]
     expect(
       within(fields)
         .getAllByRole('option')
@@ -109,6 +118,32 @@ describe('TemplateEditorPage', () => {
     expect(saved!.sections.map((section) => section.target)).toEqual(
       defaultBugTemplate.sections.map((section) => section.target),
     )
+  })
+
+  it('lets a Jira Template name a Custom Field and copy a Section into it', async () => {
+    const { user } = renderPage('jira-story')
+    const fields = await screen.findAllByRole('combobox', { name: 'Field' })
+    expect(
+      within(fields[1])
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['→ Description'])
+
+    await user.type(screen.getByRole('textbox', { name: 'New Custom Field name' }), 'Acceptance Criteria')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.selectOptions(fields[1], 'custom:Acceptance Criteria')
+    expect(screen.getByRole('button', { name: 'Remove Custom Field Acceptance Criteria' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Save as v2' }))
+
+    await vi.waitFor(() => expect(saved).toBeDefined())
+    expect(saved!.sections.map((section) => section.target)).toEqual(['description', 'custom:Acceptance Criteria'])
+    expect(saved!.tracker).toBe('jira')
+  })
+
+  it('never offers Custom Fields to an Azure DevOps Template', async () => {
+    renderPage('mine')
+    await screen.findAllByRole('combobox', { name: 'Field' })
+    expect(screen.queryByRole('textbox', { name: 'New Custom Field name' })).not.toBeInTheDocument()
   })
 
   it('refuses invalid input with a message', async () => {

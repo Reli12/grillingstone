@@ -6,7 +6,8 @@ import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
 import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
-import type { Template, TemplateSection } from '#core/template/templateTypes.ts'
+import { TRACKER_LABELS } from '#core/shared/tracker.ts'
+import { type Template, type TemplateSection, templateTracker } from '#core/template/templateTypes.ts'
 
 export interface SeedInput {
   kind: SessionKind
@@ -179,9 +180,10 @@ export function buildSeed(input: SeedInput): Seed {
   const { draft } = input
   const first = input.kind === 'first'
   const template = input.kind === 'upgrade' && input.upgradeTo ? input.upgradeTo : draft.template
+  const trackerName = TRACKER_LABELS[templateTracker(draft.template)]
 
   const systemPrompt = `# Your role
-You grill a requirement or an observed defect with a human and write it down as one ${draft.workItemType} Draft for Azure DevOps, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
+You grill a requirement or an observed defect with a human and write it down as one ${trackerName} ${draft.workItemType} Draft, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
 ${first ? 'This first session writes Draft v1 directly.' : `The Draft already exists (v${draft.version}). You never rewrite it: you submit a Proposal of changes, which the human triages.`}
 
 ${grillingRules(first)}
@@ -208,7 +210,7 @@ ${template.method}`
     : `## Current Draft (v${draft.version})\n\`\`\`json\n${JSON.stringify(draftForClaude(draft), null, 2)}\n\`\`\``
 
   const firstMessage = [
-    `Project: ${input.projectName} · Work Item Type: ${draft.workItemType} · Template: ${template.name}`,
+    `Project: ${input.projectName} · Work Item Type: ${trackerName} ${draft.workItemType} · Template: ${template.name}`,
     glossary,
     references,
     current,

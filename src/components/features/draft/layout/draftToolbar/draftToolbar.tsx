@@ -1,9 +1,11 @@
-// Above the sheet: where this Draft sits, and References, Delete and Copy for Azure DevOps.
+// Above the sheet: where this Draft sits, and References, Delete and Copy for the Draft's Tracker.
 import { Link } from 'react-router'
 
 import { ClipboardCopy, Link2, Trash2 } from 'lucide-react'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
+import { TRACKER_LABELS } from '#core/shared/tracker.ts'
+import { templateTracker } from '#core/template/templateTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
 import { routesPaths } from '@/routes/routes'
@@ -18,7 +20,7 @@ interface DraftToolbarProps {
   onCopy: () => void
 }
 
-/** Above the sheet: where this Draft sits, and References, Delete and Copy for Azure DevOps. */
+/** Above the sheet: where this Draft sits, and References, Delete and Copy for the Draft's Tracker. */
 export function DraftToolbar({
   projectId,
   projectName,
@@ -46,7 +48,7 @@ export function DraftToolbar({
         <Trash2 size={14} />
       </Button>
       <Button size="sm" variant="ink" onClick={onCopy}>
-        <ClipboardCopy size={14} /> Copy for Azure DevOps
+        <ClipboardCopy size={14} /> Copy for {TRACKER_LABELS[templateTracker(draft.template)]}
       </Button>
     </div>
   )

@@ -9,6 +9,7 @@ const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
 describe('Template Session seed', () => {
   it('tells Claude which Work Item Type the Template is for and what the human wants it for', () => {
     const seed = buildTemplateSeed({
+      tracker: 'azure-devops',
       workItemType: 'PBI',
       purpose: 'Spike PBIs: timeboxed investigations ending in a recommendation',
       examples: '',
@@ -21,6 +22,7 @@ describe('Template Session seed', () => {
 
   const seedText = (extra: Partial<Parameters<typeof buildTemplateSeed>[0]> = {}) => {
     const seed = buildTemplateSeed({
+      tracker: 'azure-devops',
       workItemType: 'PBI',
       purpose: 'Spike PBIs',
       examples: '',
@@ -39,6 +41,19 @@ describe('Template Session seed', () => {
     expect(bug).not.toContain('System.Description')
     expect(bug).toMatch(/"iterationLogTarget": one of those fields/)
     expect(seedText({ workItemType: 'Task' })).not.toContain('AcceptanceCriteria"')
+  })
+
+  it('offers a Jira Bug its Jira fields and a Custom Field, and never an Azure DevOps field', () => {
+    const bug = seedText({ tracker: 'jira', workItemType: 'Bug' })
+    expect(bug).toContain('"description" | "environment" | "custom:<Field name>"')
+    expect(bug).toContain('its target field in Jira (Description, Environment or a Custom Field the team added')
+    expect(bug).toContain('Bug Drafts for Jira')
+    expect(bug).toContain('fixed to Jira Bug')
+    expect(bug).not.toMatch(/Azure DevOps|System\.Description|Microsoft\.VSTS/)
+  })
+
+  it('never offers a Custom Field to an Azure DevOps Template', () => {
+    expect(seedText()).not.toContain('custom:')
   })
 
   it('asks for a method with the required skeleton and good and bad examples', () => {

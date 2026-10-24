@@ -32,6 +32,24 @@ describe('Session Seed Builder', () => {
     expect(all).toContain('acceptanceCriteria')
   })
 
+  it('names the Tracker the Draft is written for', () => {
+    const seedFor = (template: Template, workItemType: 'PBI' | 'Story') =>
+      buildSeed({
+        kind: 'first',
+        draft: newDraft({ projectId: 'p', workItemType, template, requirement: 'r', now: meta.date }),
+        projectName: 'Customer Portal',
+        glossary: '',
+        references: [],
+        submitCommand,
+      })
+    const azure = seedFor(defaultPbiTemplate, 'PBI')
+    expect(azure.systemPrompt).toContain('one Azure DevOps PBI Draft')
+    const jira = seedFor({ ...defaultPbiTemplate, tracker: 'jira', workItemType: 'Story' }, 'Story')
+    expect(jira.systemPrompt).toContain('one Jira Story Draft')
+    expect(jira.firstMessage).toContain('Work Item Type: Jira Story')
+    expect(jira.systemPrompt).not.toContain('Azure DevOps')
+  })
+
   it('grills a Bug as an observed defect, never recommending what the human saw or did', () => {
     const draft = newDraft({
       projectId: 'customer-portal',

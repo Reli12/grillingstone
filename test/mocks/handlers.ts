@@ -7,9 +7,14 @@ import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import { endpoints } from '@/api/endpoints/endpoints'
 
-export const settingsFixture: Settings = { author: 'dorijan', model: '', theme: 'system' }
+export const settingsFixture: Settings = {
+  author: 'dorijan',
+  model: '',
+  theme: 'system',
+  defaultTracker: 'azure-devops',
+}
 export const projectsFixture: ProjectSummary[] = [
-  { id: 'customer-portal', name: 'Customer Portal', createdAt: '2026-09-22', drafts: 2 },
+  { id: 'customer-portal', name: 'Customer Portal', createdAt: '2026-09-22', tracker: 'azure-devops', drafts: 2 },
 ]
 
 const url = (path: string) => `*${path}`

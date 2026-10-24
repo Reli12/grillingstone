@@ -1,4 +1,5 @@
 // Shapes exchanged over the HTTP API that are not domain types themselves.
+import type { Tracker } from '#core/shared/tracker.ts'
 import type { Reason } from '#core/shared/validation.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
 
@@ -14,10 +15,7 @@ export interface DraftSummary {
   updatedAt: string
 }
 
-export interface ProjectSummary {
-  id: string
-  name: string
-  createdAt: string
+export interface ProjectSummary extends Project {
   drafts: number
 }
 
@@ -34,6 +32,8 @@ export interface Settings {
   model: string
   /** 'system' follows the OS appearance. */
   theme: Theme
+  /** Preselected when a new Project is created; never changes an existing Project. */
+  defaultTracker: Tracker
 }
 
 export type Theme = 'system' | 'light' | 'dark'
@@ -48,4 +48,6 @@ export interface Project {
   id: string
   name: string
   createdAt: string
+  /** Fixed once the Project has its first Draft. */
+  tracker: Tracker
 }

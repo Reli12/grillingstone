@@ -15,7 +15,7 @@ export const SECTION_TARGETS = [
   ADO_FIELDS.reproSteps,
   ADO_FIELDS.systemInfo,
 ] as const
-export type SectionTarget = (typeof SECTION_TARGETS)[number]
+export type AdoSectionTarget = (typeof SECTION_TARGETS)[number]
 export const ADO_FIELD_LABELS: Record<string, string> = {
   [ADO_FIELDS.title]: 'Title',
   [ADO_FIELDS.description]: 'Description',

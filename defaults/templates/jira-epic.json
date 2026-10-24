@@ -1,0 +1,78 @@
+{
+  "id": "default-jira-epic",
+  "tracker": "jira",
+  "workItemType": "Epic",
+  "name": "Default Jira Epic Template",
+  "version": 1,
+  "isDefault": true,
+  "iterationLogHeading": "Epic Iteration Log",
+  "updatedAt": "2026-09-22T00:00:00.000Z",
+  "sections": [
+    {
+      "key": "summary",
+      "heading": "Summary",
+      "shape": "prose",
+      "locked": true,
+      "guidance": "Two or three sentences: what changes for whom, and why now.",
+      "target": "description"
+    },
+    {
+      "key": "businessOutcome",
+      "heading": "Business Outcome",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "The measurable result that tells us the Epic succeeded.",
+      "target": "description"
+    },
+    {
+      "key": "targetUsers",
+      "heading": "Target Users",
+      "shape": "prose",
+      "locked": false,
+      "guidance": "Roles or customer segments affected, in Glossary terms.",
+      "target": "description"
+    },
+    {
+      "key": "scope",
+      "heading": "Scope",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Entries titled \"In scope\" / \"Out of scope\" with reasons.",
+      "target": "description"
+    },
+    {
+      "key": "candidateStories",
+      "heading": "Candidate Stories",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "One Entry per likely Story: name and one-line intent.",
+      "target": "description"
+    },
+    {
+      "key": "successCriteria",
+      "heading": "Success Criteria",
+      "shape": "entries",
+      "locked": true,
+      "guidance": "One Entry per verifiable outcome that must be true when the Epic is done.",
+      "target": "description"
+    },
+    {
+      "key": "openQuestions",
+      "heading": "Open Questions / Risks",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Title \"N. Question\"; body: Why it matters / Proposed default / Status.",
+      "target": "description"
+    },
+    {
+      "key": "dependencies",
+      "heading": "Dependencies",
+      "shape": "entries",
+      "locked": false,
+      "guidance": "Other teams, systems, contracts or Epics this relies on.",
+      "target": "description"
+    }
+  ],
+  "method": "# Epic Guide\n\nAn Epic names a large business outcome that will be delivered through several Stories. It is usually written before any requirements exist — the grilling session is where they are created.\n\n## Guiding principle\n\n- Describe the outcome and the problem, not the solution. Implementation belongs in Stories and their Sub-tasks.\n- Every claim about value must be something the human confirmed. If it is a guess, it goes into Open Questions / Risks with a proposed default.\n- Keep the Epic stable: it should still be true after the first Stories are delivered.\n\n## Sections\n\n1. **Summary** — two or three sentences: what changes for whom, and why now.\n2. **Business Outcome** — the measurable result that tells us the Epic succeeded (metric, baseline, target where known).\n3. **Target Users** — the roles or customer segments affected, using Glossary terms.\n4. **Scope** — Entries titled \"In scope\" or \"Out of scope\" with a one-line reason for anything out.\n5. **Candidate Stories** — one Entry per Story the Epic is likely to split into: title = Story name, body = one-line intent. Candidates, not commitments.\n6. **Success Criteria** — one Entry per verifiable statement that must be true when the Epic is done. Written as observable outcomes, not tasks.\n7. **Open Questions / Risks** — one Entry per question: title = \"N. Question\"; body lines \"Why it matters:\", \"Proposed default:\", \"Status: Open | Resolved\".\n8. **Dependencies** — other teams, systems, contracts or Epics this relies on.\n\n## Working process\n\n1. Grill until the outcome, the users and the boundary of the Epic are clear.\n2. Challenge every term against the Project Glossary and settle new ones there.\n3. When the human cuts grilling short, put every unresolved branch into Open Questions / Risks with a proposed default.\n",
+  "iterationLogTarget": "description"
+}

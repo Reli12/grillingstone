@@ -27,7 +27,7 @@ export function YourDataNote() {
         </li>
         <li>
           <strong>You are responsible for what you do with the result.</strong> Claude can be wrong; review every Draft
-          before you copy it into Azure DevOps or rely on it.
+          before you copy it into Azure DevOps or Jira, or rely on it.
         </li>
         <li>
           <strong>The author of Grilling Stone never receives, sees or stores your data</strong>, and isn’t responsible

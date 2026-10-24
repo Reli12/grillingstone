@@ -33,13 +33,14 @@ describe('parse', () => {
     expect(() => parse(humanOpBody, { op: 'moveSection', sectionId: 's', toIndex: 'top' })).toThrow(/"toIndex"/)
     expect(() => parse(humanOpBody, { op: 'explode' })).toThrow(HttpError)
     expect(parse(templateSessionBody, { workItemType: 'PBI', purpose: 'x', baseTemplateId: '' })).toEqual({
+      tracker: 'azure-devops',
       workItemType: 'PBI',
       purpose: 'x',
       examples: '',
       baseTemplateId: undefined,
     })
-    expect(() => parse(templateSessionBody, { workItemType: 'Story', purpose: 'x' })).toThrow(
-      '"workItemType": Choose Epic, Feature, PBI, Task or Bug.',
+    expect(() => parse(templateSessionBody, { workItemType: 'Spike', purpose: 'x' })).toThrow(
+      '"workItemType": Choose a Work Item Type: one of Epic, Feature, PBI, Story, Task, Sub-task, Bug.',
     )
   })
 })

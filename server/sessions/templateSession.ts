@@ -3,8 +3,10 @@ import type { TemplateRequest, TemplateTranscript } from '#core/session/sessionT
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { newId } from '#core/shared/ids.ts'
 import { plural } from '#core/shared/plural.ts'
+import { TRACKER_LABELS, trackerOrDefault } from '#core/shared/tracker.ts'
+import { isTrackerType } from '#core/shared/workItemType.ts'
 import { templateFromSession } from '#core/template/templateFromSession.ts'
-import type { Template } from '#core/template/templateTypes.ts'
+import { type Template, templateTracker } from '#core/template/templateTypes.ts'
 import { type TemplateContent, validateTemplate } from '#core/template/templateValidator.ts'
 
 import { SUBMIT_SCRIPT } from '../config.ts'
@@ -24,10 +26,11 @@ export interface TemplateSessionDeps {
 /** Validates the submitted Template and saves it as the human's own, remembering which session made it. */
 function templateSubmitter(request: TemplateRequest, transcript: TemplateTranscript, deps: TemplateSessionDeps) {
   return async (payload: unknown): Promise<SubmitResult> => {
-    const result = validateTemplate(payload, { requireSkeleton: true, workItemType: request.workItemType })
-    if (!result.ok) return { ok: false as const, reasons: result.reasons }
     const { workItemType } = request
-    const content = templateFromSession(payload as TemplateContent, workItemType, now())
+    const tracker = trackerOrDefault(request.tracker)
+    const result = validateTemplate(payload, { requireSkeleton: true, tracker, workItemType })
+    if (!result.ok) return { ok: false as const, reasons: result.reasons }
+    const content = templateFromSession(payload as TemplateContent, { tracker, workItemType }, now())
     const template = await deps.templates.create(content, { sessionId: transcript.id, at: now() })
     transcript.templateId = template.id
     const sections = plural(template.sections.length, 'Section')
@@ -73,11 +76,15 @@ export async function prepareTemplateSession(
   const base = request.baseTemplateId ? await getTemplate(request.baseTemplateId) : undefined
   if (base && base.workItemType !== request.workItemType)
     throw new SessionError(`"${base.name}" is not a ${request.workItemType} Template.`)
+  // A session that starts from a Template keeps that Template's Tracker.
+  const tracker = base ? templateTracker(base) : trackerOrDefault(request.tracker)
+  if (!isTrackerType(tracker, request.workItemType))
+    throw new SessionError(`${TRACKER_LABELS[tracker]} has no ${String(request.workItemType)} Work Item Type.`)
 
   const transcript: TemplateTranscript = {
     id: newId('tsess'),
     kind: 'template',
-    request: { ...request, ...(base ? { baseTemplateName: base.name } : {}) },
+    request: { ...request, tracker, ...(base ? { baseTemplateName: base.name } : {}) },
     status: 'starting',
     writeConfirmed: false,
     startedAt: now(),
@@ -85,6 +92,7 @@ export async function prepareTemplateSession(
   }
 
   const seed = buildTemplateSeed({
+    tracker,
     workItemType: request.workItemType,
     purpose: request.purpose,
     examples: request.examples,
@@ -93,5 +101,10 @@ export async function prepareTemplateSession(
   })
   const intro = templateIntro(request, base)
   const cwd = await makeTemplateSessionDir(transcript.id)
-  return { transcript, seed, intro, scope: templateScope(cwd, deps, templateSubmitter(request, transcript, deps)) }
+  return {
+    transcript,
+    seed,
+    intro,
+    scope: templateScope(cwd, deps, templateSubmitter(transcript.request, transcript, deps)),
+  }
 }

@@ -1,4 +1,4 @@
-// Every dialog the Draft page can open: start a session, copy for Azure DevOps, References, delete.
+// Every dialog the Draft page can open: start a session, copy for the Tracker, References, delete.
 import { useNavigate } from 'react-router'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
@@ -6,7 +6,7 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { DeleteDraftDialog } from '@/components/features/draft/dialogs/deleteDraftDialog/deleteDraftDialog'
 import { ReferencesDialog } from '@/components/features/draft/dialogs/referencesDialog/referencesDialog'
 import { StartSessionDialog } from '@/components/features/draft/dialogs/startSessionDialog/startSessionDialog'
-import { CopyForAdo } from '@/components/features/draft/publish/copyForAdo/copyForAdo'
+import { CopyForTracker } from '@/components/features/draft/publish/copyForTracker/copyForTracker'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
 import type { DraftPageUi } from '@/hooks/draft/useDraftPageUi'
 import { routesPaths } from '@/routes/routes'
@@ -42,7 +42,12 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
         onStart={startSession}
         pending={start.isPending}
       />
-      <CopyForAdo projectId={projectId} draftId={draft.id} open={ui.copyOpen} onClose={() => ui.setCopyOpen(false)} />
+      <CopyForTracker
+        projectId={projectId}
+        draftId={draft.id}
+        open={ui.copyOpen}
+        onClose={() => ui.setCopyOpen(false)}
+      />
       <ReferencesDialog open={ui.refsOpen} onClose={() => ui.setRefsOpen(false)} draft={draft} />
       <DeleteDraftDialog open={ui.deleteOpen} onClose={() => ui.setDeleteOpen(false)} onDelete={onDelete} />
     </>

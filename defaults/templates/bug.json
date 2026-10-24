@@ -1,5 +1,6 @@
 {
   "id": "default-bug",
+  "tracker": "azure-devops",
   "workItemType": "Bug",
   "name": "Default Bug Template",
   "version": 1,

@@ -51,7 +51,7 @@ export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFo
       </section>
 
       <aside className="space-y-7 md:pt-12">
-        <DraftTypePicker type={form.type} onChoose={form.chooseType} />
+        <DraftTypePicker tracker={project.tracker} type={form.type} onChoose={form.chooseType} />
         <TemplatePicker
           templates={form.forType}
           chosenId={form.chosen?.id}

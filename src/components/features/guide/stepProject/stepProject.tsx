@@ -19,6 +19,11 @@ export function StepProject() {
         grill its PBIs. You can read and edit it on the Project page and beside any Draft.
       </p>
       <p>
+        Each Project also has a <strong>Tracker</strong>: <strong>Azure DevOps</strong> or <strong>Jira</strong>. It
+        decides the Work Item Types and Templates the Project offers and the fields Drafts are copied into. The Default
+        Tracker from Settings is preselected; you can switch until the Project has its first Draft.
+      </p>
+      <p>
         When you create a Project you choose how its Glossary starts: <strong>empty</strong>,{' '}
         <strong>from text you have</strong> (paste or upload any glossary), or{' '}
         <strong>as a copy of another Project’s</strong>. A copy is taken once; after that the two Glossaries change

@@ -1,5 +1,6 @@
 {
   "id": "default-feature",
+  "tracker": "azure-devops",
   "workItemType": "Feature",
   "name": "Default Feature Template",
   "version": 1,

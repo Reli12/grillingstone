@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest'
 import { templateFromSession } from '#core/template/templateFromSession.ts'
 
 describe('templateFromSession', () => {
+  it("belongs to the session's Tracker", () => {
+    const content = { name: 'Team Story', method: 'm', sections: [] }
+    const template = templateFromSession(content, { tracker: 'jira', workItemType: 'Story' }, 'now')
+    expect([template.tracker, template.workItemType, template.iterationLogHeading]).toEqual([
+      'jira',
+      'Story',
+      'Story Iteration Log',
+    ])
+  })
+
   it('keeps only Template fields, trims text and defaults the Iteration Log heading', () => {
     const template = templateFromSession(
       {
@@ -30,11 +40,12 @@ describe('templateFromSession', () => {
           },
         ],
       },
-      'PBI',
+      { tracker: 'azure-devops', workItemType: 'PBI' },
       '2026-09-23',
     )
     expect(template).toEqual({
       id: '',
+      tracker: 'azure-devops',
       workItemType: 'PBI',
       name: 'Spike PBI',
       version: 1,
@@ -74,7 +85,7 @@ describe('templateFromSession', () => {
           },
         ],
       },
-      'Bug',
+      { tracker: 'azure-devops', workItemType: 'Bug' },
       '2026-10-03',
     )
     expect(template.iterationLogTarget).toBe('Microsoft.VSTS.TCM.SystemInfo')

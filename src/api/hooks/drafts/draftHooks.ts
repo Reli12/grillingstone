@@ -18,10 +18,10 @@ export const useTranscripts = (projectId: string, draftId: string) =>
     queryFn: () => draftsApi.getTranscripts(projectId, draftId),
   })
 
-export const useRendered = (projectId: string, draftId: string, enabled: boolean) =>
+export const useCopyFields = (projectId: string, draftId: string, enabled: boolean) =>
   useQuery({
-    queryKey: queryKeys.render(projectId, draftId),
-    queryFn: () => draftsApi.render(projectId, draftId),
+    queryKey: queryKeys.copyFields(projectId, draftId),
+    queryFn: () => draftsApi.copyFields(projectId, draftId),
     enabled,
     staleTime: 0,
   })
@@ -36,7 +36,7 @@ function useDraftMutation<V>(projectId: string, draftId: string, fn: (v: V) => P
         draft,
         liveSession: old?.liveSession ?? null,
       }))
-      void qc.invalidateQueries({ queryKey: queryKeys.render(projectId, draftId) })
+      void qc.invalidateQueries({ queryKey: queryKeys.copyFields(projectId, draftId) })
     },
   })
 }

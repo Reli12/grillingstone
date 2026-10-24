@@ -11,9 +11,10 @@ export function StepTemplates() {
     <NumberedStep n={7} id="templates" title={STEPS[6].title}>
       <p>
         A <strong>Template</strong> decides which Sections a Draft must have and holds the writing method Claude
-        follows, and each Section names the Azure DevOps field it goes into — only fields its Work Item Type has. The
-        Default Templates are read-only; to change one, <strong>Duplicate</strong> it and edit your copy. Edits only
-        affect new Drafts — existing ones get an <strong>Upgrade this Draft</strong> offer, which arrives as a Proposal.
+        follows, and each Template belongs to one Tracker. Each Section names the field it goes into — only fields its
+        Work Item Type has, plus, in a Jira Template, any Custom Field your team added. The Default Templates are
+        read-only; to change one, <strong>Duplicate</strong> it and edit your copy. Edits only affect new Drafts —
+        existing ones get an <strong>Upgrade this Draft</strong> offer, which arrives as a Proposal.
       </p>
       <p>
         <strong>New Template</strong> offers two ways: <strong>Build it myself</strong>, or{' '}

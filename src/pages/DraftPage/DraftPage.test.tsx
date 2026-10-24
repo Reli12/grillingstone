@@ -310,6 +310,34 @@ describe('DraftPage from v1', () => {
     expect(await navigator.clipboard.readText()).toBe(draft.title)
   })
 
+  it('copies a Jira Draft as Summary and Description, as rich text or wiki markup', async () => {
+    const base = v1Draft()
+    const toJira = <T extends { target: string }>(section: T) => ({ ...section, target: 'description' as const })
+    const draft: Draft = {
+      ...base,
+      workItemType: 'Story',
+      sections: base.sections.map(toJira),
+      template: {
+        ...base.template,
+        tracker: 'jira',
+        workItemType: 'Story',
+        sections: base.template.sections.map(toJira),
+      },
+    }
+    draftBackend(draft)
+    const { user } = renderPage(draft)
+
+    await user.click(await screen.findByRole('button', { name: /Copy for Jira/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Copy for Jira' })
+    expect(within(dialog).getByRole('button', { name: 'Copy Summary' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Copy Acceptance Criteria' })).not.toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('radio', { name: /Wiki markup/ }))
+    expect(within(dialog).getByText(/^h2\. User Story/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Copy Description' }))
+    expect(await navigator.clipboard.readText()).toMatch(/^h2\. User Story\n/)
+  })
+
   it('continues an ended session by typing, or goes back to a new one', async () => {
     const draft = v1Draft()
     const old = transcript(draft, grillingMessages, { id: 'sess-old' })

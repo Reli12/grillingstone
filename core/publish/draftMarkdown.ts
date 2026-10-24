@@ -1,7 +1,9 @@
 // drafts/<id>.md — a readable rendering of the Draft JSON, regenerated on every save (ADR-0004).
 import type { Draft, Section } from '#core/draft/draftTypes.ts'
 import { iterationLogLine } from '#core/publish/publishRenderer.ts'
-import { ADO_FIELD_LABELS } from '#core/shared/adoFields.ts'
+import { TRACKER_LABELS } from '#core/shared/tracker.ts'
+import { fieldLabel } from '#core/shared/trackerFields.ts'
+import { templateTracker } from '#core/template/templateTypes.ts'
 
 // Every line break, so each requirement line can be prefixed as a Markdown quote.
 const NEWLINE = /\n/g
@@ -27,16 +29,16 @@ export function draftMarkdown(draft: Draft): string {
   const generatedNotice = `<!-- Generated from ${draft.id}.json — edit in Grilling Stone; changes here are overwritten. -->`
   const subtitle = `_${draft.workItemType} · ${draft.template.name} v${draft.template.version} · Draft v${draft.version}_`
   const header = `${generatedNotice}\n# ${draft.title}\n\n${subtitle}`
-  // The visible Sections grouped under a comment naming the Azure DevOps field they Publish into.
+  // The visible Sections grouped under a comment naming the Tracker field they are copied into.
+  const trackerName = TRACKER_LABELS[templateTracker(draft.template)]
   const byField = [...new Set(visible.map((section) => section.target))]
   const body = byField
     .map((field) => {
-      const fieldLabel = ADO_FIELD_LABELS[field] ?? field
       const sectionsMd = visible
         .filter((section) => section.target === field)
         .map(sectionMd)
         .join('\n\n')
-      return `<!-- Azure DevOps field: ${fieldLabel} -->\n\n${sectionsMd}`
+      return `<!-- ${trackerName} field: ${fieldLabel(field)} -->\n\n${sectionsMd}`
     })
     .join('\n\n')
   const logLines = draft.iterationLog.map((line) => `${iterationLogLine(line)} — ${line.note}`).join('\n')

@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { newId } from '#core/shared/ids.ts'
+import { TRACKERS } from '#core/shared/tracker.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import {
   applyImport,
@@ -12,7 +13,7 @@ import {
   type ImportItem,
   previewImport,
 } from '#core/template/templateBundle.ts'
-import type { Template } from '#core/template/templateTypes.ts'
+import { type Template, templateTracker } from '#core/template/templateTypes.ts'
 import { validateTemplate } from '#core/template/templateValidator.ts'
 
 import { DEFAULT_TEMPLATES_DIR } from '../config.ts'
@@ -23,17 +24,19 @@ import { userTemplatesDir as userDir } from './paths.ts'
 /** A Template that breaks the rules, or a change a Default does not allow. */
 export class TemplateError extends Error {}
 
-/** Work Item Type order first, then Defaults before the human's own, then by name. */
+/** Tracker, then Work Item Type order, then Defaults before the human's own, then by name. */
 const byTypeThenName = (first: Template, second: Template) =>
+  TRACKERS.indexOf(templateTracker(first)) - TRACKERS.indexOf(templateTracker(second)) ||
   WORK_ITEM_TYPES.indexOf(first.workItemType) - WORK_ITEM_TYPES.indexOf(second.workItemType) ||
   Number(second.isDefault) - Number(first.isDefault) ||
   first.name.localeCompare(second.name)
 
 export async function listTemplates(): Promise<Template[]> {
   const shipped = await listJson<Template>(DEFAULT_TEMPLATES_DIR)
-  const defaults = shipped.map((template) => ({ ...template, isDefault: true }))
+  // Templates saved before Trackers existed read as Azure DevOps.
+  const defaults = shipped.map((template) => ({ ...template, tracker: templateTracker(template), isDefault: true }))
   const own = await listJson<Template>(userDir)
-  const mine = own.map((template) => ({ ...template, isDefault: false }))
+  const mine = own.map((template) => ({ ...template, tracker: templateTracker(template), isDefault: false }))
   return [...defaults, ...mine].sort(byTypeThenName)
 }
 
@@ -44,7 +47,6 @@ export async function getTemplate(id: string): Promise<Template> {
 }
 
 function checkTemplate(template: Template) {
-  if (!WORK_ITEM_TYPES.includes(template.workItemType)) throw new TemplateError('Unknown Work Item Type.')
   const result = validateTemplate(template)
   if (!result.ok) throw new TemplateError(result.reasons.map((reason) => reason.message).join(' '))
 }
@@ -59,11 +61,15 @@ export async function createTemplate(
 ): Promise<Template> {
   const all = await listTemplates()
   let name = input.name.trim()
-  const nameTaken = (candidate: string) =>
-    all.some((template) => template.workItemType === input.workItemType && template.name === candidate)
+  const tracker = templateTracker(input)
+  const sameKind = (template: Template) =>
+    templateTracker(template) === tracker && template.workItemType === input.workItemType
+  const nameTaken = (candidate: string) => all.some((template) => sameKind(template) && template.name === candidate)
   while (nameTaken(name)) name = `${name} (copy)`
   const template: Template = {
     ...input,
+    // An unknown Tracker is kept as sent, so the validator refuses it instead of it turning into Azure DevOps.
+    tracker: input.tracker ?? tracker,
     id: newId('t'),
     name,
     version: 1,
@@ -87,6 +93,8 @@ export async function updateTemplate(
     ...input,
     id,
     isDefault: false,
+    // A Template never changes Tracker or type; duplicating is how it moves.
+    tracker: templateTracker(current),
     workItemType: current.workItemType,
     version: current.version + 1,
     updatedAt: now,
