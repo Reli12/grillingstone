@@ -1,5 +1,6 @@
 {
   "id": "default-epic",
+  "tracker": "azure-devops",
   "workItemType": "Epic",
   "name": "Default Epic Template",
   "version": 1,

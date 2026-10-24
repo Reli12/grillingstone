@@ -1,5 +1,6 @@
 {
   "id": "default-task",
+  "tracker": "azure-devops",
   "workItemType": "Task",
   "name": "Default Task Template",
   "version": 1,

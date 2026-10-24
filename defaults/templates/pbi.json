@@ -1,5 +1,6 @@
 {
   "id": "default-pbi",
+  "tracker": "azure-devops",
   "workItemType": "PBI",
   "name": "Default PBI Template",
   "version": 1,
