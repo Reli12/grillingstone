@@ -6,7 +6,13 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { SessionSummary } from '#core/session/sessionTypes.ts'
 
-import { draftsApi, type DraftWithSession, type NewDraftRequest, type StartSessionRequest } from '@/api/draftsApi'
+import {
+  draftsApi,
+  type DraftWithSession,
+  type NewDraftRequest,
+  type SayRequest,
+  type StartSessionRequest,
+} from '@/api/draftsApi'
 import { queryKeys } from '@/api/reactQueryKeys'
 
 export const useDraft = (projectId: string, draftId: string) =>
@@ -94,8 +100,7 @@ export const useContinueSession = (projectId: string, draftId: string) =>
 
 export const useSay = () =>
   useMutation({
-    mutationFn: ({ sessionId, text, kind }: { sessionId: string; text: string; kind: 'answer' | 'message' }) =>
-      draftsApi.say(sessionId, text, kind),
+    mutationFn: ({ sessionId, ...said }: { sessionId: string } & SayRequest) => draftsApi.say(sessionId, said),
   })
 export const useWriteNow = () => useMutation({ mutationFn: (sessionId: string) => draftsApi.writeNow(sessionId) })
 export const useStopSession = () => useMutation({ mutationFn: (sessionId: string) => draftsApi.stop(sessionId) })

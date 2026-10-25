@@ -46,6 +46,7 @@ export default function TemplateSessionPage() {
         <Composer
           ref={composer}
           session={transcript}
+          allowImages={false}
           sending={say.isPending}
           onSend={(text) => say.mutate({ sessionId: transcript.id, text, kind: 'message' })}
           onWriteNow={() => writeNow.mutate(transcript.id)}

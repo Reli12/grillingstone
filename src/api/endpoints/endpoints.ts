@@ -21,6 +21,8 @@ export const endpoints = {
   continueSession: (projectId: string, draftId: string, sessionId: string) =>
     `${draftPath(projectId, draftId)}/sessions/${encodeURIComponent(sessionId)}/continue`,
   sessionMessages: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
+  sessionImage: (projectId: string, sessionId: string, number: number) =>
+    `${projectPath(projectId)}/sessions/${encodeURIComponent(sessionId)}/images/${number}`,
   sessionWrite: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/write`,
   sessionStop: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/stop`,
   templates: '/api/templates',
