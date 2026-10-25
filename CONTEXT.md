@@ -150,6 +150,16 @@ _Avoid_: resume, reopen, restart
 A Grilling Session scoped to one Section or Entry of an existing Draft. Its Proposal may also suggest knock-on changes elsewhere.
 _Avoid_: sub-session, partial session
 
+### Illustrating a Draft
+
+**Prototype**:
+An interactive mock-up of what a Draft describes, written by Claude and labelled with the Draft version it was built from. It illustrates the Draft and is never part of it: nothing in it is copied, Published or fed back into the Draft. Choices it makes that neither the Draft nor an Image settles are listed in it as assumptions.
+_Avoid_: mock-up, preview, design, wireframe
+
+**Prototype Session**:
+The single-turn session that writes one Prototype from a Draft at v1 or later. It sees only the Draft's non-Discarded content as it stands (never a pending Proposal), the Glossary for wording, Images, and optionally an earlier Prototype of the same Draft to start from. It never asks, and never changes the Draft, the Glossary or a Proposal. It is not a Grilling Session.
+_Avoid_: prototype grilling, generation, render
+
 ## Relationships
 
 - A **Project** has many **Drafts** and exactly one **Glossary**.
@@ -160,6 +170,7 @@ _Avoid_: sub-session, partial session
 - An Azure DevOps **Task** usually belongs to a **PBI** or a **Bug**, and a Jira **Sub-task** to a **Story**, **Task** or **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
 - A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
 - An **Image** is something the human shows; what Claude reads in it counts as observed only once the human confirms it.
+- A **Draft** has any number of **Prototypes**; each is written by one **Prototype Session**, and may start from one earlier **Prototype** of the same Draft. A Draft has at most one running **Prototype Session**, which may run beside a **Grilling Session** on it.
 - A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**, one of those the Project's **Tracker** defines.
 - A **Tracker** defines its own **Work Item Types**. An Azure DevOps Task and a Jira Sub-task both live inside another item; a Jira Task stands on its own beside a Story. Jira has no Feature and Azure DevOps has no Sub-task.
 - A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.
