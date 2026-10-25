@@ -25,6 +25,8 @@ export async function resetTestData() {
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 
+export type TestBackend = Awaited<ReturnType<typeof startBackend>>
+
 export async function startBackend() {
   await resetTestData()
   const hub = new Hub()
@@ -49,11 +51,11 @@ export async function startBackend() {
     return { status: res.status, body: (await res.json()) as T }
   }
 
-  /** A GET whose answer is not JSON (an Image): the status, content type and bytes. */
-  const raw = async (url: string) => {
-    const res = await fetch(`${SERVER_URL}${url}`)
+  /** A GET whose answer is not JSON (an Image, a Prototype page): the status, headers and bytes. */
+  const raw = async (url: string, headers: Record<string, string> = {}) => {
+    const res = await fetch(`${SERVER_URL}${url}`, { headers })
     const bytes = Buffer.from(await res.arrayBuffer())
-    return { status: res.status, contentType: res.headers.get('content-type'), bytes }
+    return { status: res.status, contentType: res.headers.get('content-type'), headers: res.headers, bytes }
   }
 
   const close = async () => {

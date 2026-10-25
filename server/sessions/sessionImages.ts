@@ -11,13 +11,14 @@ import type { Transcript } from '#core/session/sessionTypes.ts'
 
 import { deleteSessionImages, saveImage } from '../storage/images.ts'
 import { SessionError } from './sessionError.ts'
-import type { AnyTranscript } from './sessionScope.ts'
+import { type AnyTranscript, isGrillingTranscript } from './sessionScope.ts'
 
 export type NumberedValidImage = ValidImage & { number: number }
 
 /** Only Grilling Sessions take Images; a Template Session has no Project to keep them in. */
 function grillingTranscript(transcript: AnyTranscript): Transcript {
   if (transcript.kind === 'template') throw new SessionError('Template Sessions do not take Images.')
+  if (!isGrillingTranscript(transcript)) throw new SessionError('Prototype Sessions take their Images at the start.')
   return transcript
 }
 
@@ -41,12 +42,12 @@ export async function saveNumbered(transcript: AnyTranscript, images: NumberedVa
 /** Notes the last Image number in the Transcript; called in the same step as pushing the message that lists them. */
 export function recordLastImage(transcript: AnyTranscript, refs: ImageRef[]) {
   const last = refs.at(-1)
-  if (last && transcript.kind !== 'template') transcript.lastImageNumber = last.number
+  if (last && isGrillingTranscript(transcript)) transcript.lastImageNumber = last.number
 }
 
 /** Removes the Images of a session that never started. */
 export async function discardSessionImages(transcript: AnyTranscript) {
-  if (transcript.kind === 'template') return
+  if (!isGrillingTranscript(transcript)) return
   await deleteSessionImages(transcript.projectId, transcript.id).catch(() => {
     // Best effort: the session failed to start anyway, and a leftover folder is harmless.
   })

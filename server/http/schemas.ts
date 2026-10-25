@@ -78,6 +78,15 @@ export const startSessionBody = z.object({
   images: imageUploads,
 })
 
+/** Only the shape; every refusal about the Images and the Draft is the session's call, so its reason is the one shown. */
+export const startPrototypeBody = z.object({
+  /** Images of the Draft's Grilling Sessions, ticked on the start form. */
+  tickedImages: z.array(z.object({ sessionId: z.string(), number: z.number().int().min(1) })).default([]),
+  /** Images added on the start form, under the same rules as in a Grilling Session. */
+  extraImages: imageUploads,
+  startingPrototypeId: z.string().optional(),
+})
+
 export const continueSessionBody = z.object({ humanNote: z.string().optional() })
 
 export const sayBody = z.object({

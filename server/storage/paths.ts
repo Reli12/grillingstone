@@ -30,6 +30,23 @@ export const imageFile = (projectId: string, sessionId: string, number: number, 
 }
 export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
 
+/** A Project's Prototypes (ADR-0023): <id>.html is the stored page, <id>.source.html Claude's file, <id>.json the record. */
+export const prototypesDir = (projectId: string) => path.join(projectDir(projectId), 'prototypes')
+export const prototypeFile = (projectId: string, prototypeId: string, part: 'html' | 'source.html' | 'json') =>
+  path.join(prototypesDir(projectId), `${safeId(prototypeId)}.${part}`)
+/** The records of a Project's Prototype Sessions; a session's extra Images are copied into a folder of its id beside it. */
+export const prototypeSessionsDir = (projectId: string) => path.join(projectDir(projectId), 'prototype-sessions')
+export const prototypeSessionFile = (projectId: string, sessionId: string) =>
+  path.join(prototypeSessionsDir(projectId), `${safeId(sessionId)}.json`)
+export const prototypeExtraImagesDir = (projectId: string, sessionId: string) =>
+  path.join(prototypeSessionsDir(projectId), safeId(sessionId))
+export const prototypeExtraImageFile = (projectId: string, sessionId: string, number: number, ext: string) => {
+  if (!Number.isInteger(number) || number < 1) throw new NotFound(`Invalid Image number ${number}`)
+  return path.join(prototypeExtraImagesDir(projectId, sessionId), `${number}.${ext}`)
+}
+/** A Prototype Session runs in its own folder, outside every Project, and removes it when it ends. */
+export const prototypeWorkDir = (sessionId: string) => path.join(DATA_DIR, 'prototype-work', safeId(sessionId))
+
 /** Each Template Session runs in its own empty folder; its Transcript is kept beside it, out of its reach. */
 export const templateSessionsDir = path.join(DATA_DIR, 'template-sessions')
 export const templateSessionDir = (sessionId: string) => path.join(templateSessionsDir, safeId(sessionId))

@@ -22,6 +22,9 @@ const EXTENSIONS = {
   'image/gif': 'gif',
 } as const satisfies Record<ImageMediaType, string>
 
+/** The file extension an Image of this media type is saved with. */
+export const imageExtension = (mediaType: ImageMediaType) => EXTENSIONS[mediaType]
+
 const fileOf = ({ projectId, sessionId, number, mediaType }: ImageLocation) =>
   imageFile(projectId, sessionId, number, EXTENSIONS[mediaType])
 
