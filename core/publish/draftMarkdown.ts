@@ -15,6 +15,16 @@ const sectionMd = (section: Section) => {
   return `## ${section.heading}\n\n${body.trim()}`
 }
 
+/**
+ * The Draft as something to read and nothing else: title, version line and the non-Discarded Sections. No generated
+ * notice, no Iteration Log and no list of what was Discarded, so a reader never sees what the human decided against.
+ */
+export function liveDraftMarkdown(draft: Draft): string {
+  const subtitle = `_${draft.workItemType} · ${draft.template.name} v${draft.template.version} · Draft v${draft.version}_`
+  const sections = draft.sections.filter((section) => !section.discarded).map(sectionMd)
+  return [`# ${draft.title}`, subtitle, ...sections].join('\n\n') + '\n'
+}
+
 export function draftMarkdown(draft: Draft): string {
   // Before v1 there is only the requirement being grilled.
   if (draft.version === 0)
