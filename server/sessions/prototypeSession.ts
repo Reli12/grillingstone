@@ -4,7 +4,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { buildPrototypeInputs, type PrototypeImage } from '#core/prototype/prototypeInputs.ts'
+import { buildPrototypeInputs, type PrototypeImage, type StartingPrototype } from '#core/prototype/prototypeInputs.ts'
 import { type PrototypeSession, prototypeSummaryOf, type TickedImage } from '#core/prototype/prototypeRecords.ts'
 import { buildPrototypeSeed } from '#core/prototype/prototypeSeed.ts'
 import {
@@ -27,6 +27,8 @@ import { getProject } from '../storage/projects.ts'
 import {
   deletePrototypeSession,
   getPrototype,
+  readPrototypeImages,
+  readPrototypeSource,
   saveExtraImages,
   savePrototype,
   savePrototypeSession,
@@ -79,6 +81,23 @@ async function tickedImagesOf(args: PrototypeStartArgs): Promise<PrototypeImage[
   )
 }
 
+/**
+ * The earlier Prototype as the new session starts from it: Claude's file as it submitted it, its assumptions and the
+ * Images it showed. It must be one of this Draft's.
+ */
+async function startingPrototypeOf(
+  { projectId, draftId }: PrototypeStartArgs,
+  prototypeId: string,
+): Promise<StartingPrototype> {
+  const prototype = await getPrototype(projectId, prototypeId)
+  if (prototype.draftId !== draftId) throw new SessionError(OTHER_DRAFT)
+  return {
+    html: await readPrototypeSource(projectId, prototypeId),
+    assumptions: prototype.assumptions,
+    images: await readPrototypeImages(projectId, prototypeId),
+  }
+}
+
 const bytesOf = (image: ValidImage) => Math.floor((image.data.length * 3) / 4)
 
 /** The session's working folder: the Draft, the Glossary, images.md and the Image files. */
@@ -101,14 +120,13 @@ export async function preparePrototypeSession(
   if (draft.version < 1) throw new SessionError(BELOW_V1)
   const extra = parseMessageImages(args.extraImages)
   if (!extra.ok) throw new SessionError(extra.reasons.map((reason) => reason.message).join(' '))
-  if (startingPrototypeId && (await getPrototype(projectId, startingPrototypeId)).draftId !== draftId)
-    throw new SessionError(OTHER_DRAFT)
+  const starting = startingPrototypeId ? await startingPrototypeOf(args, startingPrototypeId) : undefined
   const ticked = await tickedImagesOf(args)
+  // The Images kept from the starting Prototype are files only and do not count towards the limit.
   if ([...ticked, ...extra.images].reduce((total, image) => total + bytesOf(image), 0) > SESSION_IMAGE_WARNING_BYTES)
     throw new SessionError(TOO_MANY_BYTES)
 
-  // The starting Prototype's source and Images are slice 5; for now only its id is kept (PRD gap).
-  const inputs = buildPrototypeInputs({ draft, glossary: glossary.markdown, ticked, extra: extra.images })
+  const inputs = buildPrototypeInputs({ draft, glossary: glossary.markdown, ticked, extra: extra.images, starting })
   const id = newId('psess')
   const workDir = prototypeWorkDir(id)
   const abandon = async () => {
@@ -136,9 +154,7 @@ export async function preparePrototypeSession(
     }
     const store = async ({ source, html, assumptions, usedImages }: StoredPrototype) => {
       const prototypeId = newId('proto')
-      const images = inputs.images
-        .filter((image) => usedImages.includes(image.number))
-        .map(({ number, mediaType, source: from }) => ({ number, mediaType, source: from }))
+      const shown = inputs.images.filter((image) => usedImages.includes(image.number))
       await savePrototype(
         {
           id: prototypeId,
@@ -147,10 +163,10 @@ export async function preparePrototypeSession(
           draftVersion: draft.version,
           writtenAt: now(),
           ...(startingPrototypeId ? { startingPrototypeId } : {}),
-          images,
+          images: shown.map(({ number, mediaType, source: from }) => ({ number, mediaType, source: from })),
           assumptions,
         },
-        { html, source },
+        { html, source, images: shown },
       )
       record.prototypeId = prototypeId
       deps.hub.broadcast({ type: 'prototypes', projectId })
@@ -160,7 +176,7 @@ export async function preparePrototypeSession(
       draftTitle: draft.title,
       draftVersion: draft.version,
       hasImages: inputs.messageImages.length > 0,
-      hasStartingPrototype: false,
+      hasStartingPrototype: starting !== undefined,
       submitCommand: `node "${SUBMIT_SCRIPT}"`,
     })
     const imageCount = plural(inputs.messageImages.length, 'Image')

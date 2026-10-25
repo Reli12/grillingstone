@@ -2,6 +2,7 @@
 //   prototypes/<id>.html         the stored, self-contained page (what is viewed and downloaded)
 //   prototypes/<id>.source.html  Claude's file as submitted
 //   prototypes/<id>.json         the record: Draft id and version, time written, starting Prototype, Images, assumptions
+//   prototypes/<id>.images/N.ext the Images the page shows (bytes), for a Prototype started from this one
 //   prototype-sessions/<id>.json one session's record, and prototype-sessions/<id>/N.ext its extra Images
 // A Prototype appears with all three files or not at all, and every id is checked to be a safe path segment.
 import fs from 'node:fs/promises'
@@ -22,6 +23,8 @@ import {
   prototypeExtraImageFile,
   prototypeExtraImagesDir,
   prototypeFile,
+  prototypeImageFile,
+  prototypeImagesDir,
   prototypesDir,
   prototypeSessionFile,
   prototypeSessionsDir,
@@ -39,23 +42,47 @@ export interface PrototypeFiles {
   html: string
   /** Claude's file as submitted. */
   source: string
+  /** The Images the page shows, kept so a Prototype started from this one can use them again. */
+  images?: Array<ValidImage & { number: number }>
 }
 
 /**
- * Writes the two pages, then the record last: a Prototype is listed and served only once its record exists, so a
- * crash or a failed write never leaves a half-written one visible. A failed write removes the pages again.
+ * Writes the Images and the two pages, then the record last: a Prototype is listed and served only once its record
+ * exists, so a crash or a failed write never leaves a half-written one visible. A failed write removes the rest again.
  */
-export async function savePrototype(prototype: Prototype, { html, source }: PrototypeFiles) {
+export async function savePrototype(prototype: Prototype, { html, source, images = [] }: PrototypeFiles) {
   const { projectId, id } = prototype
   const pages = [prototypeFile(projectId, id, 'html'), prototypeFile(projectId, id, 'source.html')]
   try {
+    for (const { number, mediaType, data } of images) {
+      const file = prototypeImageFile(projectId, id, number, imageExtension(mediaType))
+      await writeFileAtomic(file, Buffer.from(data, 'base64'))
+    }
     await writeFileAtomic(pages[0], html)
     await writeFileAtomic(pages[1], source)
     await writeJson(prototypeFile(projectId, id, 'json'), prototype)
   } catch (error) {
     await Promise.all(pages.map((page) => fs.rm(page, { force: true })))
+    await fs.rm(prototypeImagesDir(projectId, id), { recursive: true, force: true })
     throw error
   }
+}
+
+/** The Images a Prototype shows, with where each came from; one whose file is gone is left out. */
+export async function readPrototypeImages(projectId: string, prototypeId: string) {
+  const { images } = await getPrototype(projectId, prototypeId)
+  const read = await Promise.all(
+    images.map(async ({ number, mediaType, source }) => {
+      try {
+        const bytes = await fs.readFile(prototypeImageFile(projectId, prototypeId, number, imageExtension(mediaType)))
+        return [{ number, mediaType, source, data: bytes.toString('base64') }]
+      } catch (error) {
+        if (isMissingFile(error)) return []
+        throw error
+      }
+    }),
+  )
+  return read.flat()
 }
 
 export async function getPrototype(projectId: string, prototypeId: string): Promise<Prototype> {
@@ -95,6 +122,7 @@ export async function deletePrototype(projectId: string, prototypeId: string) {
   await fs.rm(prototypeFile(projectId, prototypeId, 'json'))
   await fs.rm(prototypeFile(projectId, prototypeId, 'html'), { force: true })
   await fs.rm(prototypeFile(projectId, prototypeId, 'source.html'), { force: true })
+  await fs.rm(prototypeImagesDir(projectId, prototypeId), { recursive: true, force: true })
   for (const session of await listPrototypeSessions(projectId))
     if (session.prototypeId === prototypeId) await deletePrototypeSession(projectId, session.id)
 }

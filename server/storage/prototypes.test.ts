@@ -12,7 +12,7 @@ import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, deleteDraft } from './drafts.ts'
 import { NotFound } from './errors.ts'
-import { prototypeFile, prototypeSessionFile } from './paths.ts'
+import { prototypeFile, prototypeImageFile, prototypeImagesDir, prototypeSessionFile } from './paths.ts'
 import { createProject } from './projects.ts'
 import {
   deletePrototype,
@@ -23,6 +23,7 @@ import {
   listPrototypeSessions,
   readExtraImages,
   readPrototypeHtml,
+  readPrototypeImages,
   readPrototypeSource,
   saveExtraImages,
   savePrototype,
@@ -103,6 +104,54 @@ describe('saving a Prototype', () => {
     await fs.mkdir(path.dirname(prototypeFile(projectId, 'proto-9', 'html')), { recursive: true })
     await fs.writeFile(prototypeFile(projectId, 'proto-9', 'html'), '<html>orphan</html>')
     await expect(readPrototypeHtml(projectId, 'proto-9')).rejects.toThrow(NotFound)
+  })
+})
+
+describe('a Prototype’s Images', () => {
+  const withImage = (prototype: Prototype) =>
+    savePrototype(prototype, {
+      html: '<html></html>',
+      source: '<source></source>',
+      images: [{ number: 1, mediaType: 'image/png', data: PIXEL }],
+    })
+
+  it('keeps the Images it shows beside it and reads them back with their sources', async () => {
+    const { projectId, draftId } = await projectWithDraft()
+    await withImage(prototypeOf(projectId, draftId, 'proto-1', '2026-10-01T10:00:00.000Z'))
+
+    expect(await readPrototypeImages(projectId, 'proto-1')).toEqual([
+      { number: 1, mediaType: 'image/png', data: PIXEL, source: 'Added on the start form' },
+    ])
+    expect(await exists(prototypeImageFile(projectId, 'proto-1', 1, 'png'))).toBe(true)
+  })
+
+  it('has no Images for a Prototype that shows none', async () => {
+    const { projectId, draftId } = await projectWithDraft()
+    await save({ ...prototypeOf(projectId, draftId, 'proto-1', '2026-10-01T10:00:00.000Z'), images: [] })
+    expect(await readPrototypeImages(projectId, 'proto-1')).toEqual([])
+  })
+
+  it('leaves out an Image whose file is gone instead of failing', async () => {
+    const { projectId, draftId } = await projectWithDraft()
+    await withImage(prototypeOf(projectId, draftId, 'proto-1', '2026-10-01T10:00:00.000Z'))
+    await fs.rm(prototypeImageFile(projectId, 'proto-1', 1, 'png'))
+    expect(await readPrototypeImages(projectId, 'proto-1')).toEqual([])
+  })
+
+  it('removes them when the Prototype is deleted, and when saving fails', async () => {
+    const { projectId, draftId } = await projectWithDraft()
+    await withImage(prototypeOf(projectId, draftId, 'proto-1', '2026-10-01T10:00:00.000Z'))
+    await deletePrototype(projectId, 'proto-1')
+    expect(await exists(prototypeImagesDir(projectId, 'proto-1'))).toBe(false)
+
+    await fs.mkdir(prototypeFile(projectId, 'proto-2', 'json'), { recursive: true })
+    await expect(withImage(prototypeOf(projectId, draftId, 'proto-2', '2026-10-02T10:00:00.000Z'))).rejects.toThrow()
+    expect(await exists(prototypeImagesDir(projectId, 'proto-2'))).toBe(false)
+  })
+
+  it('does not read the Images of a Prototype that does not exist', async () => {
+    const { projectId } = await projectWithDraft()
+    await expect(readPrototypeImages(projectId, 'proto-nope')).rejects.toThrow(NotFound)
   })
 })
 

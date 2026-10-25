@@ -100,6 +100,7 @@ const HANG_MARKER = 'fake:hang'
 // …or it dies after reading the Draft, or ends its turn without writing or submitting anything.
 const CRASH_MARKER = 'fake:crash'
 const NO_SUBMIT_MARKER = 'fake:no-submit'
+const STARTING_ASSUMPTIONS_FILE = 'start-assumptions.md'
 const PROTOTYPE_ASSUMPTIONS = [{ choice: 'Sample devices are invented', why: 'The Draft names no example data.' }]
 
 const prototypePage = (withImage, extra) =>
@@ -129,8 +130,15 @@ function prototypeTurn(images) {
   const badLink = '<a href="https://example.com/elsewhere">elsewhere</a>'
   const body = { prototype: 'prototype.html', assumptions: PROTOTYPE_ASSUMPTIONS }
 
-  fs.writeFileSync(filePath, prototypePage(images.length > 0, refuseFirst ? badLink : ''))
-  toolCall('write-1', 'Write', { file_path: filePath, content: '…' }, { content: 'ok' })
+  // Starting from an earlier Prototype (start-assumptions.md is in the folder): keep the page it left in
+  // prototype.html, as the seed asks, and only touch it up.
+  if (fs.existsSync(path.join(process.cwd(), STARTING_ASSUMPTIONS_FILE))) {
+    const touchUp = { file_path: filePath, old_string: 'Prototype', new_string: 'Prototype' }
+    toolCall('edit-0', 'Edit', touchUp, { content: 'ok' })
+  } else {
+    fs.writeFileSync(filePath, prototypePage(images.length > 0, refuseFirst ? badLink : ''))
+    toolCall('write-1', 'Write', { file_path: filePath, content: '…' }, { content: 'ok' })
+  }
   let run = submit('submit-1', body)
   if (run.status !== 0 && refuseFirst) {
     fs.writeFileSync(filePath, prototypePage(images.length > 0, ''))

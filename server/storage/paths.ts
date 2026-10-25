@@ -34,6 +34,13 @@ export const glossaryFile = (projectId: string) => path.join(projectDir(projectI
 export const prototypesDir = (projectId: string) => path.join(projectDir(projectId), 'prototypes')
 export const prototypeFile = (projectId: string, prototypeId: string, part: 'html' | 'source.html' | 'json') =>
   path.join(prototypesDir(projectId), `${safeId(prototypeId)}.${part}`)
+/** The Images a Prototype shows, kept beside it as <number>.<ext>, so a Prototype started from it can use them again. */
+export const prototypeImagesDir = (projectId: string, prototypeId: string) =>
+  path.join(prototypesDir(projectId), `${safeId(prototypeId)}.images`)
+export const prototypeImageFile = (projectId: string, prototypeId: string, number: number, ext: string) => {
+  if (!Number.isInteger(number) || number < 1) throw new NotFound(`Invalid Image number ${number}`)
+  return path.join(prototypeImagesDir(projectId, prototypeId), `${number}.${ext}`)
+}
 /** The records of a Project's Prototype Sessions; a session's extra Images are copied into a folder of its id beside it. */
 export const prototypeSessionsDir = (projectId: string) => path.join(projectDir(projectId), 'prototype-sessions')
 export const prototypeSessionFile = (projectId: string, sessionId: string) =>

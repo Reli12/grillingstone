@@ -1,6 +1,7 @@
 // The dependencies every route module receives from createServices.
 import type { DraftService } from '../services/draftService.ts'
 import type { GlossaryService } from '../services/glossaryService.ts'
+import type { PrototypeService } from '../services/prototypeService.ts'
 import type { TemplateService } from '../services/templateService.ts'
 import type { Supervisor } from '../sessions/supervisor.ts'
 
@@ -10,4 +11,5 @@ export interface AppDeps {
   drafts: DraftService
   templates: TemplateService
   glossary: GlossaryService
+  prototypes: PrototypeService
 }

@@ -2,12 +2,13 @@
 // inputs of a session (for 'Try again'), a Prototype's record, and the view route that serves its page sandboxed.
 import { PROTOTYPE_VIEW_CSP } from '#core/prototype/prototypeAssembly.ts'
 import { prototypeFileName } from '#core/prototype/prototypeFileName.ts'
-import { prototypeRows } from '#core/prototype/prototypeRecords.ts'
+import { type DraftImage, prototypeRows } from '#core/prototype/prototypeRecords.ts'
 
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { RawReply, type Router } from '../http/router.ts'
 import { startPrototypeBody } from '../http/schemas.ts'
 import { getDraft } from '../storage/drafts.ts'
+import { imageBytes } from '../storage/images.ts'
 import {
   getPrototype,
   getPrototypeSession,
@@ -16,6 +17,7 @@ import {
   readExtraImages,
   readPrototypeHtml,
 } from '../storage/prototypes.ts'
+import { listTranscripts } from '../storage/transcripts.ts'
 import type { AppDeps } from './deps.ts'
 
 const PROJECT = '/api/projects/:projectId'
@@ -39,7 +41,21 @@ function attachment(fileName: string): string {
   return `attachment; filename="${plain}"; filename*=UTF-8''${encoded}`
 }
 
-export function prototypeRoutes(router: Router, { supervisor }: AppDeps) {
+/** The Images of the Draft's Grilling Sessions, oldest session first, each with its size on disk. */
+async function draftImages(projectId: string, draftId: string): Promise<DraftImage[]> {
+  const found = (await listTranscripts(projectId, draftId)).flatMap((transcript) =>
+    transcript.messages
+      .flatMap((message) => (message.role === 'human' ? (message.images ?? []) : []))
+      .map(async ({ number, mediaType }): Promise<DraftImage[]> => {
+        const sessionId = transcript.id
+        const bytes = await imageBytes({ projectId, sessionId, number, mediaType })
+        return bytes === undefined ? [] : [{ sessionId, number, mediaType, bytes, startedAt: transcript.startedAt }]
+      }),
+  )
+  return (await Promise.all(found)).flat()
+}
+
+export function prototypeRoutes(router: Router, { supervisor, prototypes }: AppDeps) {
   router.post(
     `${PROJECT}/drafts/:draftId/prototype-sessions`,
     ({ params, body }) => {
@@ -61,10 +77,24 @@ export function prototypeRoutes(router: Router, { supervisor }: AppDeps) {
   router.get(`${PROJECT}/prototypes`, async ({ params }) =>
     prototypeRows(await listPrototypes(params.projectId), await listPrototypeSessions(params.projectId)),
   )
+  router.get(`${PROJECT}/drafts/:draftId/prototype-images`, async ({ params }) => {
+    const { projectId, draftId } = params
+    await getDraft(projectId, draftId)
+    return draftImages(projectId, draftId)
+  })
   router.get(`${PROJECT}/prototype-sessions/:sessionId/inputs`, async ({ params }) => {
     const { inputs } = await getPrototypeSession(params.projectId, params.sessionId)
     const { extraImages, ...rest } = inputs
     return { ...rest, extraImages: await readExtraImages(params.projectId, params.sessionId, extraImages) }
+  })
+  // Dismiss: a Failed or Stopped session's record and extra Images go; a running one is refused.
+  router.delete(`${PROJECT}/prototype-sessions/:sessionId`, async ({ params }) => {
+    await prototypes.dismiss(params.projectId, params.sessionId)
+    return { ok: true }
+  })
+  router.delete(`${PROJECT}/prototypes/:prototypeId`, async ({ params }) => {
+    await prototypes.delete(params.projectId, params.prototypeId)
+    return { ok: true }
   })
   router.get(`${PROJECT}/prototypes/:prototypeId`, async ({ params }) => {
     const prototype = await getPrototype(params.projectId, params.prototypeId)

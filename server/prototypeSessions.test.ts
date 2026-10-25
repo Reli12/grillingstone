@@ -11,10 +11,12 @@ import { draftUrl, prototypeKit, stopUrl } from '../test/server/prototypeKit.ts'
 import { startBackend, type TestBackend } from '../test/server/testBackend.ts'
 import { glossaryFile, prototypeWorkDir } from './storage/paths.ts'
 import {
+  deletePrototype,
   getPrototype,
   getPrototypeSession,
   listPrototypeSessions,
   readPrototypeHtml,
+  readPrototypeImages,
   readPrototypeSource,
   savePrototypeSession,
 } from './storage/prototypes.ts'
@@ -246,6 +248,80 @@ describe('starting a session', () => {
     const started = (await kit.startPrototype(grilled)).body as PrototypeSessionSummary
     expect(started.draftVersion).toBe((await kit.getDraft(grilled)).version)
     expect((await getPrototypeSession(grilled.projectId, started.id)).draftVersion).toBe(started.draftVersion)
+  })
+})
+
+describe('starting from an earlier Prototype', () => {
+  /** A Draft at v1 whose first Prototype showed its ticked Image 1, ready to be started from. */
+  async function withEarlierPrototype() {
+    const grilled = await kit.draftAtV1([png])
+    await kit.runPrototype(grilled, 'finished', { tickedImages: [{ sessionId: grilled.sessionId, number: 1 }] })
+    return { grilled, earlier: await kit.newestPrototype(grilled) }
+  }
+
+  it('gives the session the starting source renumbered, its assumptions and the Images it used, as files', async () => {
+    const { grilled, earlier } = await withEarlierPrototype()
+    await kit.steer(grilled, 'fake:hang')
+    const response = await kit.startPrototype(grilled, { startingPrototypeId: earlier.id, extraImages: [jpeg] })
+    const started = response.body as PrototypeSessionSummary
+    expect(started.startingPrototypeId).toBe(earlier.id)
+
+    const folder = prototypeWorkDir(started.id)
+    // The start-form Image is Image 1 of this session, so the starting Prototype's Image 1 is kept as Image 2.
+    expect(await fs.readFile(`${folder}/prototype.html`, 'utf8')).toContain('<img src="images/2"')
+    expect((await fs.readFile(`${folder}/images/2.png`)).toString('base64')).toBe(PNG_BASE64)
+    expect((await fs.readFile(`${folder}/images/1.jpg`)).toString('base64')).toBe(jpeg.data)
+    const listing = await fs.readFile(`${folder}/images.md`, 'utf8')
+    expect(listing).toContain('Image 2 (images/2.png): kept from the starting Prototype')
+    expect(await fs.readFile(`${folder}/start-assumptions.md`, 'utf8')).toContain('Sample devices are invented')
+  })
+
+  it('sends Claude only the session’s own Images, not the ones kept from the starting Prototype', async () => {
+    const { grilled, earlier } = await withEarlierPrototype()
+    const body = { startingPrototypeId: earlier.id, extraImages: [jpeg] }
+    const started = await kit.runPrototype(grilled, 'finished', body)
+
+    const said = (await claudeSaid(grilled.projectId, started.id)).join('\n')
+    expect(said).toContain('Received image blocks: Image 1 (image/jpeg, 4 base64 characters).')
+  })
+
+  it('keeps working after the starting Prototype is deleted, and still names where it started from', async () => {
+    const { grilled, earlier } = await withEarlierPrototype()
+    await kit.runPrototype(grilled, 'finished', { startingPrototypeId: earlier.id })
+    const later = await kit.newestPrototype(grilled)
+    const laterHtml = await readPrototypeHtml(grilled.projectId, later.id)
+
+    await deletePrototype(grilled.projectId, earlier.id)
+
+    expect(later.startingPrototypeId).toBe(earlier.id)
+    expect(await getPrototype(grilled.projectId, later.id)).toEqual(later)
+    expect(await readPrototypeHtml(grilled.projectId, later.id)).toBe(laterHtml)
+    // The Image it kept from the starting Prototype is its own now.
+    expect(await readPrototypeImages(grilled.projectId, later.id)).toEqual([
+      expect.objectContaining({ mediaType: 'image/png', data: PNG_BASE64 }),
+    ])
+  })
+
+  it('stores the Images a Prototype shows, kept ones included, so a later Prototype can start from it', async () => {
+    const { grilled, earlier } = await withEarlierPrototype()
+    expect(await readPrototypeImages(grilled.projectId, earlier.id)).toEqual([
+      expect.objectContaining({ number: 1, mediaType: 'image/png', data: PNG_BASE64 }),
+    ])
+
+    // No Image of its own: the starting Prototype's PNG is kept as Image 1, and its page (which the fake keeps) shows it.
+    await kit.runPrototype(grilled, 'finished', { startingPrototypeId: earlier.id })
+    const second = await kit.newestPrototype(grilled)
+    expect(second.images).toEqual([
+      { number: 1, mediaType: 'image/png', source: expect.stringContaining('kept from the starting Prototype') },
+    ])
+    expect(await readPrototypeHtml(grilled.projectId, second.id)).toContain(`data:image/png;base64,${PNG_BASE64}`)
+  })
+
+  it('is not found for a starting Prototype that does not exist, and starts nothing', async () => {
+    const { grilled } = await withEarlierPrototype()
+    const refused = await kit.startPrototype(grilled, { startingPrototypeId: 'proto-nope' })
+    expect(refused.status).toBe(404)
+    expect(await kit.kindsOf(grilled)).toEqual(['finished'])
   })
 })
 

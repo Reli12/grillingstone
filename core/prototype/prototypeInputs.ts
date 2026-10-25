@@ -109,7 +109,9 @@ function startingNumbers(session: InputImage[], starting: StartingPrototype) {
       continue
     }
     renumbered.set(image.number, next)
-    kept.push(numberedImage({ ...image, source: `${KEPT_NOTE} (${image.source})` }, next, true))
+    // An Image kept through several Prototypes is noted once, with where it first came from.
+    const source = image.source.startsWith(KEPT_NOTE) ? image.source : `${KEPT_NOTE} (${image.source})`
+    kept.push(numberedImage({ ...image, source }, next, true))
     next++
   }
   return { renumbered, kept }

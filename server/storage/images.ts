@@ -42,6 +42,16 @@ export async function readImage(image: ImageLocation): Promise<Buffer> {
   }
 }
 
+/** An Image's size on disk, or undefined when its file is gone. */
+export async function imageBytes(image: ImageLocation): Promise<number | undefined> {
+  try {
+    return (await fs.stat(fileOf(image))).size
+  } catch (error) {
+    if (isMissingFile(error)) return undefined
+    throw error
+  }
+}
+
 /** Deletes all of a session's Images; a session without any is fine. */
 export async function deleteSessionImages(projectId: string, sessionId: string) {
   await fs.rm(sessionImagesDir(projectId, sessionId), { recursive: true, force: true })

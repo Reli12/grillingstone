@@ -79,6 +79,8 @@ export function prototypeKit(backend: TestBackend) {
     const started = await startPrototype(grilled, body)
     expect(started.status).toBe(200)
     await vi.waitFor(async () => expect((await kindsOf(grilled))[0]).toBe(kind), WAIT)
+    // A Prototype is listed as soon as it is stored, a moment before its session has ended and released the Draft.
+    await vi.waitFor(() => expect(backend.supervisor.livePrototypeForDraft(grilled.draftId)).toBeUndefined(), WAIT)
     return started.body as PrototypeSessionSummary
   }
 

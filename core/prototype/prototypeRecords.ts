@@ -2,7 +2,7 @@
 // disk or from the API is unknown until one of these parses it. The row of a list is a discriminated union on `kind`.
 import { z } from 'zod'
 
-import { IMAGE_MEDIA_TYPES } from '#core/session/images.ts'
+import { IMAGE_MEDIA_TYPES, type ImageMediaType } from '#core/session/images.ts'
 import {
   type ChatMessage,
   LIVE_STATUSES,
@@ -48,6 +48,15 @@ const statusSchema = z.enum([
 /** An Image of a Grilling Session of the Draft, picked on the start form. */
 export const tickedImageSchema = z.object({ sessionId: z.string(), number: imageNumber })
 export type TickedImage = z.infer<typeof tickedImageSchema>
+
+/** An Image of one of the Draft's Grilling Sessions as the start form lists it, thumbnail and size included. */
+export interface DraftImage extends TickedImage {
+  mediaType: ImageMediaType
+  /** Its size on disk: what it adds to the 20 MB of a session's Images. */
+  bytes: number
+  /** When the Grilling Session it was shown in started. */
+  startedAt: string
+}
 
 /** What the human gave a session at the start, kept so 'Try again' can refill the form. */
 export const prototypeInputsSchema = z.object({

@@ -192,6 +192,16 @@ describe('Prototype inputs: starting from an earlier Prototype', () => {
     expect(textOf(inputs, 'images.md')).toContain('Image 2 (images/2.png): kept from the starting Prototype')
   })
 
+  it('does not wrap the source of an Image kept a second time in another "kept" note', () => {
+    const carried = 'kept from the starting Prototype (Grilling Session of 2026-10-01, Image 1)'
+    const again = starting({
+      html: '<img src="images/1">',
+      images: [{ number: 1, source: carried, mediaType: 'image/png', data: 'KEPT' }],
+    })
+    const [kept] = buildPrototypeInputs(request({ starting: again })).images
+    expect(kept.source).toBe(carried)
+  })
+
   it('does not send kept Images to Claude as image blocks, and an Image already ticked is not kept twice', () => {
     const inputs = buildPrototypeInputs(request({ ticked: [png('AAAA', 's')], starting: starting() }))
     expect(inputs.messageImages.map((image) => image.data)).toEqual(['AAAA'])

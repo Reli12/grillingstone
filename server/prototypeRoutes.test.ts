@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PROTOTYPE_VIEW_CSP } from '#core/prototype/prototypeAssembly.ts'
 import type { PrototypeSessionSummary } from '#core/session/sessionTypes.ts'
 
-import { prototypeKit } from '../test/server/prototypeKit.ts'
+import { draftUrl, prototypeKit } from '../test/server/prototypeKit.ts'
 import { startBackend, type TestBackend } from '../test/server/testBackend.ts'
-import { prototypeFile } from './storage/paths.ts'
+import { prototypeExtraImagesDir, prototypeFile } from './storage/paths.ts'
 
 let backend: TestBackend
 let kit: ReturnType<typeof prototypeKit>
@@ -144,6 +144,33 @@ describe('listing', () => {
   })
 })
 
+describe('the Draft’s Images for the start form', () => {
+  const imagesUrl = (projectId: string, draftId: string) =>
+    `${projectUrl(projectId)}/drafts/${draftId}/prototype-images`
+
+  it('lists the Images of its Grilling Sessions with their sizes', async () => {
+    const grilled = await kit.draftAtV1([png, { mediaType: 'image/jpeg', data: 'AAAA' }])
+    const listed = await call('GET', imagesUrl(grilled.projectId, grilled.draftId))
+    expect(listed.status).toBe(200)
+    expect(listed.body).toEqual([
+      {
+        sessionId: grilled.sessionId,
+        number: 1,
+        mediaType: 'image/png',
+        bytes: Buffer.from(PNG_BASE64, 'base64').length,
+        startedAt: expect.any(String),
+      },
+      { sessionId: grilled.sessionId, number: 2, mediaType: 'image/jpeg', bytes: 3, startedAt: expect.any(String) },
+    ])
+  })
+
+  it('has none for a Draft without Images, and is not found for a Draft that does not exist', async () => {
+    const grilled = await kit.draftAtV1()
+    expect((await call('GET', imagesUrl(grilled.projectId, grilled.draftId))).body).toEqual([])
+    expect((await call('GET', imagesUrl(grilled.projectId, 'd-missing'))).status).toBe(404)
+  })
+})
+
 describe('the inputs of a session', () => {
   it('are found for a session of the Project only', async () => {
     const grilled = await kit.draftAtV1()
@@ -165,6 +192,136 @@ describe('the inputs of a session', () => {
     await kit.waitForRows(grilled, ['finished', 'finished'])
     const inputs = await call('GET', `${projectUrl(grilled.projectId)}/prototype-sessions/${started.id}/inputs`)
     expect(inputs.body).toEqual({ tickedImages: [], extraImages: [], startingPrototypeId: earlier.id })
+  })
+})
+
+describe('Delete', () => {
+  const prototypeUrl = (projectId: string, prototypeId: string) => `${projectUrl(projectId)}/prototypes/${prototypeId}`
+
+  it('removes a Prototype from the Draft’s and the Project’s rows, and announces the change', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.runPrototype(grilled, 'finished')
+    const prototype = await kit.newestPrototype(grilled)
+    backend.events.length = 0
+
+    const deleted = await call('DELETE', prototypeUrl(grilled.projectId, prototype.id))
+    expect(deleted.status).toBe(200)
+    expect(await kit.rowsOf(grilled)).toEqual([])
+    expect((await call('GET', `${projectUrl(grilled.projectId)}/prototypes`)).body).toEqual([])
+    await expect(fs.stat(prototypeFile(grilled.projectId, prototype.id, 'html'))).rejects.toThrow()
+    expect(backend.events).toContainEqual({ type: 'prototypes', projectId: grilled.projectId })
+  })
+
+  it('leaves a Prototype started from it as it was', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.runPrototype(grilled, 'finished')
+    const earlier = await kit.newestPrototype(grilled)
+    await kit.runPrototype(grilled, 'finished', { startingPrototypeId: earlier.id })
+    const later = await kit.newestPrototype(grilled)
+
+    expect((await call('DELETE', prototypeUrl(grilled.projectId, earlier.id))).status).toBe(200)
+    expect(await kit.newestPrototype(grilled)).toEqual(later)
+    expect(await kit.kindsOf(grilled)).toEqual(['finished'])
+  })
+
+  it('does not find a Prototype of another Project, a missing one or an unsafe id', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.runPrototype(grilled, 'finished')
+    const prototype = await kit.newestPrototype(grilled)
+    const other = await kit.draftAtV1()
+
+    expect((await call('DELETE', prototypeUrl(other.projectId, prototype.id))).status).toBe(404)
+    expect((await call('DELETE', prototypeUrl(other.projectId, 'proto-nope'))).status).toBe(404)
+    expect((await call('DELETE', prototypeUrl(other.projectId, '..%2Fx'))).status).toBe(404)
+    expect(await kit.kindsOf(grilled)).toEqual(['finished'])
+  })
+})
+
+describe('Dismiss', () => {
+  const sessionUrl = (projectId: string, sessionId: string) =>
+    `${projectUrl(projectId)}/prototype-sessions/${sessionId}`
+
+  it('removes a Failed row with its record and its extra Image copies, and announces the change', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:no-submit')
+    const started = await kit.runPrototype(grilled, 'failed', { extraImages: [png] })
+    await expect(fs.stat(prototypeExtraImagesDir(grilled.projectId, started.id))).resolves.toBeTruthy()
+    backend.events.length = 0
+
+    expect((await call('DELETE', sessionUrl(grilled.projectId, started.id))).status).toBe(200)
+    expect(await kit.rowsOf(grilled)).toEqual([])
+    await expect(fs.stat(prototypeExtraImagesDir(grilled.projectId, started.id))).rejects.toThrow()
+    expect((await call('GET', `${sessionUrl(grilled.projectId, started.id)}/inputs`)).status).toBe(404)
+    expect(backend.events).toContainEqual({ type: 'prototypes', projectId: grilled.projectId })
+  })
+
+  it('removes a Stopped row', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:hang')
+    const started = (await kit.startPrototype(grilled)).body as PrototypeSessionSummary
+    await kit.waitForRows(grilled, ['running'])
+    await call('POST', `${sessionUrl(grilled.projectId, started.id)}/stop`)
+    await kit.waitForRows(grilled, ['stopped'])
+
+    expect((await call('DELETE', sessionUrl(grilled.projectId, started.id))).status).toBe(200)
+    expect(await kit.rowsOf(grilled)).toEqual([])
+  })
+
+  it('refuses a session that is running, and keeps it', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:hang')
+    const started = (await kit.startPrototype(grilled)).body as PrototypeSessionSummary
+    await kit.waitForRows(grilled, ['running'])
+
+    expect((await call('DELETE', sessionUrl(grilled.projectId, started.id))).status).toBe(409)
+    expect(await kit.kindsOf(grilled)).toEqual(['running'])
+  })
+
+  it('refuses the record of a session that finished: the Prototype is deleted instead', async () => {
+    const grilled = await kit.draftAtV1()
+    const started = await kit.runPrototype(grilled, 'finished')
+    expect((await call('DELETE', sessionUrl(grilled.projectId, started.id))).status).toBe(409)
+    expect(await kit.kindsOf(grilled)).toEqual(['finished'])
+  })
+
+  it('does not find a session of another Project or one that does not exist', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:no-submit')
+    const started = await kit.runPrototype(grilled, 'failed')
+    const other = await kit.draftAtV1()
+
+    expect((await call('DELETE', sessionUrl(other.projectId, started.id))).status).toBe(404)
+    expect((await call('DELETE', sessionUrl(grilled.projectId, 'psess-nope'))).status).toBe(404)
+    expect((await call('DELETE', sessionUrl(grilled.projectId, '..%2Fx'))).status).toBe(404)
+    expect(await kit.kindsOf(grilled)).toEqual(['failed'])
+  })
+
+  it('keeps Failed rows after a restart until they are dismissed', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:no-submit')
+    const started = await kit.runPrototype(grilled, 'failed')
+    await backend.supervisor.markInterrupted()
+    expect(await kit.kindsOf(grilled)).toEqual(['failed'])
+    expect((await call('DELETE', sessionUrl(grilled.projectId, started.id))).status).toBe(200)
+  })
+})
+
+describe('deleting a Draft', () => {
+  it('takes its Prototypes and session records with it, and announces the change to the Prototypes', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.runPrototype(grilled, 'finished')
+    await kit.steer(grilled, 'fake:no-submit')
+    await kit.runPrototype(grilled, 'failed', { extraImages: [png] })
+    const kept = await kit.draftAtV1([], grilled.projectId)
+    await kit.runPrototype(kept, 'finished')
+    backend.events.length = 0
+
+    expect((await call('DELETE', draftUrl(grilled))).status).toBe(200)
+
+    const project = (await call('GET', `${projectUrl(grilled.projectId)}/prototypes`)).body
+    expect(project).toHaveLength(1)
+    expect(project[0].prototype.draftId).toBe(kept.draftId)
+    expect(backend.events).toContainEqual({ type: 'prototypes', projectId: grilled.projectId })
   })
 })
 
