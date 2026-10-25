@@ -1,10 +1,13 @@
-// The New Draft form: the requirement, Work Item Type, Template and References for a Draft.
+// The New Draft form: the requirement and its Images, Work Item Type, Template and References for a Draft.
 import { Link } from 'react-router'
 
 import type { DraftSummary, Project } from '#core/contract/apiTypes.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
 import { TextArea } from '@/components/atoms/textArea/textArea'
+import { ImageNotices } from '@/components/features/chat/imageNotices/imageNotices'
+import { ImagePicker } from '@/components/features/chat/imagePicker/imagePicker'
+import { ImageThumbnails } from '@/components/features/chat/imageThumbnails/imageThumbnails'
 import { DraftTypePicker } from '@/components/features/drafts/draftTypePicker/draftTypePicker'
 import { ReferencePicker } from '@/components/features/drafts/referencePicker/referencePicker'
 import { StartButton } from '@/components/features/drafts/startButton/startButton'
@@ -19,7 +22,7 @@ interface NewDraftFormProps {
   drafts: DraftSummary[]
 }
 
-/** Requirement, Work Item Type, Template and References for a new Draft; submitting starts the first session. */
+/** A new Draft: requirement, Images, Work Item Type, Template and References; submitting starts its first session. */
 export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFormProps>) {
   const form = useNewDraftForm(project, templates)
   const referable = drafts.filter((draft) => draft.version > 0)
@@ -41,10 +44,16 @@ export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFo
           autoFocus
           minRows={9}
           {...form.register('requirement')}
+          {...form.attachments.textareaProps}
           placeholder="Managers need to archive devices so they stop cluttering dashboards…"
           aria-label="Requirement"
           className="mt-5 font-serif text-[16px] leading-7"
         />
+        <ImageThumbnails pending={form.attachments.pending} onRemove={form.attachments.remove} />
+        <ImageNotices attachments={form.attachments} />
+        <div className="mt-2">
+          <ImagePicker onFiles={form.attachments.add} />
+        </div>
         {referable.length > 0 && (
           <ReferencePicker referable={referable} references={form.references} onToggle={form.toggleReference} />
         )}

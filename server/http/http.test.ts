@@ -45,16 +45,16 @@ describe('body size limits', () => {
     await expect(readBody(bodyOf(forty) as IncomingMessage, IMAGE_MAX_BODY)).rejects.toMatchObject({ status: 413 })
   })
 
-  it('gives the larger limit to the say and start-session routes only', () => {
+  it('gives the larger limit to the say, start-session and new-Draft routes only', () => {
     // Registering routes only reads the dependencies inside handlers, which this test never calls.
     const router = buildRouter({} as AppDeps)
     const limitOf = (method: string, path: string) => router.match(method, path)?.options.maxBody
     expect(limitOf('POST', '/api/sessions/s1/messages')).toBe(IMAGE_MAX_BODY)
     expect(limitOf('POST', '/api/projects/p/drafts/d/sessions')).toBe(IMAGE_MAX_BODY)
+    expect(limitOf('POST', '/api/projects/p/drafts')).toBe(IMAGE_MAX_BODY)
     expect(limitOf('POST', '/api/sessions/s1/write')).toBeUndefined()
     expect(limitOf('POST', '/api/projects/p/drafts/d/sessions/s1/continue')).toBeUndefined()
     expect(limitOf('POST', '/api/projects')).toBeUndefined()
-    expect(limitOf('POST', '/api/projects/p/drafts')).toBeUndefined()
     expect(limitOf('PUT', '/api/settings')).toBeUndefined()
   })
 })
