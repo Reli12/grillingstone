@@ -3,6 +3,7 @@
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { CopyPayload } from '#core/publish/copyFields.ts'
+import type { ImageUpload } from '#core/session/images.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -26,6 +27,14 @@ export interface StartSessionRequest {
   kind: SessionKind
   focus?: { sectionId: string; entryId?: string }
   humanNote?: string
+  /** Sent with the first message; left out of the body when empty. */
+  images?: ImageUpload[]
+}
+
+export interface SayRequest {
+  text: string
+  kind: 'answer' | 'message'
+  images?: ImageUpload[]
 }
 
 export const draftsApi = {
@@ -47,8 +56,9 @@ export const draftsApi = {
     api.post<SessionSummary>(endpoints.draftSessions(projectId, draftId), body),
   continueSession: (projectId: string, draftId: string, sessionId: string, humanNote: string) =>
     api.post<SessionSummary>(endpoints.continueSession(projectId, draftId, sessionId), { humanNote }),
-  say: (sessionId: string, text: string, kind: 'answer' | 'message') =>
-    api.post<{ ok: true }>(endpoints.sessionMessages(sessionId), { text, kind }),
+  say: (sessionId: string, { text, kind, images = [] }: SayRequest) =>
+    // The images key is left out when there are none, so a text-only message is the body it always was.
+    api.post<{ ok: true }>(endpoints.sessionMessages(sessionId), { text, kind, ...(images.length ? { images } : {}) }),
   writeNow: (sessionId: string) => api.post<{ ok: true }>(endpoints.sessionWrite(sessionId)),
   stop: (sessionId: string) => api.post<{ ok: true }>(endpoints.sessionStop(sessionId)),
 }

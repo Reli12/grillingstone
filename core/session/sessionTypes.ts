@@ -1,6 +1,7 @@
 // What the backend tells the browser about Grilling and Template Sessions, and what a Transcript holds.
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { Segment } from '#core/session/blockExtractor.ts'
+import type { ImageRef } from '#core/session/images.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { Tracker } from '#core/shared/tracker.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -22,7 +23,15 @@ export type SessionStatus =
 export const LIVE_STATUSES: SessionStatus[] = ['starting', 'thinking', 'waiting', 'writing']
 
 export type ChatMessage =
-  | { id: string; at: string; role: 'human'; text: string; kind: 'answer' | 'message' | 'write' }
+  | {
+      id: string
+      at: string
+      role: 'human'
+      text: string
+      kind: 'answer' | 'message' | 'write'
+      /** The Images sent with this message; absent in Transcripts from before Images existed. */
+      images?: ImageRef[]
+    }
   | { id: string; at: string; role: 'claude'; segments: Segment[] }
   | {
       id: string
@@ -58,6 +67,8 @@ export interface SessionSummary extends SessionBase {
   draftId: string
   /** The ended session this one continues. */
   continues?: string
+  /** The number of the last Image of this Transcript, so a Continuation numbers after it. */
+  lastImageNumber?: number
 }
 
 export interface Transcript extends SessionSummary {

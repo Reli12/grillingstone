@@ -1,9 +1,11 @@
 // With no session running, typing starts a new one: a fresh first session before v1, otherwise a New
 import type { Draft } from '#core/draft/draftTypes.ts'
-import { type Transcript } from '#core/session/sessionTypes.ts'
+import type { ImageUpload } from '#core/session/images.ts'
+import { type SessionSummary, type Transcript } from '#core/session/sessionTypes.ts'
 
 import { NewSessionComposer } from '@/components/features/chat/newSessionComposer/newSessionComposer'
 import { SESSION_TITLES } from '@/constants/SessionConstants'
+import type { OnStarted } from '@/hooks/chat/useStartForm'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
 import type { Continuable } from '@/types/draftPage'
 
@@ -59,9 +61,16 @@ export function IdleComposer({
 }: Readonly<IdleComposerProps>) {
   const { start, continueSession } = mutations
   const beforeV1 = draft.version === 0
-  const startByTyping = (text: string) => {
+  const startByTyping = (text: string, images: ImageUpload[], onStarted: OnStarted) => {
     if (!continueFrom) {
-      start.mutate({ kind: beforeV1 ? 'first' : 'iteration', humanNote: text }, { onSuccess: onShowChat })
+      // The images key is left out when there are none, so a text-only start is the request it always was.
+      const withImages = images.length ? { images } : {}
+      const kind = beforeV1 ? 'first' : 'iteration'
+      const onSuccess = (session: SessionSummary) => {
+        onStarted(session.id)
+        onShowChat()
+      }
+      start.mutate({ kind, humanNote: text, ...withImages }, { onSuccess })
       return
     }
     const onSuccess = () => {
@@ -79,6 +88,7 @@ export function IdleComposer({
     <NewSessionComposer
       starting={start.isPending || continueSession.isPending}
       onStart={startByTyping}
+      sessionKey={`new-session:${draft.id}`}
       blockedReason={draft.proposal ? PROPOSAL_OPEN_REASON : undefined}
       onContinueLatest={offerLatest}
       continuing={continuing}

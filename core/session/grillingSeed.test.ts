@@ -216,6 +216,32 @@ describe('Session Seed Builder', () => {
     expect(seed.firstMessage).toContain('Export invoices as PDF.')
   })
 
+  it('tells every kind of session to confirm what it reads in an Image before relying on it', () => {
+    const kinds = ['first', 'iteration', 'focused'] as const
+    const beforeV1 = newDraft({
+      projectId: 'p',
+      workItemType: 'PBI',
+      template: defaultPbiTemplate,
+      requirement: 'r',
+      now: meta.date,
+    })
+    for (const kind of kinds) {
+      const draft = kind === 'first' ? beforeV1 : v1Draft()
+      const { systemPrompt } = buildSeed({
+        kind,
+        draft,
+        projectName: 'Customer Portal',
+        glossary: '',
+        references: [],
+        submitCommand,
+        focus: kind === 'focused' ? { sectionId: sectionByKey(draft, 'scope').id } : undefined,
+      })
+      expect(systemPrompt, kind).toContain('put your reading to the human as a question')
+      expect(systemPrompt, kind).toContain('Only readings the human confirms count as observed')
+      expect(systemPrompt, kind).toContain('marked "per Image n"')
+    }
+  })
+
   it('tells a Continuation that the current Draft wins over the conversation it resumes', () => {
     const draft = v1Draft()
     const seed = buildSeed({

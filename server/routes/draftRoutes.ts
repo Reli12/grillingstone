@@ -24,7 +24,8 @@ export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
     return { draft, liveSession: supervisor.liveForDraft(draft.id) ?? null }
   })
   router.delete(DRAFT, async ({ params }) => {
-    if (supervisor.liveForDraft(params.draftId)) throw new HttpError(409, 'Stop the running session first.')
+    // A live session keeps writing its Transcript and Images, so the Draft stays until it is stopped.
+    if (supervisor.hasSessionOn(params.draftId)) throw new HttpError(409, 'Stop the running session first.')
     await drafts.delete(params.projectId, params.draftId)
     return { ok: true }
   })

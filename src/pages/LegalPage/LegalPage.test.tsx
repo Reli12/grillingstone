@@ -39,6 +39,15 @@ describe('LegalPage', () => {
     expect(section).toHaveTextContent('never receives, sees or stores your data')
   })
 
+  it('lists Images among what is sent to Anthropic and what stays in data/, and warns to crop them', () => {
+    render(<LegalPage />)
+    const section = screen.getByRole('region', { name: 'Your data and your responsibility' })
+    expect(section).toHaveTextContent('Transcripts, Images, Templates and settings stay in its data/ folder')
+    expect(section).toHaveTextContent('What you type, the Images you add, the Draft')
+    expect(section).toHaveTextContent('Screenshots often show more than you intend')
+    expect(section).toHaveTextContent('customer data, tokens or other windows')
+  })
+
   it('licenses its own code under MIT and claims no tie to Anthropic, Microsoft or Atlassian', () => {
     render(<LegalPage />)
     expect(screen.getByRole('region', { name: 'License' })).toHaveTextContent('MIT License')

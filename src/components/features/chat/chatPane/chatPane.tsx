@@ -38,7 +38,9 @@ export function ChatPane({ live, transcripts, composerRef, ...idleProps }: Reado
           ref={composerRef}
           session={live}
           sending={say.isPending}
-          onSend={(text) => say.mutate({ sessionId: live.id, text, kind: 'message' })}
+          onSend={(text, images, onSent) =>
+            say.mutate({ sessionId: live.id, text, kind: 'message', images }, { onSuccess: onSent })
+          }
           onWriteNow={() => writeNow.mutate(live.id)}
           onStop={() => stop.mutate(live.id)}
         />

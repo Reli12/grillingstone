@@ -11,11 +11,27 @@ export interface RequestContext {
 
 export type Handler = (ctx: RequestContext) => unknown
 
+/** A binary answer (an Image), sent as it is instead of as JSON. */
+export class RawReply {
+  contentType: string
+  bytes: Buffer
+  constructor(contentType: string, bytes: Buffer) {
+    this.contentType = contentType
+    this.bytes = bytes
+  }
+}
+
+export interface RouteOptions {
+  /** A larger request body than the default, for routes that take Images. */
+  maxBody?: number
+}
+
 interface Route {
   method: string
   pattern: RegExp
   keys: string[]
   handler: Handler
+  options: RouteOptions
 }
 
 /** A `:name` path segment; captures the name. */
@@ -27,30 +43,33 @@ const PARAM_VALUE = '([^/]+)'
 export class Router {
   private routes: Route[] = []
 
-  add(method: string, path: string, handler: Handler) {
+  add(method: string, path: string, handler: Handler, options: RouteOptions = {}) {
     const keys: string[] = []
     const source = path.replace(PARAM_SEGMENT, (_match: string, key: string) => {
       keys.push(key)
       return PARAM_VALUE
     })
     const pattern = new RegExp(`^${source}$`)
-    this.routes.push({ method, pattern, keys, handler })
+    this.routes.push({ method, pattern, keys, handler, options })
   }
 
   get = (path: string, handler: Handler) => this.add('GET', path, handler)
-  post = (path: string, handler: Handler) => this.add('POST', path, handler)
+  post = (path: string, handler: Handler, options?: RouteOptions) => this.add('POST', path, handler, options)
   put = (path: string, handler: Handler) => this.add('PUT', path, handler)
   patch = (path: string, handler: Handler) => this.add('PATCH', path, handler)
   delete = (path: string, handler: Handler) => this.add('DELETE', path, handler)
 
-  match(method: string, pathname: string): { handler: Handler; params: Record<string, string> } | null {
+  match(
+    method: string,
+    pathname: string,
+  ): { handler: Handler; params: Record<string, string>; options: RouteOptions } | null {
     for (const route of this.routes) {
       if (route.method !== method) continue
       const found = route.pattern.exec(pathname)
       if (!found) continue
       // Capture group i + 1 holds the value of the i-th `:param`.
       const params = Object.fromEntries(route.keys.map((key, i) => [key, decodeURIComponent(found[i + 1])]))
-      return { handler: route.handler, params }
+      return { handler: route.handler, params, options: route.options }
     }
     return null
   }

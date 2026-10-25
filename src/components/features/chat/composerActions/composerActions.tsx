@@ -1,4 +1,6 @@
 // The composer's buttons: Send, "Enough — write it" and Stop, enabled by the session's status.
+import { type ReactNode } from 'react'
+
 import { Square } from 'lucide-react'
 
 import type { SessionBase } from '#core/session/sessionTypes.ts'
@@ -12,9 +14,18 @@ interface ComposerActionsProps {
   onSend: () => void
   onWriteNow: () => void
   onStop: () => void
+  /** The image button, when the session takes Images; it sits beside Send. */
+  picker?: ReactNode
 }
 
-export function ComposerActions({ session, canSend, onSend, onWriteNow, onStop }: Readonly<ComposerActionsProps>) {
+export function ComposerActions({
+  session,
+  canSend,
+  onSend,
+  onWriteNow,
+  onStop,
+  picker,
+}: Readonly<ComposerActionsProps>) {
   const yourTurn = session.status === 'waiting'
   return (
     <div className="flex items-center gap-2 px-2 pb-2">
@@ -31,6 +42,7 @@ export function ComposerActions({ session, canSend, onSend, onWriteNow, onStop }
       >
         Enough — write it
       </Button>
+      {picker}
       <Button size="sm" variant="ink" disabled={!canSend} onClick={onSend}>
         Send
       </Button>

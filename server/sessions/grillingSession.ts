@@ -4,6 +4,7 @@ import { parseGlossary } from '#core/glossary/glossary.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
+import type { ImageUpload } from '#core/session/images.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -32,6 +33,8 @@ export interface StartArgs {
   humanNote?: string
   /** For a Continuation: the ended session whose Claude Code conversation it resumes (ADR-0014). */
   continues?: SessionSummary
+  /** Images sent with the first message; the Supervisor saves and checks them. */
+  images?: ImageUpload[]
 }
 
 export interface GrillingDeps {
@@ -191,6 +194,8 @@ function newTranscript(args: StartArgs, focus: Focus): Transcript {
     ...(focus ? { focus } : {}),
     ...(humanNote ? { humanNote } : {}),
     ...(continues ? { continues: continues.id, claudeSessionId: continues.claudeSessionId } : {}),
+    // A Continuation numbers its Images on from the session it continues.
+    ...(continues?.lastImageNumber ? { lastImageNumber: continues.lastImageNumber } : {}),
     writeConfirmed: false,
     startedAt: now(),
     messages: [],
@@ -229,6 +234,7 @@ export async function prepareGrillingSession(
     seed,
     intro,
     ...(args.continues ? { resume: args.continues.claudeSessionId } : {}),
+    ...(args.images?.length ? { images: args.images } : {}),
     scope: grillingScope(args, deps, submit),
   }
 }

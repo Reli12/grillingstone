@@ -80,6 +80,10 @@ _Avoid_: deleted, removed, rejected
 Claude's question, when it believes it understands enough, asking whether the human has anything to add before it writes. Claude never writes a Draft or Proposal without the human confirming — either by answering the Ready Check or by asking to write at any moment. The one exception is an Import: starting the Import is the confirmation.
 _Avoid_: confirmation, final check
 
+**Image**:
+A picture the human gives Claude inside a Grilling Session as context, such as a screenshot, a design frame or a photo of a whiteboard. Claude may describe what it shows in the Draft, but the Image itself never becomes part of the Draft, a Proposal or anything copied or Published.
+_Avoid_: attachment, upload, file, screenshot (a screenshot is one kind of Image)
+
 **Transcript**:
 The tool's own record of one Grilling Session's conversation, kept with the Draft for reading back. Never fed to Claude; a Continuation resumes Claude Code's own conversation instead.
 _Avoid_: chat log, history, session file
@@ -155,6 +159,7 @@ _Avoid_: sub-session, partial session
 - A **Draft** may hold any number of **References** to other **Drafts** in the same Project; none is required.
 - An Azure DevOps **Task** usually belongs to a **PBI** or a **Bug**, and a Jira **Sub-task** to a **Story**, **Task** or **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
 - A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
+- An **Image** is something the human shows; what Claude reads in it counts as observed only once the human confirms it.
 - A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**, one of those the Project's **Tracker** defines.
 - A **Tracker** defines its own **Work Item Types**. An Azure DevOps Task and a Jira Sub-task both live inside another item; a Jira Task stands on its own beside a Story. Jira has no Feature and Azure DevOps has no Sub-task.
 - A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.

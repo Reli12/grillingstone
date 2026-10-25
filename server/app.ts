@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ALLOWED_ORIGINS } from './config.ts'
 import { readBody } from './http/body.ts'
 import { HttpError, knownError } from './http/errors.ts'
-import { Router } from './http/router.ts'
+import { RawReply, Router } from './http/router.ts'
 import type { AppDeps } from './routes/deps.ts'
 import { draftRoutes } from './routes/draftRoutes.ts'
 import { projectRoutes } from './routes/projectRoutes.ts'
@@ -13,16 +13,33 @@ import { sessionRoutes } from './routes/sessionRoutes.ts'
 import { settingsRoutes } from './routes/settingsRoutes.ts'
 import { templateRoutes } from './routes/templateRoutes.ts'
 
-export function createApp(deps: AppDeps) {
+export function buildRouter(deps: AppDeps) {
   const router = new Router()
   settingsRoutes(router)
   projectRoutes(router, deps)
   draftRoutes(router, deps)
   sessionRoutes(router, deps)
   templateRoutes(router, deps)
+  return router
+}
+
+/** An Image is immutable once saved and its URL is never reused, so the browser may keep it. */
+const IMAGE_CACHE_CONTROL = 'private, max-age=86400, immutable'
+
+export function createApp(deps: AppDeps) {
+  const router = buildRouter(deps)
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const send = (status: number, data: unknown) => {
+      if (data instanceof RawReply) {
+        res.writeHead(status, {
+          'content-type': data.contentType,
+          'cache-control': IMAGE_CACHE_CONTROL,
+          'x-content-type-options': 'nosniff',
+        })
+        res.end(data.bytes)
+        return
+      }
       res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify(data))
     }
@@ -36,7 +53,7 @@ export function createApp(deps: AppDeps) {
 
       const route = router.match(method, url.pathname)
       if (!route) throw new HttpError(404, `No route ${method} ${url.pathname}`)
-      const body = method === 'GET' ? {} : await readBody(req)
+      const body = method === 'GET' ? {} : await readBody(req, route.options.maxBody)
       send(200, await route.handler({ params: route.params, body, req }))
     } catch (error) {
       const known = knownError(error)

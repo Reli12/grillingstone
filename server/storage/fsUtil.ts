@@ -10,12 +10,13 @@ const TMP_SUFFIX_LENGTH = 8
 /** Letters, digits, `_` and `-`, starting with a letter or digit, at most 81 characters: no dots, no slashes. */
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/
 
-const isMissingFile = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT'
+export const isMissingFile = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT'
 
 /** Write-then-rename, so a crash never leaves a half-written file. */
-export async function writeFileAtomic(file: string, content: string) {
+export async function writeFileAtomic(file: string, content: string | Uint8Array) {
   await fs.mkdir(path.dirname(file), { recursive: true })
   const tmp = `${file}.${randomUUID().slice(0, TMP_SUFFIX_LENGTH)}.tmp`
+  // The encoding applies to text only; bytes are written as they are.
   await fs.writeFile(tmp, content, 'utf8')
   await fs.rename(tmp, file)
 }

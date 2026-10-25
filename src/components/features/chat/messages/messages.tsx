@@ -1,4 +1,5 @@
 // All messages of one session, each drawn by its role; only Claude's latest turn can be answered.
+import { endpoints } from '@/api/endpoints/endpoints'
 import { ClaudeTurn } from '@/components/features/chat/claudeTurn/claudeTurn'
 import { HumanBubble } from '@/components/features/chat/humanBubble/humanBubble'
 import { SystemLine } from '@/components/features/chat/systemLine/systemLine'
@@ -14,10 +15,12 @@ export function Messages({ transcript, live, ...handlers }: Readonly<MessagesPro
   const { messages } = transcript
   const lastClaude = messages.findLastIndex((message) => message.role === 'claude')
   const canAct = live && transcript.status === 'waiting'
+  const { projectId } = transcript
+  const imageUrl = projectId ? (number: number) => endpoints.sessionImage(projectId, transcript.id, number) : undefined
   return (
     <div className="space-y-3.5">
       {messages.map((message, i) => {
-        if (message.role === 'human') return <HumanBubble key={message.id} message={message} />
+        if (message.role === 'human') return <HumanBubble key={message.id} message={message} imageUrl={imageUrl} />
         if (message.role === 'system') return <SystemLine key={message.id} message={message} />
         if (message.role === 'tool') return <ToolLine key={message.id} message={message} />
         const answer = messages.slice(i + 1).find((later): later is HumanMessage => later.role === 'human')
