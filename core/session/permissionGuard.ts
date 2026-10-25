@@ -3,6 +3,7 @@
 // symlink-resolved, and the single allowed Bash command is matched exactly.
 import path from 'node:path'
 
+import { PROTOTYPE_FILE } from '#core/prototype/prototypeFiles.ts'
 import { SUBMIT_HEREDOC } from '#core/session/cardProtocol.ts'
 
 export interface GuardContext {
@@ -12,9 +13,14 @@ export interface GuardContext {
   submitScript: string
   /** Resolves symlinks (for paths that do not exist yet: of their longest existing ancestor). */
   realpath: (filePath: string) => string
-  /** A Template Session writes nothing and loads no skills; its folder is its own empty working folder. */
-  mode?: 'grilling' | 'template'
+  /**
+   * A Template Session writes nothing and loads no skills; its folder is its own empty working folder.
+   * A Prototype Session writes only `prototype.html` in its folder, loads no skills and reaches no web.
+   */
+  mode?: GuardMode
 }
+
+export type GuardMode = 'grilling' | 'template' | 'prototype'
 
 export type Decision = { allow: true } | { allow: false; reason: string }
 
@@ -74,6 +80,15 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
   return deny(`Writing "${filePath}" is not allowed. ${why}`)
 }
 
+/** A Prototype Session's one writable file; its folder is the guard's `projectDir`. */
+function writablePrototype(ctx: GuardContext, filePath: string | undefined): Decision {
+  const why = `A Prototype Session may write only ${PROTOTYPE_FILE} in its own folder. Submit it with the submit command.`
+  if (!filePath) return deny(`No file_path given. ${why}`)
+  return resolve(ctx, filePath) === path.join(ctx.projectDir, PROTOTYPE_FILE)
+    ? ALLOW
+    : deny(`Writing "${filePath}" is not allowed. ${why}`)
+}
+
 /**
  * The only Bash a session may run: `node "<submitScript>" <<'GRILLINGSTONE_JSON'` followed by the JSON and a final
  * GRILLINGSTONE_JSON line. The quoted delimiter disables every expansion inside the heredoc, and nothing may follow it.
@@ -93,6 +108,21 @@ function submitCommand(ctx: GuardContext, command: unknown): Decision {
   return ALLOW
 }
 
+/** Write, Edit and MultiEdit: what each kind of session may change. */
+function writeDecision(ctx: GuardContext, filePath: string | undefined): Decision {
+  if (ctx.mode === 'template')
+    return deny('A Template Session writes no files — submit the Template with the submit command instead.')
+  if (ctx.mode === 'prototype') return writablePrototype(ctx, filePath)
+  return writable(ctx, filePath)
+}
+
+function skillDecision(ctx: GuardContext, skill: string): Decision {
+  if (ctx.mode === 'template') return deny('No skills are available in a Template Session.')
+  if (ctx.mode === 'prototype') return deny('No skills are available in a Prototype Session.')
+  if (ALLOWED_SKILLS.includes(skill)) return ALLOW
+  return deny(`Only these skills are available: ${ALLOWED_SKILLS.join(', ')}.`)
+}
+
 export function decide(tool: string, input: Record<string, unknown>, ctx: GuardContext): Decision {
   switch (tool) {
     case 'Read':
@@ -110,20 +140,16 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
     case 'Edit':
     case 'Write':
     case 'MultiEdit':
-      if (ctx.mode === 'template')
-        return deny('A Template Session writes no files — submit the Template with the submit command instead.')
-      return writable(ctx, str(input.file_path))
+      return writeDecision(ctx, str(input.file_path))
     case 'Bash':
       return submitCommand(ctx, input.command)
     case 'WebSearch':
     case 'WebFetch':
+      return ctx.mode === 'prototype' ? deny('A Prototype Session has no web access.') : ALLOW
     case 'TodoWrite':
       return ALLOW
     case 'Skill':
-      if (ctx.mode === 'template') return deny('No skills are available in a Template Session.')
-      return ALLOWED_SKILLS.includes(str(input.skill) ?? '')
-        ? ALLOW
-        : deny(`Only these skills are available: ${ALLOWED_SKILLS.join(', ')}.`)
+      return skillDecision(ctx, str(input.skill) ?? '')
     default:
       return deny(`${tool} is not available in a Grilling Session.`)
   }
