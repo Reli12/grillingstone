@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 
 import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
+import { buildMessageContent, type ImageRef, type ImageUpload } from '#core/session/images.ts'
 import { newSessionState, type SessionEvent, type SessionState, transition } from '#core/session/sessionMachine.ts'
 import {
   type ChatMessage,
@@ -15,6 +16,7 @@ import {
   type SessionSummary,
   type TemplateRequest,
   type TemplateSessionSummary,
+  type Transcript,
 } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import type { Reason } from '#core/shared/validation.ts'
@@ -35,6 +37,7 @@ import {
 import { jsonLines, sendMessage, spawnClaude } from './claudeProcess.ts'
 import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
 import { SessionError } from './sessionError.ts'
+import { discardSessionImages, numberUploads, recordLastImage, saveNumbered } from './sessionImages.ts'
 import { type AnyTranscript, type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
 import { type KnownTool, readStreamEvent, type StreamStep } from './streamEvents.ts'
 import { prepareTemplateSession, type TemplateSessionDeps } from './templateSession.ts'
@@ -102,13 +105,21 @@ const systemMessage = (text: string, tone?: 'success' | 'error'): ChatMessage =>
   text,
 })
 
-const humanMessage = (kind: 'answer' | 'message' | 'write', text: string): ChatMessage => ({
+const humanMessage = (kind: 'answer' | 'message' | 'write', text: string, images: ImageRef[] = []): ChatMessage => ({
   id: newId('m'),
   at: now(),
   role: 'human',
   kind,
   text,
+  ...(images.length ? { images } : {}),
 })
+
+/** What the human said: words, Images, or both. */
+export interface Said {
+  text: string
+  kind: 'answer' | 'message'
+  images?: ImageUpload[]
+}
 
 /** Marks a Transcript that was still running when the backend went down as interrupted, and saves it. */
 async function markInterruptedIfLive<T extends AnyTranscript>(transcript: T, save: (transcript: T) => Promise<void>) {
@@ -129,6 +140,8 @@ function crashError(stderrTail: string, code: number | null, signal: NodeJS.Sign
 
 export class Supervisor {
   private live = new Map<string, Live>()
+  /** Drafts a session is being started on: reserved before anything is awaited, so two starts cannot both pass. */
+  private starting = new Set<string>()
   /** `ended` promises of sessions whose Transcript is not saved yet — they may already be out of `live`. */
   private unsaved = new Set<Promise<void>>()
   private deps: GrillingDeps & TemplateSessionDeps
@@ -151,6 +164,17 @@ export class Supervisor {
     return undefined
   }
 
+  /** A running Grilling Session's Transcript, as it is in memory; undefined once it has ended. */
+  liveTranscript(sessionId: string): Transcript | undefined {
+    const transcript = this.live.get(sessionId)?.transcript
+    return transcript && transcript.kind !== 'template' ? transcript : undefined
+  }
+
+  /** Whether a session runs on the Draft or is just being started on it; deleting the Draft is refused meanwhile. */
+  hasSessionOn(draftId: string): boolean {
+    return this.liveForDraft(draftId) !== undefined || this.starting.has(draftId)
+  }
+
   liveTemplateSession(): TemplateSessionSummary | undefined {
     for (const { transcript } of this.live.values()) if (transcript.kind === 'template') return summaryOf(transcript)
     return undefined
@@ -165,8 +189,15 @@ export class Supervisor {
   // ── Starting ────────────────────────────────────────────────────────────
 
   async start(args: StartArgs): Promise<SessionSummary> {
-    if (this.liveForDraft(args.draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
-    return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
+    if (this.liveForDraft(args.draftId) || this.starting.has(args.draftId))
+      throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
+    this.starting.add(args.draftId)
+    try {
+      return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
+    } finally {
+      // Once launched the session is in `live`, which holds the Draft from here on.
+      this.starting.delete(args.draftId)
+    }
   }
 
   /** A Continuation (ADR-0014): a new session that resumes an ended one's Claude Code conversation. */
@@ -201,17 +232,25 @@ export class Supervisor {
     seed,
     intro,
     resume,
+    images = [],
   }: PreparedSession<T>): Promise<T> {
+    // Saved before Claude Code starts, so a refused or unsaveable Image starts no session; if anything before the
+    // start fails, the Images already written are removed again.
+    let numbered: ReturnType<typeof numberUploads>
+    let refs: ImageRef[]
+    let model: string
+    try {
+      numbered = numberUploads(transcript, images)
+      refs = await saveNumbered(transcript, numbered)
+      model = (await getSettings()).model
+    } catch (error) {
+      await discardSessionImages(transcript)
+      throw error
+    }
+    recordLastImage(transcript, refs)
     const token = randomUUID()
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
-    const child = spawnClaude({
-      sessionId: transcript.id,
-      token,
-      scope,
-      seed,
-      model: (await getSettings()).model,
-      conversation,
-    })
+    const child = spawnClaude({ sessionId: transcript.id, token, scope, seed, model, conversation })
     const live = newLive(transcript, scope, child, token)
     this.live.set(transcript.id, live)
     this.unsaved.add(live.ended)
@@ -219,8 +258,9 @@ export class Supervisor {
     this.watch(live)
 
     await this.push(live, systemMessage(intro))
-    if (transcript.humanNote) await this.push(live, humanMessage('message', transcript.humanNote))
-    sendMessage(child, seed.firstMessage)
+    if (transcript.humanNote || refs.length)
+      await this.push(live, humanMessage('message', transcript.humanNote ?? '', refs))
+    sendMessage(child, buildMessageContent(seed.firstMessage, numbered))
     // Claude Code may already have failed to start; that session has ended and stays ended.
     if (this.live.has(transcript.id)) await this.moveOn(live, { type: 'started' })
     return transcript
@@ -260,13 +300,31 @@ export class Supervisor {
     return live
   }
 
-  async say(sessionId: string, text: string, kind: 'answer' | 'message') {
+  async say(sessionId: string, { text, kind, images = [] }: Said) {
     const live = this.get(sessionId)
     const said = text.trim()
-    if (!said) throw new SessionError('Say something first.')
+    if (!said && !images.length) throw new SessionError('Say something first.')
+    const numbered = numberUploads(live.transcript, images)
+    const turnBefore = { state: live.state, writeConfirmed: live.transcript.writeConfirmed }
+    // Advancing first takes the turn before anything is awaited: a second message sent meanwhile is refused,
+    // so two messages never get the same Image numbers.
     this.advance(live, { type: 'humanSaid' })
-    await this.push(live, humanMessage(kind, said))
-    sendMessage(live.child, said)
+    let refs: ImageRef[]
+    try {
+      refs = await saveNumbered(live.transcript, numbered)
+      if (!this.live.has(live.transcript.id)) throw new SessionError('This session is no longer running.')
+    } catch (error) {
+      // The message was not sent, so the turn is still the human's (unless the session ended meanwhile).
+      if (this.live.has(live.transcript.id)) {
+        live.state = turnBefore.state
+        live.transcript.writeConfirmed = turnBefore.writeConfirmed
+      }
+      throw error
+    }
+    // The last number is recorded in the same step as the message that lists the Images.
+    recordLastImage(live.transcript, refs)
+    await this.push(live, humanMessage(kind, said, refs))
+    sendMessage(live.child, buildMessageContent(said, numbered))
     await this.setStatus(live, live.state.status)
   }
 

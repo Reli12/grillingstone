@@ -5,6 +5,7 @@ import type { TemplateTranscript, Transcript } from '#core/session/sessionTypes.
 
 import { NotFound } from './errors.ts'
 import { listJson, readJson, writeJson } from './fsUtil.ts'
+import { deleteSessionImages } from './images.ts'
 import {
   templateSessionDir,
   templateSessionsDir,
@@ -27,6 +28,14 @@ export async function listTranscripts(projectId: string, draftId?: string): Prom
   const all = await listJson<Transcript>(transcriptsDir(projectId))
   const wanted = all.filter((transcript) => !draftId || transcript.draftId === draftId)
   return wanted.sort((first, second) => first.startedAt.localeCompare(second.startedAt))
+}
+
+/** Deletes every Transcript of a Draft, and the Images each one kept. */
+export async function deleteTranscriptsOf(projectId: string, draftId: string) {
+  for (const transcript of await listTranscripts(projectId, draftId)) {
+    await deleteSessionImages(projectId, transcript.id)
+    await fs.rm(transcriptFile(projectId, transcript.id), { force: true })
+  }
 }
 
 /** Creates the Template Session's empty working folder. */

@@ -6,15 +6,17 @@ import type { z } from 'zod'
 
 import { HttpError } from './errors.ts'
 
-/** Largest request body accepted, in bytes; anything bigger is refused before it is parsed. */
-const MAX_BODY = 5_000_000
+/** Largest request body accepted by most routes, in bytes; anything bigger is refused before it is parsed. */
+export const DEFAULT_MAX_BODY = 5_000_000
+/** The routes that take Images (five of up to 5 MB, as base64) accept a larger body. */
+export const IMAGE_MAX_BODY = 40_000_000
 
-export async function readBody(req: IncomingMessage): Promise<unknown> {
+export async function readBody(req: IncomingMessage, maxBody = DEFAULT_MAX_BODY): Promise<unknown> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     size += (chunk as Buffer).length
-    if (size > MAX_BODY) throw new HttpError(413, 'Request too large.')
+    if (size > maxBody) throw new HttpError(413, 'Request too large.')
     chunks.push(chunk as Buffer)
   }
   if (!size) return {}

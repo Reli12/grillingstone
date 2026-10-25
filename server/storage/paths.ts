@@ -21,6 +21,13 @@ export const draftFile = (projectId: string, draftId: string, ext: 'json' | 'md'
 export const transcriptsDir = (projectId: string) => path.join(projectDir(projectId), 'transcripts')
 export const transcriptFile = (projectId: string, sessionId: string) =>
   path.join(transcriptsDir(projectId), `${safeId(sessionId)}.json`)
+/** A session's Images: images/<sessionId>/<number>.<ext> inside the Project, so a Project's data stays in one place. */
+export const sessionImagesDir = (projectId: string, sessionId: string) =>
+  path.join(projectDir(projectId), 'images', safeId(sessionId))
+export const imageFile = (projectId: string, sessionId: string, number: number, ext: string) => {
+  if (!Number.isInteger(number) || number < 1) throw new NotFound(`Invalid Image number ${number}`)
+  return path.join(sessionImagesDir(projectId, sessionId), `${number}.${ext}`)
+}
 export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
 
 /** Each Template Session runs in its own empty folder; its Transcript is kept beside it, out of its reach. */

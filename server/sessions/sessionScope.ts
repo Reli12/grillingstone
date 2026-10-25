@@ -1,6 +1,7 @@
 // The shared shape of a session, whichever kind it is: the Scope that says where it runs and what its
 // submission means, and the PreparedSession the Supervisor launches.
 import type { Seed } from '#core/session/cardProtocol.ts'
+import type { ImageUpload } from '#core/session/images.ts'
 import type { ChatMessage, TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
 import type { Reason } from '#core/shared/validation.ts'
 
@@ -37,6 +38,8 @@ export interface PreparedSession<T extends AnyTranscript> {
   intro: string
   /** Claude Code's conversation to resume, for a Continuation. */
   resume?: string
+  /** The Images the human sent with the first message; only Grilling Sessions take them. */
+  images?: ImageUpload[]
 }
 
 /** The Transcript without its messages: what lists and live-session lookups send to the browser. */

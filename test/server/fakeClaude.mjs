@@ -2,6 +2,7 @@
 // A stand-in for `claude -p` in server and browser (e2e/) tests: reads stream-json user messages on stdin and answers like a
 // session would. It asks one question card; on "Write it now." it runs the real submit script with a valid
 // payload for its kind of session (v1 Draft, Proposal or Template). A message containing CRASH makes it die.
+// A turn with Images (a content array) is answered with one extra line, "Received image blocks: Image 1 (image/png, …)".
 // Like Claude Code it names its session in an init event; with --resume it keeps the name it is given.
 import { spawnSync } from 'node:child_process'
 import readline from 'node:readline'
@@ -47,8 +48,29 @@ function payload() {
   }
 }
 
+const IMAGE_LABEL = /^Image (\d+):$/
+
+/** A turn's content is plain text, or (when it carries Images) an array of text and image blocks. */
+function readContent(content) {
+  if (typeof content === 'string') return { text: content, images: [] }
+  const text = content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n')
+  const images = []
+  let label = ''
+  for (const block of content) {
+    if (block.type === 'text') label = IMAGE_LABEL.test(block.text) ? block.text.slice(0, -1) : ''
+    if (block.type === 'image') {
+      const { media_type: mediaType, data } = block.source
+      images.push(`${label || 'Image ?'} (${mediaType}, ${data.length} base64 characters)`)
+    }
+  }
+  return { text, images }
+}
+
 for await (const line of readline.createInterface({ input: process.stdin })) {
-  const text = JSON.parse(line).message.content
+  const { text, images } = readContent(JSON.parse(line).message.content)
   if (!seed) {
     seed = text
     emit({ type: 'system', subtype: 'init', session_id: claudeSessionId })
@@ -59,6 +81,8 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     process.exit(3)
   }
   if (text !== 'Write it now.') {
+    // Lets tests see what reached the child process: one line naming each image block it received.
+    if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
     emit({
       type: 'assistant',
       message: {

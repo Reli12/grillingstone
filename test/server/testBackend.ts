@@ -49,10 +49,17 @@ export async function startBackend() {
     return { status: res.status, body: (await res.json()) as T }
   }
 
+  /** A GET whose answer is not JSON (an Image): the status, content type and bytes. */
+  const raw = async (url: string) => {
+    const res = await fetch(`${SERVER_URL}${url}`)
+    const bytes = Buffer.from(await res.arrayBuffer())
+    return { status: res.status, contentType: res.headers.get('content-type'), bytes }
+  }
+
   const close = async () => {
     // Wait for every session to save, so the next test's reset cannot delete data-test/ under a late write.
     await supervisor.stopAll()
     await new Promise((resolve) => server.close(resolve))
   }
-  return { call, events, supervisor, close }
+  return { call, raw, events, supervisor, close }
 }

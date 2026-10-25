@@ -1,10 +1,15 @@
 // Tests for the HTTP plumbing: route matching, request body parsing, and error-to-status mapping.
+import type { IncomingMessage } from 'node:http'
+import { Readable } from 'node:stream'
+
 import { describe, expect, it } from 'vitest'
 
 import { DraftOpError } from '#core/draft/humanOps.ts'
 
+import { buildRouter } from '../app.ts'
+import type { AppDeps } from '../routes/deps.ts'
 import { NotFound } from '../storage/errors.ts'
-import { parse } from './body.ts'
+import { IMAGE_MAX_BODY, parse, readBody } from './body.ts'
 import { HttpError, knownError } from './errors.ts'
 import { Router } from './router.ts'
 import { humanOpBody, templateSessionBody } from './schemas.ts'
@@ -17,9 +22,40 @@ describe('Router', () => {
     expect(router.match('GET', '/api/projects/a%20b/drafts/d1')).toEqual({
       handler,
       params: { projectId: 'a b', draftId: 'd1' },
+      options: {},
     })
     expect(router.match('POST', '/api/projects/a/drafts/d1')).toBeNull()
     expect(router.match('GET', '/api/projects/a/drafts/d1/extra')).toBeNull()
+  })
+})
+
+describe('body size limits', () => {
+  const bodyOf = (bytes: number) => Readable.from([Buffer.from(JSON.stringify({ text: 'x'.repeat(bytes) }))])
+  const SIX_MB = 6_000_000
+
+  it('refuses a body over 5 MB by default and accepts it under the larger limit', async () => {
+    await expect(readBody(bodyOf(SIX_MB) as IncomingMessage)).rejects.toMatchObject({ status: 413 })
+    await expect(readBody(bodyOf(SIX_MB) as IncomingMessage, IMAGE_MAX_BODY)).resolves.toMatchObject({
+      text: expect.any(String),
+    })
+  })
+
+  it('refuses a body over 40 MB even on a route that takes Images', async () => {
+    const forty = IMAGE_MAX_BODY + 1
+    await expect(readBody(bodyOf(forty) as IncomingMessage, IMAGE_MAX_BODY)).rejects.toMatchObject({ status: 413 })
+  })
+
+  it('gives the larger limit to the say and start-session routes only', () => {
+    // Registering routes only reads the dependencies inside handlers, which this test never calls.
+    const router = buildRouter({} as AppDeps)
+    const limitOf = (method: string, path: string) => router.match(method, path)?.options.maxBody
+    expect(limitOf('POST', '/api/sessions/s1/messages')).toBe(IMAGE_MAX_BODY)
+    expect(limitOf('POST', '/api/projects/p/drafts/d/sessions')).toBe(IMAGE_MAX_BODY)
+    expect(limitOf('POST', '/api/sessions/s1/write')).toBeUndefined()
+    expect(limitOf('POST', '/api/projects/p/drafts/d/sessions/s1/continue')).toBeUndefined()
+    expect(limitOf('POST', '/api/projects')).toBeUndefined()
+    expect(limitOf('POST', '/api/projects/p/drafts')).toBeUndefined()
+    expect(limitOf('PUT', '/api/settings')).toBeUndefined()
   })
 })
 

@@ -66,15 +66,23 @@ export const humanOpBody: z.ZodType<HumanOp> = z.discriminatedUnion('op', [
 
 export const decideBody = z.object({ changeId: z.string(), accept: z.boolean() })
 
+/** Only the shape: which media types and sizes are allowed is the Image rules' call, made again by the session. */
+const imageUploads = z.array(z.object({ mediaType: z.string(), data: z.string() })).default([])
+
 export const startSessionBody = z.object({
   kind: z.enum(['first', 'focused', 'iteration', 'upgrade'], { error: 'Unknown session kind.' }),
   focus: z.object({ sectionId: z.string(), entryId: z.string().optional() }).optional(),
   humanNote: z.string().optional(),
+  images: imageUploads,
 })
 
 export const continueSessionBody = z.object({ humanNote: z.string().optional() })
 
-export const sayBody = z.object({ text: z.string(), kind: z.enum(['answer', 'message']).default('message') })
+export const sayBody = z.object({
+  text: z.string(),
+  kind: z.enum(['answer', 'message']).default('message'),
+  images: imageUploads,
+})
 
 export const templateSessionBody = z.object({
   /** Ignored when the session starts from a Template, whose Tracker it keeps. */

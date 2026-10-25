@@ -3,6 +3,7 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 
 import type { Seed } from '#core/session/cardProtocol.ts'
+import type { ContentBlock } from '#core/session/images.ts'
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
 import { CLAUDE_BIN, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
@@ -64,9 +65,9 @@ export function spawnClaude({ sessionId, token, scope, seed, model, conversation
   })
 }
 
-/** Sends one human turn over stream-json. */
-export const sendMessage = (child: ChildProcess, text: string) =>
-  child.stdin?.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`)
+/** Sends one human turn over stream-json: plain text, or a content array when the turn carries Images. */
+export const sendMessage = (child: ChildProcess, content: string | ContentBlock[]) =>
+  child.stdin?.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content } })}\n`)
 
 /** Turns stdout chunks into parsed JSON lines; lines that are not JSON are skipped. */
 export function jsonLines(onEvent: (event: Record<string, unknown>) => void) {
