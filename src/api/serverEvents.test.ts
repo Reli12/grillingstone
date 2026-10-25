@@ -76,6 +76,34 @@ describe('applyServerEvent', () => {
       expect(invalidated(qc, key)).toBe(true)
   })
 
+  it('refetches the Prototype lists of the Project when its Prototypes change', () => {
+    const qc = seeded()
+    const lists = [queryKeys.draftPrototypes(projectId, draft.id), queryKeys.projectPrototypes(projectId)]
+    for (const key of lists) qc.setQueryData(key, [])
+    applyServerEvent(qc, { type: 'prototypes', projectId })
+    for (const key of lists) expect(invalidated(qc, key)).toBe(true)
+  })
+
+  it('refetches them when a Prototype Session changes status, and leaves another Project’s lists alone', () => {
+    const qc = seeded()
+    const here = queryKeys.draftPrototypes(projectId, draft.id)
+    const elsewhere = queryKeys.draftPrototypes('other-project', 'd1')
+    qc.setQueryData(here, [])
+    qc.setQueryData(elsewhere, [])
+    const session = {
+      id: 'psess-1',
+      kind: 'prototype' as const,
+      projectId,
+      draftId: draft.id,
+      draftVersion: 1,
+      status: 'thinking' as const,
+      startedAt: '',
+    }
+    applyServerEvent(qc, { type: 'prototypeSession', projectId, session })
+    expect(invalidated(qc, here)).toBe(true)
+    expect(invalidated(qc, elsewhere)).toBe(false)
+  })
+
   it('tracks a session starting and ending on its Draft and Transcript', () => {
     const qc = seeded()
     const live = liveSession(draft, { status: 'thinking' })

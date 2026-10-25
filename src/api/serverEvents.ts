@@ -125,5 +125,10 @@ export function applyServerEvent(qc: QueryClient, event: ServerEvent) {
     case 'message':
       applyMessage(qc, event)
       break
+    // A Prototype Session's status and a change to the Project's Prototypes both mean the lists of rows are out of date.
+    case 'prototypeSession':
+    case 'prototypes':
+      void qc.invalidateQueries({ queryKey: queryKeys.prototypes(event.projectId) })
+      break
   }
 }

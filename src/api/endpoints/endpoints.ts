@@ -25,6 +25,27 @@ export const endpoints = {
     `${projectPath(projectId)}/sessions/${encodeURIComponent(sessionId)}/images/${number}`,
   sessionWrite: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/write`,
   sessionStop: (sessionId: string) => `/api/sessions/${encodeURIComponent(sessionId)}/stop`,
+  draftPrototypes: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/prototypes`,
+  draftPrototypeImages: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/prototype-images`,
+  startPrototype: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/prototype-sessions`,
+  /** Every row of every Draft in the Project. */
+  projectPrototypes: (projectId: string) => `${projectPath(projectId)}/prototypes`,
+  stopPrototype: (projectId: string, sessionId: string) =>
+    `${projectPath(projectId)}/prototype-sessions/${encodeURIComponent(sessionId)}/stop`,
+  /** DELETE dismisses a Failed or Stopped session. */
+  prototypeSession: (projectId: string, sessionId: string) =>
+    `${projectPath(projectId)}/prototype-sessions/${encodeURIComponent(sessionId)}`,
+  /** What a session was started with, for Try again. */
+  prototypeSessionInputs: (projectId: string, sessionId: string) =>
+    `${projectPath(projectId)}/prototype-sessions/${encodeURIComponent(sessionId)}/inputs`,
+  prototype: (projectId: string, prototypeId: string) =>
+    `${projectPath(projectId)}/prototypes/${encodeURIComponent(prototypeId)}`,
+  /** The sandboxed page itself, for the viewer's iframe. */
+  prototypeView: (projectId: string, prototypeId: string) =>
+    `${projectPath(projectId)}/prototypes/${encodeURIComponent(prototypeId)}/view`,
+  /** The same page as a file the browser saves. */
+  prototypeDownload: (projectId: string, prototypeId: string) =>
+    `${projectPath(projectId)}/prototypes/${encodeURIComponent(prototypeId)}/view?download=1`,
   templates: '/api/templates',
   template: (id: string) => `/api/templates/${encodeURIComponent(id)}`,
   templatesExport: '/api/templates/export',
