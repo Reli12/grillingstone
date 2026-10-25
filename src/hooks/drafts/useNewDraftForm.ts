@@ -10,6 +10,7 @@ import { type WorkItemType } from '#core/shared/workItemType.ts'
 import { type Template, templateTracker } from '#core/template/templateTypes.ts'
 
 import { useCreateDraft } from '@/api/hooks/drafts/draftHooks'
+import { useImageAttachments } from '@/hooks/chat/useImageAttachments'
 import { type NewDraftFormData, newDraftSchema } from '@/lib/formSchemas/newDraftSchema'
 import { routesPaths } from '@/routes/routes'
 
@@ -36,6 +37,8 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     defaultValues: { workItemType: FIRST_TYPE[project.tracker], templateId: '', requirement: '', references: [] },
   })
   const create = useCreateDraft(project.id)
+  // Keyed by Project until the first session exists; a successful start moves the hint and sizes to it.
+  const attachments = useImageAttachments(`new-draft:${project.id}`)
 
   const [type, templateId, references] = useWatch({ control, name: ['workItemType', 'templateId', 'references'] })
   const forType = useMemo(() => templatesFor(templates, project.tracker, type), [templates, type, project.tracker])
@@ -44,9 +47,15 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
 
   const onSubmit = handleSubmit(({ templateId: _, ...rest }) => {
     if (!chosen) return
+    const images = attachments.batch()
     create.mutate(
-      { ...rest, templateId: chosen.id },
-      { onSuccess: ({ draft }) => void navigate(routesPaths.draft(project.id, draft.id)) },
+      { ...rest, templateId: chosen.id, images: images.uploads },
+      {
+        onSuccess: ({ draft, session }) => {
+          attachments.markSent(images, session.id)
+          void navigate(routesPaths.draft(project.id, draft.id))
+        },
+      },
     )
   })
   const chooseType = (nextType: WorkItemType) => {
@@ -67,5 +76,6 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     setValue,
     canStart,
     create,
+    attachments,
   }
 }

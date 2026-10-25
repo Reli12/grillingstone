@@ -1,12 +1,15 @@
-// Tests for NewDraftPage: starting each Work Item Type with its Template and References.
-import { screen } from '@testing-library/react'
+// Tests for NewDraftPage: starting each Work Item Type with its Template, References and Images. Image preparation
+// is stubbed: jsdom has no canvas.
+import { fireEvent, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import { defaultBugTemplate, defaultPbiTemplate, defaultTaskTemplate } from '#core/testing/fixtures.ts'
 
 import { endpoints } from '@/api/endpoints/endpoints'
+import { type Preparation, prepareImage } from '@/lib/imagePreparation'
+import { forgetImageSessions } from '@/lib/imageSessionMemory'
 import NewDraftPage from '@/pages/NewDraftPage/NewDraftPage'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
@@ -30,12 +33,20 @@ const written: DraftSummary = {
   updatedAt: '',
 }
 
+vi.mock('@/lib/imagePreparation', () => ({ prepareImage: vi.fn() }))
+
+const READY: Preparation = { ok: true, image: { mediaType: 'image/png', data: 'AAAA', size: 1000 } }
+const picture = (name = 'shot.png') => new File(['x'], name, { type: 'image/png' })
+
 let sent: unknown
 const renderPage = () => render(<NewDraftPage />, { route: '/p/customer-portal/new', path: '/p/:projectId/new' })
 
 describe('NewDraftPage', () => {
   beforeEach(() => {
     sent = undefined
+    forgetImageSessions()
+    vi.mocked(prepareImage).mockReset()
+    vi.mocked(prepareImage).mockResolvedValue(READY)
     server.use(
       http.get(`*${endpoints.project('customer-portal')}`, () =>
         HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '', tracker: 'azure-devops' }),
@@ -143,5 +154,33 @@ describe('NewDraftPage', () => {
     await user.click(screen.getByRole('button', { name: 'Start grilling' }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
     expect(sent).toMatchObject({ workItemType: 'Story', templateId: 'jira-story' })
+  })
+
+  it('starts the first session with Images pasted into the requirement', async () => {
+    const { user } = renderPage()
+    const requirement = await screen.findByRole('textbox', { name: 'Requirement' })
+    await user.type(requirement, 'Archive devices like this frame')
+    fireEvent.paste(requirement, { clipboardData: { files: [picture('frame.png')] } })
+    const thumbnails = await screen.findByRole('list', { name: 'Images to send' })
+    expect(within(thumbnails).getByRole('img', { name: 'frame.png' })).toBeInTheDocument()
+    expect(await screen.findByText(/Images are sent to Claude/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+    await screen.findByTestId('navigated')
+    expect(sent).toEqual({
+      workItemType: 'PBI',
+      templateId: defaultPbiTemplate.id,
+      requirement: 'Archive devices like this frame',
+      references: [],
+      images: [{ mediaType: 'image/png', data: 'AAAA' }],
+    })
+  })
+
+  it('adds an Image from the picker and takes it back with ✕', async () => {
+    const { user } = renderPage()
+    await user.upload(await screen.findByLabelText('Image files'), picture('picked.png'))
+    const thumbnails = await screen.findByRole('list', { name: 'Images to send' })
+    await user.click(within(thumbnails).getByRole('button', { name: 'Remove picked.png' }))
+    expect(screen.queryByRole('list', { name: 'Images to send' })).not.toBeInTheDocument()
   })
 })

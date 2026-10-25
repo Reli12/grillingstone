@@ -21,6 +21,8 @@ export interface NewDraftRequest {
   templateId: string
   requirement: string
   references: string[]
+  /** Shown with the requirement to the first session; left out of the body when empty. */
+  images?: ImageUpload[]
 }
 
 export interface StartSessionRequest {
@@ -39,8 +41,11 @@ export interface SayRequest {
 
 export const draftsApi = {
   getDraft: (projectId: string, draftId: string) => api.get<DraftWithSession>(endpoints.draft(projectId, draftId)),
-  createDraft: (projectId: string, body: NewDraftRequest) =>
-    api.post<{ draft: Draft; session: SessionSummary }>(endpoints.drafts(projectId), body),
+  createDraft: (projectId: string, { images = [], ...body }: NewDraftRequest) =>
+    api.post<{ draft: Draft; session: SessionSummary }>(endpoints.drafts(projectId), {
+      ...body,
+      ...(images.length ? { images } : {}),
+    }),
   deleteDraft: (projectId: string, draftId: string) => api.delete<{ ok: true }>(endpoints.draft(projectId, draftId)),
   applyOp: (projectId: string, draftId: string, op: HumanOp) =>
     api.post<Draft>(endpoints.draftOps(projectId, draftId), op),

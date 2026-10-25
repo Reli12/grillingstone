@@ -34,11 +34,16 @@ export const projectUpdateBody = z.object({
 
 export const glossaryBody = z.object({ markdown: z.string(), baseVersion: z.string() })
 
+/** Only the shape: which media types and sizes are allowed is the Image rules' call, made again by the session. */
+const imageUploads = z.array(z.object({ mediaType: z.string(), data: z.string() })).default([])
+
 export const newDraftBody = z.object({
   workItemType,
   templateId: z.string(),
   requirement: z.string(),
   references: ids,
+  /** Images shown with the requirement; the first session receives them. */
+  images: imageUploads,
 })
 
 export const referencesBody = z.object({ references: ids })
@@ -65,9 +70,6 @@ export const humanOpBody: z.ZodType<HumanOp> = z.discriminatedUnion('op', [
 ])
 
 export const decideBody = z.object({ changeId: z.string(), accept: z.boolean() })
-
-/** Only the shape: which media types and sizes are allowed is the Image rules' call, made again by the session. */
-const imageUploads = z.array(z.object({ mediaType: z.string(), data: z.string() })).default([])
 
 export const startSessionBody = z.object({
   kind: z.enum(['first', 'focused', 'iteration', 'upgrade'], { error: 'Unknown session kind.' }),

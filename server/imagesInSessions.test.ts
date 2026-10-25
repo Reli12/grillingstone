@@ -226,6 +226,40 @@ describe('the first message of a session', () => {
   })
 })
 
+describe('a new Draft', () => {
+  const newDraft = async (images: unknown[]) => {
+    const project = (await call('POST', '/api/projects', { name: 'Customer Portal' })).body as { id: string }
+    const created = await call('POST', `/api/projects/${project.id}/drafts`, {
+      workItemType: 'PBI',
+      templateId: defaultPbiTemplate.id,
+      requirement: 'Managers archive devices.',
+      images,
+    })
+    return { projectId: project.id, created }
+  }
+
+  it('starts its first session with the Images of the requirement', async () => {
+    const { projectId, created } = await newDraft([png])
+    expect(created.status).toBe(200)
+    const { draft, session } = created.body as { draft: Draft; session: SessionSummary }
+    const grilled = { projectId, draftId: draft.id, sessionId: session.id }
+    await waitForStatus(projectId, draft.id, 'waiting')
+
+    expect(await humanMessages(grilled)).toContainEqual(
+      expect.objectContaining({ images: [{ number: 1, mediaType: 'image/png' }] }),
+    )
+    expect((await claudeLines(grilled)).join('\n')).toContain('Received image blocks: Image 1 (image/png')
+    expect((await backend.raw(imageUrl(grilled, session.id, 1))).status).toBe(200)
+  })
+
+  it('refuses bad Images without creating the Draft', async () => {
+    const { projectId, created } = await newDraft([{ mediaType: 'image/svg+xml', data: PNG_BASE64 }])
+    expect(created.status).toBe(409)
+    expect(created.body).toMatchObject({ error: expect.stringContaining('PNG, JPEG, WebP and GIF') })
+    expect((await call('GET', `/api/projects/${projectId}/drafts`)).body).toEqual([])
+  })
+})
+
 describe('a Continuation', () => {
   it('numbers its Images after the session it continues and keeps them in its own folder', async () => {
     const grilled = await grillingDraft()
