@@ -9,17 +9,21 @@ export function YourDataNote() {
     <ProseSection id="your-data" title="Your data and your responsibility">
       <p>
         <strong>Grilling Stone itself sends nothing anywhere.</strong> It has no accounts, no telemetry and no server of
-        its own: your Projects, Drafts, Glossaries, Transcripts, Templates and settings stay in its{' '}
+        its own: your Projects, Drafts, Glossaries, Transcripts, Images, Templates and settings stay in its{' '}
         <InlineCode>data/</InlineCode> folder on your machine.
       </p>
       <p>
-        <strong>Claude Code sends your sessions to Anthropic.</strong> What you type, the Draft, Glossary and References
-        a session starts from, and the files it reads in the Project folder go to Anthropic on your own account, and
-        Claude may search the web while it works. Anthropic handles that data under its terms and Privacy Policy, linked
-        above.
+        <strong>Claude Code sends your sessions to Anthropic.</strong> What you type, the Images you add, the Draft,
+        Glossary and References a session starts from, and the files it reads in the Project folder go to Anthropic on
+        your own account, and Claude may search the web while it works. Anthropic handles that data under its terms and
+        Privacy Policy, linked above.
       </p>
       <p>You decide what goes in, so:</p>
       <ul className="list-disc space-y-1.5 pl-5">
+        <li>
+          <strong>Screenshots often show more than you intend</strong>, such as customer data, tokens or other windows.
+          Crop an Image to what matters before you add it.
+        </li>
         <li>
           <strong>You are responsible for what you share with Claude.</strong> Share only what you are allowed to: check
           your employer’s or client’s rules before entering confidential information, and don’t enter personal data,
