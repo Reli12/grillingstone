@@ -7,7 +7,7 @@ import type { Template } from '#core/template/templateTypes.ts'
 
 import type { DraftPageUi } from '@/hooks/draft/useDraftPageUi'
 
-export type Side = 'chat' | 'glossary'
+export type Side = 'chat' | 'glossary' | 'prototypes'
 
 export type MobileView = 'chat' | 'draft'
 

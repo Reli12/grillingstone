@@ -20,6 +20,7 @@ const renderPage = (route = '/p/customer-portal') =>
     <Routes>
       <Route path={routesPaths.project(':projectId')} element={<ProjectPage />} />
       <Route path={routesPaths.projectGlossary(':projectId')} element={<ProjectPage />} />
+      <Route path={routesPaths.projectPrototypes(':projectId')} element={<ProjectPage />} />
     </Routes>,
     { route },
   )
@@ -91,6 +92,24 @@ describe('ProjectPage', () => {
     expect(await screen.findByRole('tab', { name: 'Glossary' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('searchbox', { name: 'Filter terms' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Add term/ })).toBeInTheDocument()
+  })
+
+  it('opens the Prototypes tab at its own URL and lists the Project’s Prototypes', async () => {
+    server.use(http.get(`*${endpoints.projectPrototypes('customer-portal')}`, () => HttpResponse.json([])))
+    const { user } = renderPage()
+    await user.click(await screen.findByRole('tab', { name: 'Prototypes' }))
+
+    expect(await screen.findByRole('tab', { name: 'Prototypes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Prototypes' })).toHaveAttribute('href', '/p/customer-portal/prototypes')
+    expect(await screen.findByText('No Prototypes yet')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Drafts' })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('shows the Prototypes tab when opened by its URL', async () => {
+    server.use(http.get(`*${endpoints.projectPrototypes('customer-portal')}`, () => HttpResponse.json([])))
+    renderPage('/p/customer-portal/prototypes')
+    expect(await screen.findByRole('button', { name: '+ New Prototype' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Prototypes' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('switches back to the Drafts tab', async () => {
