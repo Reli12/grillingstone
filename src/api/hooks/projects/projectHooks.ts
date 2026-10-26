@@ -43,6 +43,18 @@ export function useChangeTracker(projectId: string) {
   })
 }
 
+/** Drops the deleted Project's cached data, and refreshes the list. */
+export function useDeleteProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: projectsApi.deleteProject,
+    onSuccess: (_, projectId) => {
+      qc.removeQueries({ queryKey: queryKeys.project(projectId) })
+      void qc.invalidateQueries({ queryKey: queryKeys.projects })
+    },
+  })
+}
+
 export function useSaveGlossary(projectId: string) {
   const qc = useQueryClient()
   return useMutation({
