@@ -5,7 +5,7 @@ import type { ChatMessage, PrototypeSessionSummary } from '#core/session/session
 
 import { Button } from '@/components/atoms/button/button'
 import { EndedRowActions } from '@/components/features/prototypes/endedRowActions/endedRowActions'
-import { lastMessageLines, shortReason, whenLabel } from '@/lib/prototypeLabel'
+import { lastMessageLines, sessionDetail, shortReason } from '@/lib/prototypeLabel'
 
 /** How many of Claude's last messages the Details show. */
 const DETAIL_MESSAGES = 6
@@ -20,14 +20,13 @@ interface FailedRowProps {
 /** A session that failed: the short reason, Details of Claude's last messages, and Try again or Dismiss. */
 export function FailedRow({ session, messages, tryAgainDisabled, onTryAgain }: Readonly<FailedRowProps>) {
   const [open, setOpen] = useState(false)
-  const detail = `Draft v${session.draftVersion}, started ${whenLabel(session.startedAt)}`
   return (
     <div>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-redpencil">Failed</p>
           <p className="text-sm text-ink">{shortReason(session.error)}</p>
-          <p className="text-[13px] text-ink-soft">{detail}</p>
+          <p className="text-[13px] text-ink-soft">{sessionDetail(session)}</p>
         </div>
         <Button size="sm" variant="quiet" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
           Details

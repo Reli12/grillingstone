@@ -11,6 +11,10 @@ export const rowDraftId = (row: PrototypeRow) => (row.kind === 'finished' ? row.
 export const isWritingFor = (rows: PrototypeRow[], draftId: string) =>
   rows.some((row) => row.kind === 'running' && row.session.draftId === draftId)
 
+/** The Drafts a Prototype is being written for: each is asked once, however long the list. */
+export const writingDraftIds = (rows: PrototypeRow[]): ReadonlySet<string> =>
+  new Set(rows.filter((row) => row.kind === 'running').map(rowDraftId))
+
 /** The finished Prototypes among the rows, in the same order. */
 export const finishedPrototypes = (rows: PrototypeRow[]): Prototype[] =>
   rows.flatMap((row) => (row.kind === 'finished' ? [row.prototype] : []))

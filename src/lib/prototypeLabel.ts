@@ -33,6 +33,10 @@ const STEP_LABELS = {
 /** Claude's latest step in words. */
 export const stepLabel = (step: PrototypeStep) => STEP_LABELS[step]
 
+/** "Draft v2, started 25 Oct 2026, 10:04": the line under an ended session's status. */
+export const sessionDetail = ({ draftVersion, startedAt }: { draftVersion: number; startedAt: string }) =>
+  `Draft v${draftVersion}, started ${whenLabel(startedAt)}`
+
 /** "v2 · 25 Oct 2026, 10:04": the Draft version a Prototype was built from, and the time it was written. */
 export const prototypeLabel = ({ draftVersion, writtenAt }: { draftVersion: number; writtenAt: string }) =>
   `v${draftVersion} · ${whenLabel(writtenAt)}`

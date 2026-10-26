@@ -10,7 +10,7 @@ import { DraftChooser } from '@/components/features/prototypes/draftChooser/draf
 import { PrototypeList } from '@/components/features/prototypes/prototypeList/prototypeList'
 import { PrototypeStartForm } from '@/components/features/prototypes/prototypeStartForm/prototypeStartForm'
 import { usePrototypeStartFlow } from '@/hooks/prototypes/usePrototypeStartFlow'
-import { isWritingFor } from '@/lib/prototypeRows'
+import { writingDraftIds } from '@/lib/prototypeRows'
 
 interface ProjectPrototypesTabProps {
   projectId: string
@@ -30,7 +30,7 @@ export function ProjectPrototypesTab({ projectId, drafts }: Readonly<ProjectProt
   if (!rows) return <p className="py-4 text-sm text-ink-soft">Loading…</p>
 
   const draftTitles = new Map(drafts.map((draft) => [draft.id, draft.title]))
-  const writing = new Set(drafts.filter((draft) => isWritingFor(rows, draft.id)).map((draft) => draft.id))
+  const writing = writingDraftIds(rows)
   const chosen = flow.open ? draftTitles.get(flow.open.draftId) : undefined
 
   return (
@@ -57,9 +57,9 @@ export function ProjectPrototypesTab({ projectId, drafts }: Readonly<ProjectProt
           onCancel={() => setChoosing(false)}
         />
       )}
-      {flow.open && (
+      {flow.open !== null && (
         <div className="space-y-2">
-          {chosen && <p className="text-sm text-ink-soft">For the Draft “{chosen}”</p>}
+          {chosen !== undefined && <p className="text-sm text-ink-soft">For the Draft “{chosen}”</p>}
           <PrototypeStartForm
             key={flow.open.key}
             projectId={projectId}

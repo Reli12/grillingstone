@@ -35,7 +35,7 @@ export function PrototypesTab({ projectId, draftId }: Readonly<PrototypesTabProp
           <p className="mt-1.5 text-[13px] text-ink-soft">A Prototype is already being written for this Draft.</p>
         )}
       </div>
-      {flow.open && (
+      {flow.open !== null && (
         <PrototypeStartForm
           key={flow.open.key}
           projectId={projectId}

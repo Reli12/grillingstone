@@ -35,7 +35,7 @@ export function FinishedRow({ prototype, startedFrom }: Readonly<FinishedRowProp
           {prototypeLabel(prototype)}
         </Link>
         <p className="text-[13px] text-ink-soft">{plural(prototype.assumptions.length, 'assumption')}</p>
-        {startedFrom && <p className="text-[13px] text-ink-soft">{startedFrom}</p>}
+        {!!startedFrom && <p className="text-[13px] text-ink-soft">{startedFrom}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <DownloadLink prototype={prototype} />

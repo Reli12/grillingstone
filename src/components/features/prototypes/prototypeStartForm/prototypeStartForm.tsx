@@ -9,6 +9,7 @@ import { ExtraImages } from '@/components/features/prototypes/extraImages/extraI
 import { StartFormImages } from '@/components/features/prototypes/startFormImages/startFormImages'
 import { StartingPrototypePicker } from '@/components/features/prototypes/startingPrototypePicker/startingPrototypePicker'
 import { usePrototypeStartForm } from '@/hooks/prototypes/usePrototypeStartForm'
+import { finishedPrototypes } from '@/lib/prototypeRows'
 
 interface PrototypeStartFormProps {
   projectId: string
@@ -34,7 +35,7 @@ export function PrototypeStartForm({
   const { data: images, error } = useDraftImages(projectId, draftId)
   const { data: rows } = usePrototypeRows(projectId, draftId)
   const draftImages = images ?? []
-  const earlier = (rows ?? []).flatMap((row) => (row.kind === 'finished' ? [row.prototype] : []))
+  const earlier = finishedPrototypes(rows ?? [])
   const form = usePrototypeStartForm({ projectId, draftId, images: draftImages, earlier, initial, onStarted })
   const total = `Images: ${megabytes(form.totalBytes)} MB of ${SESSION_IMAGE_WARNING_BYTES / MEGABYTE} MB`
 
@@ -64,12 +65,12 @@ export function PrototypeStartForm({
       )}
       <div className="space-y-1">
         <p className="text-[13px] text-ink-soft">{total}</p>
-        {error && (
+        {error !== null && (
           <p role="alert" className="text-[13px] text-redpencil">
             {error.message}
           </p>
         )}
-        {form.reason && (
+        {form.reason !== undefined && (
           <p role="alert" className="text-[13px] text-redpencil">
             {form.reason}
           </p>
