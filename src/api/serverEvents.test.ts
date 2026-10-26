@@ -152,6 +152,31 @@ describe('applyServerEvent', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.transcripts(projectId, draft.id) })
   })
 
+  it('refetches the Draft’s Images when a human message with Images arrives, and not for other messages', () => {
+    const qc = seeded()
+    const imagesKey = queryKeys.draftImages(projectId, draft.id)
+    const otherKey = queryKeys.draftImages(projectId, 'other-draft')
+    qc.setQueryData(imagesKey, [])
+    qc.setQueryData(otherKey, [])
+    const send = (message: ChatMessage) =>
+      applyServerEvent(qc, { type: 'message', projectId, draftId: draft.id, sessionId: 's1', message })
+
+    send(msg('plain'))
+    send({ id: 'h0', at: '', role: 'human', text: 'no images', kind: 'message' })
+    expect(invalidated(qc, imagesKey)).toBe(false)
+
+    send({
+      id: 'h1',
+      at: '',
+      role: 'human',
+      text: 'see this',
+      kind: 'message',
+      images: [{ number: 1, mediaType: 'image/png' }],
+    })
+    expect(invalidated(qc, imagesKey)).toBe(true)
+    expect(invalidated(qc, otherKey)).toBe(false)
+  })
+
   it('follows a Template Session', () => {
     const qc = seeded()
     const session = templateSession
