@@ -104,6 +104,19 @@ describe('projects and Glossary', () => {
     expect((await call('GET', '/api/projects/..%2Fetc')).status).toBe(404)
   })
 
+  it('deletes a Project with everything in it, but not while a session runs in it', async () => {
+    const grilled = await grillingDraft()
+    const busy = await call('DELETE', `/api/projects/${grilled.projectId}`)
+    expect(busy.status).toBe(409)
+    expect((await call('GET', `/api/projects/${grilled.projectId}`)).status).toBe(200)
+
+    await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
+    await vi.waitFor(async () => expect((await call('DELETE', `/api/projects/${grilled.projectId}`)).status).toBe(200))
+    expect((await call('GET', `/api/projects/${grilled.projectId}`)).status).toBe(404)
+    expect((await call('GET', '/api/projects')).body).toEqual([])
+    expect((await call('DELETE', `/api/projects/${grilled.projectId}`)).status).toBe(404)
+  })
+
   it('gives a new Project the Default Tracker unless it names one, and fixes it once a Draft exists', async () => {
     await call('PUT', '/api/settings', { author: 'a', defaultTracker: 'jira' })
     const jira = (await call('POST', '/api/projects', { name: 'Jira one' })).body as { id: string; tracker: string }

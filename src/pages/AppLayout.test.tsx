@@ -31,11 +31,11 @@ describe('AppLayout', () => {
     expect(localStorage.getItem('pbi.lastProject')).toBe('billing')
   })
 
-  it('offers a new Project and links home to the last Project', async () => {
+  it('offers a new Project and links home to the Project list, even with a Project remembered', async () => {
     rememberProject('billing')
     server.use(http.get(`*${endpoints.projects}`, () => HttpResponse.json(projects)))
     const { user } = render(<AppLayout />, { route: '/settings', path: '/settings' })
-    expect(screen.getByRole('link', { name: 'Grilling Stone' })).toHaveAttribute('href', '/p/billing')
+    expect(screen.getByRole('link', { name: 'Grilling Stone' })).toHaveAttribute('href', '/')
     await user.click(await screen.findByRole('button', { name: /Billing/ }))
     await user.click(screen.getByRole('button', { name: /New Project/ }))
     expect(await screen.findByTestId('navigated')).toBeInTheDocument()
