@@ -67,6 +67,19 @@ describe('PrototypeStartForm Images', () => {
     )
   })
 
+  it('puts an Image back into the total when it is ticked again', async () => {
+    prototypeBackend(draft, { images: twoImages })
+    const { user } = renderForm()
+
+    const [first] = await screen.findAllByRole('checkbox')
+    await user.click(first)
+    expect(first).not.toBeChecked()
+    await user.click(first)
+
+    expect(first).toBeChecked()
+    expect(screen.getByText('Images: 3.5 MB of 20 MB')).toBeInTheDocument()
+  })
+
   it('has no Image section when the Draft has no Images', async () => {
     prototypeBackend(draft)
     renderForm()
