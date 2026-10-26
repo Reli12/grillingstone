@@ -75,7 +75,16 @@ function readContent(content) {
 
 /** Announces a tool call and its result, the way Claude Code's stream shows them. */
 function toolCall(id, name, input, result) {
+  toolUse(id, name, input)
+  toolResult(id, result)
+}
+
+/** The call alone: Claude Code announces it before the tool runs. */
+function toolUse(id, name, input) {
   emit({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name, input }] } })
+}
+
+function toolResult(id, result) {
   const block = { type: 'tool_result', tool_use_id: id, content: result.content }
   emit({ type: 'user', message: { content: [{ ...block, ...(result.isError ? { is_error: true } : {}) }] } })
 }
@@ -84,18 +93,23 @@ function toolCall(id, name, input, result) {
 function submit(id, body) {
   const script = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
   const command = `node "${script}" <<'GRILLINGSTONE_JSON'\n…\nGRILLINGSTONE_JSON`
+  // Announced before it runs, like Claude Code does, so the backend knows the command before it gets the submission.
+  toolUse(id, 'Bash', { command })
   const run = spawnSync(process.execPath, [script], {
     input: JSON.stringify(body),
     env: process.env,
     encoding: 'utf8',
   })
-  toolCall(id, 'Bash', { command }, { content: run.stdout, isError: run.status !== 0 })
+  toolResult(id, { content: run.stdout, isError: run.status !== 0 })
   return run
 }
 
-// Markers in a Prototype Session's draft.md steer the fake: the first submit is refused, or the turn never ends
+// Markers in a Prototype Session's draft.md steer the fake: the first submit is refused, or the turn waits a few
+// seconds after reading the Draft (fake:hold, so a browser test can see the running row), or never ends
 // (fake:hang), or it crashes (fake:crash), or it ends the turn without submitting (fake:no-submit).
 const REFUSE_FIRST_MARKER = 'fake:refuse-first'
+const HOLD_MARKER = 'fake:hold'
+const HOLD_MS = 4000
 const HANG_MARKER = 'fake:hang'
 // …or it dies after reading the Draft, or ends its turn without writing or submitting anything.
 const CRASH_MARKER = 'fake:crash'
@@ -110,11 +124,13 @@ const prototypePage = (withImage, extra) =>
  * A Prototype Session's single turn: read the Draft, write prototype.html in the working folder, submit it; when
  * the Draft carries the refuse marker the first page has an external link, which the Edit then removes.
  */
-function prototypeTurn(images) {
+async function prototypeTurn(images) {
   if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
   const draftPath = path.join(process.cwd(), 'draft.md')
   const draft = fs.readFileSync(draftPath, 'utf8')
   toolCall('read-1', 'Read', { file_path: draftPath }, { content: 'ok' })
+  // Opt-in (e2e/prototypes.spec.ts): hold the turn open so a browser test can see the running row and grill meanwhile.
+  if (draft.includes(HOLD_MARKER)) await new Promise((resolve) => setTimeout(resolve, HOLD_MS))
   if (draft.includes(HANG_MARKER)) return // the turn never ends, so the session stays running
   if (draft.includes(CRASH_MARKER)) {
     process.stderr.write('fake claude crashed\n')
@@ -157,7 +173,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     if (resumeAt >= 0) say('Picking up where we left off.')
   }
   if (process.env.GRILLINGSTONE_GUARD_MODE === 'prototype') {
-    prototypeTurn(images)
+    await prototypeTurn(images)
     continue
   }
   if (text.includes('CRASH')) {
