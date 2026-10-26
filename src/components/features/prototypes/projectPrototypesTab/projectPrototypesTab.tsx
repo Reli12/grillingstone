@@ -18,7 +18,7 @@ interface ProjectPrototypesTabProps {
 }
 
 const EMPTY_EXPLANATION =
-  'A Prototype is a clickable mock-up of a Draft, written by Claude in one go from the Draft as it stands. Use + New Prototype to choose a Draft at v1 or later and have one written; you can keep grilling meanwhile.'
+  'A Prototype is an interactive illustration of what a Draft describes, written by Claude in one go from the Draft as it stands. Use + New Prototype to choose a Draft at v1 or later and have one written; you can keep grilling meanwhile.'
 
 /** The Project page's Prototypes tab: every Prototype of every Draft, and '+ New Prototype' with a Draft chooser. */
 export function ProjectPrototypesTab({ projectId, drafts }: Readonly<ProjectPrototypesTabProps>) {

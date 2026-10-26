@@ -287,7 +287,7 @@ describe('PrototypesTab empty state', () => {
     renderTab()
 
     expect(await screen.findByText('No Prototypes yet')).toBeInTheDocument()
-    expect(screen.getByText(/clickable mock-up/)).toBeInTheDocument()
+    expect(screen.getByText(/interactive illustration of what this Draft describes/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New Prototype' })).toBeEnabled()
   })
 
