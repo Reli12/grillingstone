@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 
 import { type PrototypeSession, prototypeSummaryOf } from '#core/prototype/prototypeRecords.ts'
+import { SUBMISSION_REFUSED_PREFIX } from '#core/prototype/prototypeStep.ts'
 import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
 import { buildMessageContent, type ImageRef, type ImageUpload, type NumberedImage } from '#core/session/images.ts'
@@ -469,12 +470,21 @@ export class Supervisor {
   // ── Submissions (from scripts/writeDraft.mjs) ───────────────────────────
 
   async submit(sessionId: string, token: string, payload: unknown): Promise<SubmitResult> {
+    const notRunning: SubmitResult = {
+      ok: false,
+      reasons: [{ code: 'unknown-session', message: 'This session is not running.' }],
+    }
     const live = this.live.get(sessionId)
-    if (!live || live.token !== token)
-      return { ok: false, reasons: [{ code: 'unknown-session', message: 'This session is not running.' }] }
+    if (!live || live.token !== token) return notRunning
+    // Still this session, running? A Stop during an await below ends it, and an ended record is never written to.
+    const isRunning = () => this.live.get(sessionId) === live
+    // Claude's stream events are handled one after another; the one announcing this very command may still be in the
+    // queue, and must be recorded before the outcome of the submission, or a refusal would come before its command.
+    await live.queue
+    if (!isRunning()) return notRunning
     const refuse = async (reasons: Reason[]) => {
       const listed = reasons.map((reason) => reason.message).join(' · ')
-      await this.push(live, systemMessage(`Submission refused — ${listed}`, 'error'))
+      await this.push(live, systemMessage(`${SUBMISSION_REFUSED_PREFIX} — ${listed}`, 'error'))
       return { ok: false as const, reasons }
     }
     // Checked before the submission is stored; committed only once it has been.
@@ -482,6 +492,7 @@ export class Supervisor {
     if (!allowed.ok) return refuse([allowed.reason])
 
     const result = await live.scope.submit(payload)
+    if (!isRunning()) return notRunning
     if (!result.ok) return refuse(result.reasons)
     const accepted = transition(live.state, { type: 'submissionAccepted' })
     if (accepted.ok) live.state = accepted.state
