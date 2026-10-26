@@ -9,7 +9,7 @@ import { type Tracker, TRACKER_LABELS, trackerOrDefault } from '#core/shared/tra
 
 import { Conflict, NotFound } from './errors.ts'
 import { isSafeId, readJson, writeJson } from './fsUtil.ts'
-import { draftsDir, projectFile, projectsDir, transcriptsDir } from './paths.ts'
+import { draftsDir, projectDir, projectFile, projectsDir, transcriptsDir } from './paths.ts'
 
 const MAX_SLUG_LENGTH = 40
 const FALLBACK_SLUG = 'project'
@@ -94,6 +94,12 @@ export async function updateProject(projectId: string, change: { name?: string; 
   }
   await writeJson(projectFile(projectId), project)
   return project
+}
+
+/** Deletes a Project's folder: its Drafts, Transcripts, Images and Glossary all go with it. */
+export async function deleteProject(projectId: string) {
+  await getProject(projectId)
+  await fs.rm(projectDir(projectId), { recursive: true, force: true })
 }
 
 export const allProjectIds = async () => (await listProjects()).map((project) => project.id)
