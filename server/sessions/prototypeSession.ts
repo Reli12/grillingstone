@@ -7,12 +7,14 @@ import path from 'node:path'
 import { buildPrototypeInputs, type PrototypeImage, type StartingPrototype } from '#core/prototype/prototypeInputs.ts'
 import { type PrototypeSession, prototypeSummaryOf, type TickedImage } from '#core/prototype/prototypeRecords.ts'
 import { buildPrototypeSeed } from '#core/prototype/prototypeSeed.ts'
+import { PROTOTYPE_SUBMIT_LABEL } from '#core/prototype/prototypeStep.ts'
 import {
   type ImageUpload,
   parseMessageImages,
   SESSION_IMAGE_WARNING_BYTES,
   type ValidImage,
 } from '#core/session/images.ts'
+import type { PrototypeStep } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import { plural } from '#core/shared/plural.ts'
 
@@ -203,20 +205,29 @@ function prototypeScope(
 ): Scope {
   // The Supervisor hands a scope back the Transcript it was prepared with, which is this session's record.
   const own = (transcript: AnyTranscript) => transcript as PrototypeSession
+  const announce = (transcript: AnyTranscript) =>
+    deps.hub.broadcast({ type: 'prototypeSession', projectId, session: prototypeSummaryOf(own(transcript)) })
+  let announcedStep: PrototypeStep | undefined
   return {
     cwd: workDir,
     guardMode: 'prototype',
     persist: false,
     singleTurn: true,
     save: (transcript) => savePrototypeSession(own(transcript)),
-    // A Prototype Session has no chat in the UI; only its status is announced.
-    emitMessage: () => undefined,
+    // A Prototype Session has no chat in the UI; a message is announced only when it changes Claude's step.
+    emitMessage: (transcript) => {
+      const { step } = prototypeSummaryOf(own(transcript))
+      if (step === announcedStep) return
+      announcedStep = step
+      announce(transcript)
+    },
     emitSession: (transcript) => {
-      deps.hub.broadcast({ type: 'prototypeSession', projectId, session: prototypeSummaryOf(own(transcript)) })
+      announcedStep = prototypeSummaryOf(own(transcript)).step
+      announce(transcript)
       deps.hub.broadcast({ type: 'prototypes', projectId })
     },
     submit,
-    submitLabel: 'Submitted the Prototype for validation',
+    submitLabel: PROTOTYPE_SUBMIT_LABEL,
     release: () => fs.rm(workDir, { recursive: true, force: true }),
   }
 }

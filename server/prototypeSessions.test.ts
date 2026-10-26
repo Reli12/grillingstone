@@ -98,6 +98,21 @@ describe('a Prototype Session that succeeds', () => {
     })
   })
 
+  it('sends ticked Images in the order the Draft numbered them, whatever order they were ticked in', async () => {
+    const grilled = await kit.draftAtV1([png, jpeg])
+    const started = await kit.runPrototype(grilled, 'finished', {
+      tickedImages: [
+        { sessionId: grilled.sessionId, number: 2 },
+        { sessionId: grilled.sessionId, number: 1 },
+      ],
+    })
+
+    const said = (await claudeSaid(grilled.projectId, started.id)).join('\n')
+    expect(said).toContain(
+      `Received image blocks: Image 1 (image/png, ${PNG_BASE64.length} base64 characters); Image 2 (image/jpeg, 4 base64 characters).`,
+    )
+  })
+
   it('leaves the Draft, the Proposals and the Glossary as they were', async () => {
     const grilled = await kit.draftAtV1()
     await fs.writeFile(glossaryFile(grilled.projectId), '# Glossary\n\n**Device**: a thing.\n')
@@ -121,6 +136,21 @@ describe('a Prototype Session that succeeds', () => {
     expect(statuses[0]).toBe('thinking')
     expect(statuses.at(-1)).toBe('finished')
     expect(backend.events).toContainEqual({ type: 'prototypes', projectId: grilled.projectId })
+  })
+
+  it('announces each new step of the work, derived from its tool calls, once', async () => {
+    const grilled = await kit.draftAtV1()
+    await kit.steer(grilled, 'fake:refuse-first')
+    const started = await kit.runPrototype(grilled, 'finished')
+
+    const steps = backend.events.flatMap((event) =>
+      event.type === 'prototypeSession' && event.session.id === started.id && event.session.step
+        ? [event.session.step]
+        : [],
+    )
+    const distinctInARow = steps.filter((step, i) => step !== steps[i - 1])
+    expect(distinctInARow).toEqual(['reading', 'writing', 'submitted', 'fixing', 'editing', 'submitted'])
+    expect(steps).toEqual(distinctInARow)
   })
 })
 

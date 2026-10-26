@@ -98,6 +98,9 @@ export interface TemplateTranscript extends TemplateSessionSummary {
   messages: ChatMessage[]
 }
 
+/** What Claude is doing in a running Prototype Session; derived by the server from its tool calls. */
+export type PrototypeStep = 'reading' | 'writing' | 'editing' | 'submitted' | 'fixing'
+
 /**
  * A Prototype Session (ADR-0023): on one Draft in one Project; ends with at most one Prototype. It has no Transcript
  * in the UI, so a summary is all the browser gets.
@@ -117,6 +120,8 @@ export interface PrototypeSessionSummary {
   startingPrototypeId?: string
   /** The Prototype it wrote, once accepted. */
   prototypeId?: string
+  /** Claude's latest step while the session is live; absent before its first step and once it has ended. */
+  step?: PrototypeStep
 }
 
 /** Server → browser over the websocket. */

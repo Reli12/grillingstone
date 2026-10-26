@@ -7,8 +7,11 @@ import {
   type ChatMessage,
   LIVE_STATUSES,
   type PrototypeSessionSummary,
+  type PrototypeStep,
   type SessionStatus,
 } from '#core/session/sessionTypes.ts'
+
+import { prototypeStepOf } from './prototypeStep.ts'
 
 const mediaType = z.enum(IMAGE_MEDIA_TYPES)
 const imageNumber = z.number().int().min(1)
@@ -90,9 +93,12 @@ export const prototypeSessionSchema = z.object({
 })
 export type PrototypeSession = z.infer<typeof prototypeSessionSchema>
 
-/** The record without its messages and inputs: what lists and live events send. */
+const stepSchema = z.enum(['reading', 'writing', 'editing', 'submitted', 'fixing']) satisfies z.ZodType<PrototypeStep>
+
+/** The record without its messages and inputs: what lists and live events send. A live one carries Claude's step. */
 export function prototypeSummaryOf(session: PrototypeSession): PrototypeSessionSummary {
   const { id, kind, projectId, draftId, draftVersion, status, startedAt, endedAt, error, prototypeId } = session
+  const step = LIVE_STATUSES.includes(status) ? prototypeStepOf(session.messages) : undefined
   return {
     id,
     kind,
@@ -105,6 +111,7 @@ export function prototypeSummaryOf(session: PrototypeSession): PrototypeSessionS
     ...(error ? { error } : {}),
     ...(session.inputs.startingPrototypeId ? { startingPrototypeId: session.inputs.startingPrototypeId } : {}),
     ...(prototypeId ? { prototypeId } : {}),
+    ...(step ? { step } : {}),
   }
 }
 
@@ -120,6 +127,7 @@ const sessionSummarySchema = z.object({
   error: z.string().optional(),
   startingPrototypeId: z.string().optional(),
   prototypeId: z.string().optional(),
+  step: stepSchema.optional(),
 }) satisfies z.ZodType<PrototypeSessionSummary>
 
 /** One row of a Prototypes list: a session in progress or ended without a Prototype, or a finished Prototype. */

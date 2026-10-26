@@ -4,7 +4,7 @@ import { expect, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { PrototypeRow } from '#core/prototype/prototypeRecords.ts'
-import type { PrototypeSessionSummary, SessionSummary } from '#core/session/sessionTypes.ts'
+import { LIVE_STATUSES, type PrototypeSessionSummary, type SessionSummary } from '#core/session/sessionTypes.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import type { TestBackend } from './testBackend.ts'
@@ -81,7 +81,18 @@ export function prototypeKit(backend: TestBackend) {
     await vi.waitFor(async () => expect((await kindsOf(grilled))[0]).toBe(kind), WAIT)
     // A Prototype is listed as soon as it is stored, a moment before its session has ended and released the Draft.
     await vi.waitFor(() => expect(backend.supervisor.livePrototypeForDraft(grilled.draftId)).toBeUndefined(), WAIT)
-    return started.body as PrototypeSessionSummary
+    // The session leaves the live set at the start of its ending; its closing status event follows a few saves later.
+    const summary = started.body as PrototypeSessionSummary
+    await vi.waitFor(() => {
+      const closing = backend.events.some(
+        (event) =>
+          event.type === 'prototypeSession' &&
+          event.session.id === summary.id &&
+          !LIVE_STATUSES.includes(event.session.status),
+      )
+      expect(closing).toBe(true)
+    }, WAIT)
+    return summary
   }
 
   /** The newest row, which must be a finished Prototype. */

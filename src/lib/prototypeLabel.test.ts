@@ -3,7 +3,22 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChatMessage } from '#core/session/sessionTypes.ts'
 
-import { lastMessageLines, prototypeLabel, shortReason, startedFromLabel } from '@/lib/prototypeLabel'
+import { elapsedLabel, lastMessageLines, prototypeLabel, shortReason, startedFromLabel } from '@/lib/prototypeLabel'
+
+describe('elapsedLabel', () => {
+  it.each([
+    [0, '0s'],
+    [42_000, '42s'],
+    [185_000, '3m 05s'],
+    [3_725_000, '1h 02m'],
+  ])('writes %i ms as %s', (ms, label) => {
+    expect(elapsedLabel(ms)).toBe(label)
+  })
+
+  it('never goes below zero when the clocks differ a little', () => {
+    expect(elapsedLabel(-5000)).toBe('0s')
+  })
+})
 
 describe('prototypeLabel', () => {
   it('names the Draft version and the time it was written', () => {
