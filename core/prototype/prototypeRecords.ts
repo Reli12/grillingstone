@@ -16,10 +16,10 @@ import { prototypeStepOf } from './prototypeStep.ts'
 const mediaType = z.enum(IMAGE_MEDIA_TYPES)
 const imageNumber = z.number().int().min(1)
 
-export const assumptionSchema = z.object({ choice: z.string(), why: z.string() })
+const assumptionSchema = z.object({ choice: z.string(), why: z.string() })
 
 /** An Image a Prototype shows, by its number in the session, with where it came from. */
-export const prototypeImageSchema = z.object({ number: imageNumber, mediaType, source: z.string() })
+const prototypeImageSchema = z.object({ number: imageNumber, mediaType, source: z.string() })
 
 /** prototypes/<id>.json: everything about a stored Prototype except its two HTML files. */
 export const prototypeSchema = z.object({
@@ -73,22 +73,26 @@ export type PrototypeInputsRecord = z.infer<typeof prototypeInputsSchema>
 // The messages are written by the Supervisor in its own shape; checking each field again here would only restate it.
 const chatMessageSchema = z.custom<ChatMessage>((value) => typeof value === 'object' && value !== null)
 
-/** prototype-sessions/<id>.json: the record of one Prototype Session, kept until it is dismissed or the Draft is deleted. */
-export const prototypeSessionSchema = z.object({
+/** The fields a Prototype Session's record and its summary share. */
+const sessionBaseSchema = z.object({
   id: z.string(),
   kind: z.literal('prototype'),
   projectId: z.string(),
   draftId: z.string(),
   draftVersion: z.number().int().min(1),
   status: statusSchema,
-  /** Always true: the session machine wants a confirmed write before it accepts a submission, and nobody confirms. */
-  writeConfirmed: z.boolean(),
   startedAt: z.string(),
   endedAt: z.string().optional(),
   error: z.string().optional(),
+  prototypeId: z.string().optional(),
+})
+
+/** prototype-sessions/<id>.json: the record of one Prototype Session, kept until it is dismissed or the Draft is deleted. */
+export const prototypeSessionSchema = sessionBaseSchema.extend({
+  /** Always true: the session machine wants a confirmed write before it accepts a submission, and nobody confirms. */
+  writeConfirmed: z.boolean(),
   claudeSessionId: z.string().optional(),
   inputs: prototypeInputsSchema,
-  prototypeId: z.string().optional(),
   messages: z.array(chatMessageSchema),
 })
 export type PrototypeSession = z.infer<typeof prototypeSessionSchema>
@@ -115,18 +119,8 @@ export function prototypeSummaryOf(session: PrototypeSession): PrototypeSessionS
   }
 }
 
-const sessionSummarySchema = z.object({
-  id: z.string(),
-  kind: z.literal('prototype'),
-  projectId: z.string(),
-  draftId: z.string(),
-  draftVersion: z.number().int().min(1),
-  status: statusSchema,
-  startedAt: z.string(),
-  endedAt: z.string().optional(),
-  error: z.string().optional(),
+const sessionSummarySchema = sessionBaseSchema.extend({
   startingPrototypeId: z.string().optional(),
-  prototypeId: z.string().optional(),
   step: stepSchema.optional(),
 }) satisfies z.ZodType<PrototypeSessionSummary>
 

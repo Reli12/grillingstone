@@ -7,6 +7,7 @@ import { type DraftImage, prototypeRows } from '#core/prototype/prototypeRecords
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { RawReply, type Router } from '../http/router.ts'
 import { startPrototypeBody } from '../http/schemas.ts'
+import { humanImageRefs } from '../sessions/sessionImages.ts'
 import { getDraft } from '../storage/drafts.ts'
 import { imageBytes } from '../storage/images.ts'
 import {
@@ -44,13 +45,11 @@ function attachment(fileName: string): string {
 /** The Images of the Draft's Grilling Sessions, oldest session first, each with its size on disk. */
 async function draftImages(projectId: string, draftId: string): Promise<DraftImage[]> {
   const found = (await listTranscripts(projectId, draftId)).flatMap((transcript) =>
-    transcript.messages
-      .flatMap((message) => (message.role === 'human' ? (message.images ?? []) : []))
-      .map(async ({ number, mediaType }): Promise<DraftImage[]> => {
-        const sessionId = transcript.id
-        const bytes = await imageBytes({ projectId, sessionId, number, mediaType })
-        return bytes === undefined ? [] : [{ sessionId, number, mediaType, bytes, startedAt: transcript.startedAt }]
-      }),
+    humanImageRefs(transcript).map(async ({ number, mediaType }): Promise<DraftImage[]> => {
+      const sessionId = transcript.id
+      const bytes = await imageBytes({ projectId, sessionId, number, mediaType })
+      return bytes === undefined ? [] : [{ sessionId, number, mediaType, bytes, startedAt: transcript.startedAt }]
+    }),
   )
   return (await Promise.all(found)).flat()
 }
@@ -68,15 +67,21 @@ export function prototypeRoutes(router: Router, { supervisor, prototypes }: AppD
     supervisor.stopPrototype(params.projectId, params.sessionId)
     return { ok: true }
   })
-  router.get(`${PROJECT}/drafts/:draftId/prototypes`, async ({ params }) =>
-    prototypeRows(
-      await listPrototypes(params.projectId, params.draftId),
-      await listPrototypeSessions(params.projectId, params.draftId),
-    ),
-  )
-  router.get(`${PROJECT}/prototypes`, async ({ params }) =>
-    prototypeRows(await listPrototypes(params.projectId), await listPrototypeSessions(params.projectId)),
-  )
+  router.get(`${PROJECT}/drafts/:draftId/prototypes`, async ({ params }) => {
+    const { projectId, draftId } = params
+    const [written, sessions] = await Promise.all([
+      listPrototypes(projectId, draftId),
+      listPrototypeSessions(projectId, draftId),
+    ])
+    return prototypeRows(written, sessions)
+  })
+  router.get(`${PROJECT}/prototypes`, async ({ params }) => {
+    const [written, sessions] = await Promise.all([
+      listPrototypes(params.projectId),
+      listPrototypeSessions(params.projectId),
+    ])
+    return prototypeRows(written, sessions)
+  })
   router.get(`${PROJECT}/drafts/:draftId/prototype-images`, async ({ params }) => {
     const { projectId, draftId } = params
     await getDraft(projectId, draftId)

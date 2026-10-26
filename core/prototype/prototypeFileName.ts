@@ -29,7 +29,7 @@ export function safeFileTitle(title: string): string {
 }
 
 /** `2026-10-25 14.05`: the local date and time of an ISO timestamp, with dots so the name has no colon. */
-export function fileNameTime(iso: string): string {
+function fileNameTime(iso: string): string {
   const at = new Date(iso)
   const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`
   return `${date} ${pad(at.getHours())}.${pad(at.getMinutes())}`

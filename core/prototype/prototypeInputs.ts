@@ -12,9 +12,9 @@ import {
   START_ASSUMPTIONS_FILE,
 } from '#core/prototype/prototypeFiles.ts'
 import { liveDraftMarkdown } from '#core/publish/draftMarkdown.ts'
-import type { ImageMediaType, NumberedImage, ValidImage } from '#core/session/images.ts'
+import { imageExtension, type ImageMediaType, type NumberedImage, type ValidImage } from '#core/session/images.ts'
 
-export const EXTRA_IMAGE_SOURCE = 'Added on the start form'
+const EXTRA_IMAGE_SOURCE = 'Added on the start form'
 const KEPT_NOTE = 'kept from the starting Prototype'
 const KEPT_FILE_NOTE = ' It is a file only: you are not shown it as an image block; Read it if you need it.'
 
@@ -69,17 +69,10 @@ export interface PrototypeInputs {
   messageImages: NumberedImage[]
 }
 
-const EXTENSIONS = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-} as const satisfies Record<ImageMediaType, string>
-
 // `images/N` as written in a Prototype's source; N is captured.
 const IMAGE_PATH_IN_SOURCE = /\bimages\/(\d+)(?!\w)/g
 
-const imagePath = (number: number, type: ImageMediaType) => `${IMAGES_FOLDER}/${number}.${EXTENSIONS[type]}`
+const imagePath = (number: number, type: ImageMediaType) => `${IMAGES_FOLDER}/${number}.${imageExtension(type)}`
 
 const sameImage = (first: ValidImage, second: ValidImage) =>
   first.mediaType === second.mediaType && first.data === second.data

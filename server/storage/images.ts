@@ -1,7 +1,7 @@
 // Images of Grilling Sessions, kept in the Project's folder: images/<sessionId>/<number>.<ext>.
 import fs from 'node:fs/promises'
 
-import type { ImageMediaType } from '#core/session/images.ts'
+import { imageExtension,type ImageMediaType } from '#core/session/images.ts'
 
 import { NotFound } from './errors.ts'
 import { isMissingFile, writeFileAtomic } from './fsUtil.ts'
@@ -15,18 +15,8 @@ export interface ImageLocation {
   mediaType: ImageMediaType
 }
 
-const EXTENSIONS = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-} as const satisfies Record<ImageMediaType, string>
-
-/** The file extension an Image of this media type is saved with. */
-export const imageExtension = (mediaType: ImageMediaType) => EXTENSIONS[mediaType]
-
 const fileOf = ({ projectId, sessionId, number, mediaType }: ImageLocation) =>
-  imageFile(projectId, sessionId, number, EXTENSIONS[mediaType])
+  imageFile(projectId, sessionId, number, imageExtension(mediaType))
 
 /** Saves an Image from its base64 data. */
 export async function saveImage(image: ImageLocation & { data: string }) {

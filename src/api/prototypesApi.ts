@@ -15,11 +15,7 @@ export interface StartPrototypeRequest {
 }
 
 /** What a session was started with, with the extra Images' bytes: 'Try again' refills the start form from it. */
-export interface PrototypeSessionInputs {
-  tickedImages: TickedImage[]
-  extraImages: ImageUpload[]
-  startingPrototypeId?: string
-}
+export type PrototypeSessionInputs = StartPrototypeRequest
 
 /** A Prototype with the title of its Draft, which the viewer's bar shows. */
 export interface PrototypeRecord {

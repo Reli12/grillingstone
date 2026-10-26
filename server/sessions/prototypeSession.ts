@@ -4,15 +4,17 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+import { IMAGES_FOLDER } from '#core/prototype/prototypeFiles.ts'
 import { buildPrototypeInputs, type PrototypeImage, type StartingPrototype } from '#core/prototype/prototypeInputs.ts'
 import { type PrototypeSession, prototypeSummaryOf, type TickedImage } from '#core/prototype/prototypeRecords.ts'
 import { buildPrototypeSeed } from '#core/prototype/prototypeSeed.ts'
 import { PROTOTYPE_SUBMIT_LABEL } from '#core/prototype/prototypeStep.ts'
 import {
+  base64ByteLength,
   type ImageUpload,
   parseMessageImages,
+  PROTOTYPE_IMAGES_TOO_LARGE,
   SESSION_IMAGE_WARNING_BYTES,
-  type ValidImage,
 } from '#core/session/images.ts'
 import type { PrototypeStep } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -38,6 +40,7 @@ import {
 import { listTranscripts } from '../storage/transcripts.ts'
 import { prototypeSubmitter, type StoredPrototype } from './prototypeSubmitter.ts'
 import { SessionError } from './sessionError.ts'
+import { humanImageRefs } from './sessionImages.ts'
 import type { AnyTranscript, PreparedSession, Scope } from './sessionScope.ts'
 
 export interface PrototypeSessionDeps {
@@ -57,7 +60,6 @@ export interface PrototypeStartArgs {
 
 const BELOW_V1 = 'A Prototype needs a Draft at v1 or later.'
 const OTHER_DRAFT = "That Prototype belongs to another Draft, so it can't be a starting point."
-const TOO_MANY_BYTES = 'The Images add up to more than 20 MB. Untick some, or remove an Image you added.'
 
 /** A Grilling Session's Image as the start form lists it: where it came from, and its bytes. */
 async function tickedImagesOf(args: PrototypeStartArgs): Promise<PrototypeImage[]> {
@@ -66,8 +68,8 @@ async function tickedImagesOf(args: PrototypeStartArgs): Promise<PrototypeImage[
   const transcripts = await listTranscripts(projectId, draftId)
   const wanted = tickedImages.map((ticked) => {
     const transcript = transcripts.find((candidate) => candidate.id === ticked.sessionId)
-    const ref = transcript?.messages.flatMap((message) => (message.role === 'human' ? (message.images ?? []) : []))
-    const image = ref?.find((candidate) => candidate.number === ticked.number)
+    const refs = transcript ? humanImageRefs(transcript) : []
+    const image = refs.find((candidate) => candidate.number === ticked.number)
     if (!transcript || !image) throw new SessionError(`Image ${ticked.number} is not one of this Draft's Images.`)
     return { transcript, order: transcripts.indexOf(transcript), ...ticked, mediaType: image.mediaType }
   })
@@ -93,18 +95,16 @@ async function startingPrototypeOf(
 ): Promise<StartingPrototype> {
   const prototype = await getPrototype(projectId, prototypeId)
   if (prototype.draftId !== draftId) throw new SessionError(OTHER_DRAFT)
-  return {
-    html: await readPrototypeSource(projectId, prototypeId),
-    assumptions: prototype.assumptions,
-    images: await readPrototypeImages(projectId, prototypeId),
-  }
+  const [html, images] = await Promise.all([
+    readPrototypeSource(projectId, prototypeId),
+    readPrototypeImages(projectId, prototypeId),
+  ])
+  return { html, assumptions: prototype.assumptions, images }
 }
-
-const bytesOf = (image: ValidImage) => Math.floor((image.data.length * 3) / 4)
 
 /** The session's working folder: the Draft, the Glossary, images.md and the Image files. */
 async function writeWorkFolder(dir: string, inputs: ReturnType<typeof buildPrototypeInputs>) {
-  await fs.mkdir(path.join(dir, 'images'), { recursive: true })
+  await fs.mkdir(path.join(dir, IMAGES_FOLDER), { recursive: true })
   for (const { path: file, content } of inputs.textFiles) await fs.writeFile(path.join(dir, file), content)
   for (const image of inputs.images) await fs.writeFile(path.join(dir, image.path), Buffer.from(image.data, 'base64'))
 }
@@ -125,8 +125,8 @@ export async function preparePrototypeSession(
   const starting = startingPrototypeId ? await startingPrototypeOf(args, startingPrototypeId) : undefined
   const ticked = await tickedImagesOf(args)
   // The Images kept from the starting Prototype are files only and do not count towards the limit.
-  if ([...ticked, ...extra.images].reduce((total, image) => total + bytesOf(image), 0) > SESSION_IMAGE_WARNING_BYTES)
-    throw new SessionError(TOO_MANY_BYTES)
+  const totalBytes = [...ticked, ...extra.images].reduce((total, image) => total + base64ByteLength(image.data), 0)
+  if (totalBytes > SESSION_IMAGE_WARNING_BYTES) throw new SessionError(PROTOTYPE_IMAGES_TOO_LARGE)
 
   const inputs = buildPrototypeInputs({ draft, glossary: glossary.markdown, ticked, extra: extra.images, starting })
   const id = newId('psess')

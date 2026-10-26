@@ -119,6 +119,7 @@ export function useImageAttachments(sessionKey: string, restored: ImageUpload[] 
 
   return {
     pending,
+    pendingBytes: totalBytes(pending),
     refusals,
     showHint: hintOpen && pending.length > 0,
     showWarning: warn,

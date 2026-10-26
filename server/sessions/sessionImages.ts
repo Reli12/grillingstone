@@ -15,6 +15,10 @@ import { type AnyTranscript, isGrillingTranscript } from './sessionScope.ts'
 
 export type NumberedValidImage = ValidImage & { number: number }
 
+/** Every Image the human's messages in a Grilling Session carry, in the order they were sent. */
+export const humanImageRefs = (transcript: Transcript): ImageRef[] =>
+  transcript.messages.flatMap((message) => (message.role === 'human' ? (message.images ?? []) : []))
+
 /** Only Grilling Sessions take Images; a Template Session has no Project to keep them in. */
 function grillingTranscript(transcript: AnyTranscript): Transcript {
   if (transcript.kind === 'template') throw new SessionError('Template Sessions do not take Images.')

@@ -14,11 +14,10 @@ import {
   type PrototypeSession,
   prototypeSessionSchema,
 } from '#core/prototype/prototypeRecords.ts'
-import type { ValidImage } from '#core/session/images.ts'
+import { imageExtension, type ValidImage } from '#core/session/images.ts'
 
 import { NotFound } from './errors.ts'
 import { isMissingFile, listJson, readJson, readText, writeFileAtomic, writeJson } from './fsUtil.ts'
-import { imageExtension } from './images.ts'
 import {
   prototypeExtraImageFile,
   prototypeExtraImagesDir,

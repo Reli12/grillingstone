@@ -1,7 +1,6 @@
 // The Prototype submit contract (ADR-0023): the payload a Prototype Session submits, validated with Zod; the
 // submitter that reads prototype.html from the session folder, runs assembly, and either refuses with reasons or
 // hands the finished Prototype to `store`. Storing itself belongs to Prototype storage.
-import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { z } from 'zod'
@@ -11,11 +10,11 @@ import { PROTOTYPE_FILE } from '#core/prototype/prototypeFiles.ts'
 import { plural } from '#core/shared/plural.ts'
 import type { Reason } from '#core/shared/validation.ts'
 
-import { isMissingFile } from '../storage/fsUtil.ts'
+import { readText } from '../storage/fsUtil.ts'
 import type { SubmitResult } from './sessionScope.ts'
 
 /** The submit payload names the file (always prototype.html) and lists the assumptions; the HTML is read from disk. */
-export const prototypePayload = z.object({
+const prototypePayload = z.object({
   prototype: z.literal(PROTOTYPE_FILE, { error: `"prototype" must be "${PROTOTYPE_FILE}".` }),
   assumptions: z.array(
     z.object({
@@ -58,13 +57,8 @@ const missingPrototype: Reason = {
 
 /** The file Claude wrote, or null when it does not exist or holds nothing. */
 async function readSource(sessionDir: string): Promise<string | null> {
-  try {
-    const source = await fs.readFile(path.join(sessionDir, PROTOTYPE_FILE), 'utf8')
-    return source.trim() ? source : null
-  } catch (error) {
-    if (isMissingFile(error)) return null
-    throw error
-  }
+  const source = await readText(path.join(sessionDir, PROTOTYPE_FILE))
+  return source?.trim() ? source : null
 }
 
 export function prototypeSubmitter({ sessionDir, images, store }: PrototypeSubmitterDeps) {

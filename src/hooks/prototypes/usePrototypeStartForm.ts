@@ -4,7 +4,7 @@
 import { useState } from 'react'
 
 import type { DraftImage, Prototype } from '#core/prototype/prototypeRecords.ts'
-import { SESSION_IMAGE_WARNING_BYTES } from '#core/session/images.ts'
+import { PROTOTYPE_IMAGES_TOO_LARGE, SESSION_IMAGE_WARNING_BYTES } from '#core/session/images.ts'
 
 import { useStartPrototype } from '@/api/hooks/prototypes/prototypeHooks'
 import type { PrototypeSessionInputs } from '@/api/prototypesApi'
@@ -21,8 +21,6 @@ interface PrototypeStartFormOptions {
   initial?: PrototypeSessionInputs
   onStarted: () => void
 }
-
-const TOO_MANY_BYTES = 'The Images add up to more than 20 MB. Untick some, or remove an Image you added.'
 
 /** One Image of the Draft, told apart from the others by its session and number. */
 const imageKey = ({ sessionId, number }: { sessionId: string; number: number }) => `${sessionId}:${number}`
@@ -49,8 +47,7 @@ export function usePrototypeStartForm({
   const startingPrototypeId = earlier.some((prototype) => prototype.id === chosenId) ? chosenId : ''
 
   const ticked = images.filter(isTicked)
-  const attachedBytes = attachments.pending.reduce((sum, { image }) => sum + image.size, 0)
-  const totalBytes = ticked.reduce((sum, image) => sum + image.bytes, attachedBytes)
+  const totalBytes = ticked.reduce((sum, image) => sum + image.bytes, attachments.pendingBytes)
   const overLimit = totalBytes > SESSION_IMAGE_WARNING_BYTES
 
   const toggle = (image: DraftImage) => {
@@ -77,7 +74,7 @@ export function usePrototypeStartForm({
     startingPrototypeId,
     setStartingPrototypeId: setChosenId,
     totalBytes,
-    reason: overLimit ? TOO_MANY_BYTES : undefined,
+    reason: overLimit ? PROTOTYPE_IMAGES_TOO_LARGE : undefined,
     submitting: start.isPending,
     submit,
   }
