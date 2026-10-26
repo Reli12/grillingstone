@@ -57,6 +57,71 @@ describe('Prototype assembly: refusals', () => {
     expect(refusedCodes(page(body))).toContain('external-reference')
   })
 
+  it.each([
+    ['a ">" inside an earlier quoted attribute', '<img alt="a>b" src="https://evil/x.png">'],
+    ['a single-quoted ">" inside an earlier attribute', `<img alt='a>b' src='https://evil/x.png'>`],
+    ['no white space between attributes', '<img alt="x"src="https://evil">'],
+    ['no white space before an href', '<a title="x"href="https://evil">x</a>'],
+    ['a "/" instead of white space', '<img/src="https://evil/x.png">'],
+    ['a stray quote in an unquoted value before a quoted ">"', '<img alt=a"b title="x>y" src=http://evil.test/p.png>'],
+    ['a stray single quote in an unquoted value', `<img alt=a'b title='x>y' src=http://evil.test/p.png>`],
+  ])('refuses a reference with %s', (_name, body) => {
+    expect(refusedCodes(page(body))).toContain('external-reference')
+  })
+
+  // Text a browser does not read as markup (script, style, textarea, …) can hold a stray quote that, read as markup,
+  // swallows what comes after it.
+  const SCRIPT_AND_STYLE = ['script', 'SCRIPT', 'style', 'STYLE', 'textarea', 'title']
+  const OTHER_TEXT_ELEMENTS = ['xmp', 'iframe', 'noembed', 'noframes', 'noscript']
+  it.each([...SCRIPT_AND_STYLE, ...OTHER_TEXT_ELEMENTS])('refuses a reference after a stray quote in <%s>', (name) => {
+    const body = `<${name}><b a='</${name}><img src=http://evil.test/x.png alt='x'>`
+    expect(refusedCodes(page(body))).toContain('external-reference')
+  })
+
+  it('refuses a meta refresh after a stray quote inside script text', () => {
+    const body = `<script>var s="<b a='";</script><meta http-equiv="refresh" content="0;url=http://evil.test/" x='y'>`
+    expect(refusedCodes(page(body))).toContain('forbidden-element')
+  })
+
+  it('refuses a CSS url() and @import in <style> text, whatever case the tag is in', () => {
+    const url = `<STYLE>a{content:"<b a='"}b{background:url(http://evil.test/x.png)}</STYLE>`
+    expect(refusedCodes(page(url))).toContain('external-reference')
+    const imported = `<style>a{content:"<b a='"}@import "http://evil.test/a.css";</style>`
+    expect(refusedCodes(page(imported))).toContain('external-reference')
+  })
+
+  it('refuses a tag written as a string in script text, which it cannot tell from markup in <svg>', () => {
+    const body = `<script>el.innerHTML = '<img src=http://evil.test/x.png>'</script>`
+    expect(refusedCodes(page(body))).toContain('external-reference')
+  })
+
+  it('accepts script text with a stray quote in a string literal when nothing else is wrong', () => {
+    expect(assemble(page(`<script>var s="<b a='";</script><p>ok</p>`)).ok).toBe(true)
+  })
+
+  it('still accepts anchors and Image references written that way', () => {
+    expect(assemble(page('<a alt="a>b" href="#top">x</a><img alt="x"src="images/1">')).ok).toBe(true)
+  })
+
+  it('keeps a quote inside a single-quoted anchor within that one attribute', () => {
+    const { html } = accepted(page(`<a href='#x" y'>x</a>`))
+    expect(html).toContain(`<a href='#x" y'>`)
+  })
+
+  it.each([
+    ['a decimal reference', '<meta http-equiv="&#114;efresh" content="0;url=#x">'],
+    ['a hex reference', '<meta http-equiv="&#x72;efresh" content="0;url=#x">'],
+    ['a decimal reference without a semicolon', '<meta http-equiv="&#114efresh" content="0;url=#x">'],
+    ['upper case and a single quote', `<meta HTTP-EQUIV='REFRESH' content="0">`],
+    ['a ">" in an earlier attribute', '<meta content="a>b" http-equiv="refresh">'],
+    [
+      'a stray quote in an unquoted value before a quoted ">"',
+      '<meta alt=a"b title="x>y" http-equiv="refresh" content="0;url=http://evil.test/">',
+    ],
+  ])('refuses a refreshing <meta> written with %s', (_name, head) => {
+    expect(refusedCodes(page('<p>x</p>', head))).toContain('forbidden-element')
+  })
+
   it('refuses an Image number the session does not have, with the number in the reason', () => {
     const result = assemble(page('<img src="images/9">'))
     expect(result).toMatchObject({ ok: false })
@@ -122,6 +187,15 @@ describe('Prototype assembly: what is accepted', () => {
     expect(result.html).not.toMatch(/images\/\d/)
   })
 
+  it('escapes a double quote when it re-quotes a srcset that held one, so it cannot start an attribute', () => {
+    const inlined = accepted(page(`<img srcset='images/1 1x" src=http://evil.test/p.png y="'>`)).html
+    expect(inlined).toContain(`data:image/png;base64,${PIXEL} 1x&quot; src=http://evil.test/p.png y=&quot;"`)
+    expect(inlined).not.toContain('1x" src')
+    const spaced = accepted(page(`<img srcset='#a"  src=http://evil.test/p.png y="'>`)).html
+    expect(spaced).toContain('srcset="#a&quot; src=http://evil.test/p.png y=&quot;"')
+    expect(spaced).not.toContain('#a" src')
+  })
+
   it('reports which Image numbers the page uses, once each and in order', () => {
     const result = accepted(page('<img src="images/2"><img src="images/1"><img src="images/2">'))
     expect(result.usedImages).toEqual([1, 2])
@@ -152,6 +226,34 @@ describe('Prototype assembly: the stored page', () => {
     const fragment = accepted('<p>just a fragment</p>').html
     expect(fragment.startsWith('<head><meta http-equiv="Content-Security-Policy"')).toBe(true)
     expect(fragment).toContain('<p>just a fragment</p>')
+  })
+
+  const CSP_META = `<meta http-equiv="Content-Security-Policy" content="${PROTOTYPE_CSP}">`
+
+  const DOC = '<!doctype html>'
+  const HEAD = '<head><title>T</title></head>'
+  it.each([
+    ['a comment before the doctype', `<!-- <head> -->${DOC}<html>${HEAD}<body></body></html>`],
+    ['a comment between html and head', `${DOC}<html><!-- <head> -->${HEAD}<body></body></html>`],
+    ['a comment that is never closed', `${DOC}<html>${HEAD}<body><!-- <head>`],
+    ['a <head> inside a script, before the page', `<script>var a = "<head>"</script>${DOC}<html>${HEAD}</html>`],
+    ['a <head> in a quoted attribute of <html>', `${DOC}<html lang="<head>"><body></body></html>`],
+    ['text before <head>', `hello${HEAD}<body></body>`],
+    ['a <head> after body content', `${DOC}<html><body><p>x</p>${HEAD}</body></html>`],
+  ])('puts the policy in the effective head despite %s', (_name, source) => {
+    const { html } = accepted(source)
+    // The policy meta comes before every tag of the page itself, and sits directly inside a <head> the browser opens.
+    const metaAt = html.indexOf(CSP_META)
+    expect(metaAt).toBeGreaterThan(-1)
+    const before = html.slice(0, metaAt).replace(/<!--[\s\S]*?-->/g, '')
+    expect(before).toMatch(/(?:^|<!doctype[^>]*>|<html(?:"[^"]*"|[^>"])*>)\s*<head>$/i)
+  })
+
+  it('puts the policy before the first script when <head> has a stray quote in an unquoted value', () => {
+    const source = '<head x=a"b><script>doEvil()</script><title>t</title></head><body class="c">"</body>'
+    const { html } = accepted(source)
+    expect(html.indexOf(CSP_META)).toBeGreaterThan(-1)
+    expect(html.indexOf(CSP_META)).toBeLessThan(html.indexOf('<script>doEvil()'))
   })
 
   it('keeps the doctype first when the page has no <head>', () => {
@@ -199,5 +301,28 @@ describe('Prototype assembly: the stored page', () => {
   it('uses the last </body> when the text mentions one earlier', () => {
     const { html } = accepted(page('<script>var tail = "</body>"</script>'))
     expect(html.indexOf('Assumptions (1)')).toBeGreaterThan(html.indexOf('</body>"</script>'))
+  })
+})
+
+describe('Prototype assembly: hostile input takes time in proportion to its size', () => {
+  // Pages Claude writes can be large, so there is no size cap to lean on: every scan must be linear.
+  const BUDGET_MS = 1000
+  it.each([
+    ['"url(" followed by white space and no ")"', 'url(' + ' '.repeat(200_000)],
+    ['many "url(" and a single ")" at the end', 'url('.repeat(50_000) + ')'],
+    ['many tag starts with no ">"', '<a'.repeat(100_000)],
+    ['many <meta starts with no ">"', '<meta '.repeat(40_000)],
+    ['many "<!" with no ">"', '<!'.repeat(100_000)],
+    ['many open quotes in tags', '<a x="'.repeat(50_000)],
+    ['many "<" and ">" pairs', '<a>'.repeat(60_000)],
+    ['many unclosed <script> starts', '<script>'.repeat(50_000)],
+    ['many unclosed <textarea> starts', '<textarea>x'.repeat(50_000)],
+    ['many closed <style> elements', '<style>a</style>'.repeat(40_000)],
+    ['many <title> starts and one late end', '<title>'.repeat(50_000) + '</title>'],
+    ['many "&#" references', '<meta http-equiv="' + '&#1'.repeat(60_000) + '">'],
+  ])('assembles %s within the time budget', (_name, hostile) => {
+    const started = performance.now()
+    assemble(page(hostile))
+    expect(performance.now() - started).toBeLessThan(BUDGET_MS)
   })
 })
