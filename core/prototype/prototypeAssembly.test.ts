@@ -122,6 +122,32 @@ describe('Prototype assembly: refusals', () => {
     expect(refusedCodes(page('<p>x</p>', head))).toContain('forbidden-element')
   })
 
+  it.each([
+    ['a self-closing <svg/>', '<svg/><title><a b="</title><meta http-equiv=refresh content="0;url=//evil.test">'],
+    ['a self-closing <math/>', '<math/><title><a b="</title><meta http-equiv=refresh content="0;url=//evil.test">'],
+    [
+      'an HTML breakout from <svg>',
+      '<svg><p><title><a b="</title><meta http-equiv=refresh content="0;url=//evil.test">',
+    ],
+    [
+      'a <foreignObject> integration point',
+      '<svg><foreignObject><title><a b="</title></foreignObject></svg><meta http-equiv=refresh content="0;url=//evil.test">',
+    ],
+    [
+      'the script double-escape state',
+      '<script><!--<script></script><a b="</script><meta http-equiv=refresh content="0;url=//evil.test">',
+    ],
+  ])('refuses a meta refresh hidden behind %s', (_name, body) => {
+    expect(refusedCodes(page(body))).toContain('forbidden-element')
+  })
+
+  it.each([
+    ['a Content-Security-Policy of its own', `<meta http-equiv="Content-Security-Policy" content="default-src *">`],
+    ['a value spelled with references', '<meta http-equiv="&#114;efresh" content="0">'],
+  ])('refuses any http-equiv, here %s, since the tool adds the only one', (_name, head) => {
+    expect(refusedCodes(page('<p>x</p>', head))).toContain('forbidden-element')
+  })
+
   it('refuses an Image number the session does not have, with the number in the reason', () => {
     const result = assemble(page('<img src="images/9">'))
     expect(result).toMatchObject({ ok: false })

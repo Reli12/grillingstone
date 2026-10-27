@@ -5,7 +5,7 @@ import type { ValidImage } from '#core/session/images.ts'
 import type { Reason } from '#core/shared/validation.ts'
 
 import { NextFinder, readCssUrl } from './cssUrls.ts'
-import { type HtmlAttribute, type HtmlTag, type HtmlToken, tokenizeHtml } from './htmlTokens.ts'
+import { type HtmlTag, type HtmlToken, tokenizeHtml } from './htmlTokens.ts'
 
 export interface PrototypeAssumption {
   /** What was chosen. */
@@ -52,9 +52,11 @@ const IMAGE_REFERENCE = /^images\/(\d+)$/
 const WHITESPACE = /\s+/
 const BASE_TAG = /<base\b/i
 const LINK_TAG = /<link\b/i
+// Any http-equiv, read from the source rather than from a tag: a browser decodes no references in an attribute
+// name, so this spelling is the only one, and no reading of the tokenizer can hide it. The tool adds the page's only
+// http-equiv, its Content-Security-Policy, itself.
+const HTTP_EQUIV = /http-equiv/i
 // A numeric character reference, which a browser decodes in an attribute value even without the `;`.
-const NUMERIC_REFERENCE = /&#(?:x([0-9a-f]+)|(\d+));?/gi
-const LAST_CODE_POINT = 0x10ffff
 const BODY_CLOSE = /<\/body\s*>/gi
 // Anything but HTML white space: text between markup.
 const NOT_SPACE = /[^ \t\n\f\r]/
@@ -168,31 +170,18 @@ const refusedReference = (value: string) =>
     `"${value}" is not allowed: a Prototype may refer only to its Images as images/N (a number from images.md, no file extension) and to places in the page as #anchor. Nothing may load from elsewhere.`,
   )
 
-function decodeNumericReferences(text: string): string {
-  return text.replace(NUMERIC_REFERENCE, (whole, hex?: string, decimal?: string) => {
-    const code = hex === undefined ? Number(decimal) : Number.parseInt(hex, 16)
-    return code <= LAST_CODE_POINT ? String.fromCodePoint(code) : whole
-  })
-}
-
-/** Whether the attribute says `http-equiv="refresh"`, however its value is spelled with character references. */
-function isRefresh(attribute: HtmlAttribute): boolean {
-  if (attribute.name.toLowerCase() !== 'http-equiv') return false
-  return decodeNumericReferences(attribute.value).toLowerCase().includes('refresh')
-}
-
-/** Whether any <meta> tag refreshes or redirects the page. */
-function refreshesPage(tokens: HtmlToken[]): boolean {
-  return tokens.some((token) => token.kind === 'tag' && token.name === 'meta' && token.attributes.some(isRefresh))
-}
-
-function elementReasons(source: string, tokenings: HtmlToken[][]): Reason[] {
+function elementReasons(source: string): Reason[] {
   const reasons: Reason[] = []
   if (BASE_TAG.test(source)) reasons.push(reason('forbidden-element', '<base> is not allowed.'))
   if (LINK_TAG.test(source))
     reasons.push(reason('forbidden-element', '<link> is not allowed: put styles in a <style> element.'))
-  if (tokenings.some(refreshesPage))
-    reasons.push(reason('forbidden-element', '<meta http-equiv="refresh"> is not allowed.'))
+  if (HTTP_EQUIV.test(source))
+    reasons.push(
+      reason(
+        'forbidden-element',
+        '<meta http-equiv> is not allowed: the tool adds the Content-Security-Policy itself.',
+      ),
+    )
   if (CSS_IMPORT.test(source))
     reasons.push(reason('external-reference', '@import is not allowed: put all CSS in the page.'))
   return reasons
@@ -296,7 +285,7 @@ const READINGS: { comments: boolean; rawText: boolean }[] = [
 export function assemblePrototype({ source, assumptions, images }: AssemblyInput): AssemblyResult {
   // The page is read four ways, with and without comments and with and without the text of script, style and the
   // like skipped: a browser does neither inside <svg>, and does both elsewhere, so what hides on one reading is plain
-  // markup on another. A reference or a refresh found on any reading refuses the page. That includes a tag written
+  // markup on another. A reference found on any reading refuses the page. That includes a tag written
   // as a string in a script, which is text for a browser but cannot be told from markup inside <svg>. The page itself
   // is rewritten from the first reading.
   const readings = READINGS.map((reading) => tokenizeHtml({ source, ...reading }))
@@ -308,7 +297,7 @@ export function assemblePrototype({ source, assumptions, images }: AssemblyInput
     return checker.refused
   })
   const reasons = [
-    ...elementReasons(source, readings),
+    ...elementReasons(source),
     ...[...new Set([...rewriter.refused, ...otherRefused])].map(refusedReference),
     ...assumptionReasons(assumptions),
   ]
