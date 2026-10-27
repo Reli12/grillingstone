@@ -85,14 +85,24 @@ describe('starting a Prototype Session', () => {
     expect(await kit.rowsOf(grilled)).toEqual([])
   })
 
-  it('is refused with a starting Prototype of another Draft', async () => {
+  it('starts from a Prototype of another Draft of the same Project', async () => {
     const grilled = await kit.draftAtV1()
     const other = await kit.draftAtV1([], grilled.projectId)
     await kit.runPrototype(other, 'finished')
     const foreign = await kit.newestPrototype(other)
 
+    await kit.runPrototype(grilled, 'finished', { startingPrototypeId: foreign.id })
+    expect((await kit.newestPrototype(grilled)).startingPrototypeId).toBe(foreign.id)
+  })
+
+  it('is refused with a starting Prototype of another Project', async () => {
+    const grilled = await kit.draftAtV1()
+    const elsewhere = await kit.draftAtV1()
+    await kit.runPrototype(elsewhere, 'finished')
+    const foreign = await kit.newestPrototype(elsewhere)
+
     const refused = await kit.startPrototype(grilled, { startingPrototypeId: foreign.id })
-    expect(refused.status).toBe(409)
+    expect(refused.status).toBe(404)
     expect(await kit.rowsOf(grilled)).toEqual([])
   })
 
@@ -320,7 +330,7 @@ describe('deleting a Draft', () => {
 
     const project = (await call('GET', `${projectUrl(grilled.projectId)}/prototypes`)).body
     expect(project).toHaveLength(1)
-    expect(project[0].prototype.draftId).toBe(kept.draftId)
+    expect(project[0].prototype.draft.draftId).toBe(kept.draftId)
     expect(backend.events).toContainEqual({ type: 'prototypes', projectId: grilled.projectId })
   })
 })

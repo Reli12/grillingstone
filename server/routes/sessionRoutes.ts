@@ -49,9 +49,10 @@ export function sessionRoutes(router: Router, { supervisor }: AppDeps) {
     const bytes = await readImage({ projectId, sessionId, number: ref.number, mediaType: ref.mediaType })
     return new RawReply(ref.mediaType, bytes)
   })
-  router.post('/api/projects/:projectId/drafts/:draftId/sessions/:sessionId/continue', ({ params, body }) =>
-    supervisor.continue(params.projectId, params.draftId, params.sessionId, parse(continueSessionBody, body).humanNote),
-  )
+  router.post('/api/projects/:projectId/drafts/:draftId/sessions/:sessionId/continue', ({ params, body }) => {
+    const { humanNote, prototypeIds } = parse(continueSessionBody, body)
+    return supervisor.continue(params.projectId, params.draftId, params.sessionId, { humanNote, prototypeIds })
+  })
 
   // Either kind of session
   router.post(

@@ -54,15 +54,16 @@ export interface PrototypeStartArgs {
   tickedImages: TickedImage[]
   /** Images added on the start form. */
   extraImages: ImageUpload[]
-  /** An earlier Prototype of the same Draft to start from. */
+  /** An earlier Prototype of the same Project to start from, of any Draft or none. */
   startingPrototypeId?: string
 }
 
-const BELOW_V1 = 'A Prototype needs a Draft at v1 or later.'
-const OTHER_DRAFT = "That Prototype belongs to another Draft, so it can't be a starting point."
+export const BELOW_V1 = 'A Prototype needs a Draft at v1 or later.'
 
 /** A Grilling Session's Image as the start form lists it: where it came from, and its bytes. */
-async function tickedImagesOf(args: PrototypeStartArgs): Promise<PrototypeImage[]> {
+export async function tickedImagesOf(
+  args: Pick<PrototypeStartArgs, 'projectId' | 'draftId' | 'tickedImages'>,
+): Promise<PrototypeImage[]> {
   const { projectId, draftId, tickedImages } = args
   // Oldest Grilling Session first, then by number: the order the Images are numbered in.
   const transcripts = await listTranscripts(projectId, draftId)
@@ -87,14 +88,10 @@ async function tickedImagesOf(args: PrototypeStartArgs): Promise<PrototypeImage[
 
 /**
  * The earlier Prototype as the new session starts from it: Claude's file as it submitted it, its assumptions and the
- * Images it showed. It must be one of this Draft's.
+ * Images it showed. It can be any Prototype of the Project, whichever Draft (or none) it belongs to.
  */
-async function startingPrototypeOf(
-  { projectId, draftId }: PrototypeStartArgs,
-  prototypeId: string,
-): Promise<StartingPrototype> {
+export async function startingPrototypeOf(projectId: string, prototypeId: string): Promise<StartingPrototype> {
   const prototype = await getPrototype(projectId, prototypeId)
-  if (prototype.draftId !== draftId) throw new SessionError(OTHER_DRAFT)
   const [html, images] = await Promise.all([
     readPrototypeSource(projectId, prototypeId),
     readPrototypeImages(projectId, prototypeId),
@@ -103,7 +100,7 @@ async function startingPrototypeOf(
 }
 
 /** The session's working folder: the Draft, the Glossary, images.md and the Image files. */
-async function writeWorkFolder(dir: string, inputs: ReturnType<typeof buildPrototypeInputs>) {
+export async function writeWorkFolder(dir: string, inputs: ReturnType<typeof buildPrototypeInputs>) {
   await fs.mkdir(path.join(dir, IMAGES_FOLDER), { recursive: true })
   for (const { path: file, content } of inputs.textFiles) await fs.writeFile(path.join(dir, file), content)
   for (const image of inputs.images) await fs.writeFile(path.join(dir, image.path), Buffer.from(image.data, 'base64'))
@@ -122,7 +119,7 @@ export async function preparePrototypeSession(
   if (draft.version < 1) throw new SessionError(BELOW_V1)
   const extra = parseMessageImages(args.extraImages)
   if (!extra.ok) throw new SessionError(extra.reasons.map((reason) => reason.message).join(' '))
-  const starting = startingPrototypeId ? await startingPrototypeOf(args, startingPrototypeId) : undefined
+  const starting = startingPrototypeId ? await startingPrototypeOf(projectId, startingPrototypeId) : undefined
   const ticked = await tickedImagesOf(args)
   // The Images kept from the starting Prototype are files only and do not count towards the limit.
   const totalBytes = [...ticked, ...extra.images].reduce((total, image) => total + base64ByteLength(image.data), 0)
@@ -161,8 +158,8 @@ export async function preparePrototypeSession(
         {
           id: prototypeId,
           projectId,
-          draftId,
-          draftVersion: draft.version,
+          draft: { draftId, draftVersion: draft.version },
+          writtenBy: { kind: 'prototype', sessionId: id },
           writtenAt: now(),
           ...(startingPrototypeId ? { startingPrototypeId } : {}),
           images: shown.map(({ number, mediaType, source: from }) => ({ number, mediaType, source: from })),

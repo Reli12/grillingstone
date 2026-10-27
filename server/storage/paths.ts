@@ -50,6 +50,18 @@ export const prototypeExtraImagesDir = (projectId: string, sessionId: string) =>
   path.join(prototypeSessionsDir(projectId), safeId(sessionId))
 export const prototypeExtraImageFile = (projectId: string, sessionId: string, number: number, ext: string) =>
   numberedImageFile(prototypeExtraImagesDir(projectId, sessionId), number, ext)
+/**
+ * The records of a Project's Prototype Grilling Sessions. A session's own Images (added on the start form or in the
+ * conversation) are kept in a folder of its id beside the record, named by their number in the session.
+ */
+export const prototypeGrillingSessionsDir = (projectId: string) =>
+  path.join(projectDir(projectId), 'prototype-grilling-sessions')
+export const prototypeGrillingSessionFile = (projectId: string, sessionId: string) =>
+  path.join(prototypeGrillingSessionsDir(projectId), `${safeId(sessionId)}.json`)
+export const prototypeGrillingImagesDir = (projectId: string, sessionId: string) =>
+  path.join(prototypeGrillingSessionsDir(projectId), safeId(sessionId))
+export const prototypeGrillingImageFile = (projectId: string, sessionId: string, number: number, ext: string) =>
+  numberedImageFile(prototypeGrillingImagesDir(projectId, sessionId), number, ext)
 /** A Prototype Session runs in its own folder, outside every Project, and removes it when it ends. */
 export const prototypeWorkDir = (sessionId: string) => path.join(DATA_DIR, 'prototype-work', safeId(sessionId))
 

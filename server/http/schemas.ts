@@ -45,6 +45,8 @@ export const newDraftBody = z.object({
   references: ids,
   /** Images shown with the requirement; the first session receives them. */
   images: imageUploads,
+  /** Prototypes of the Project the first session may read. */
+  prototypeIds: ids,
 })
 
 export const referencesBody = z.object({ references: ids })
@@ -77,6 +79,8 @@ export const startSessionBody = z.object({
   focus: z.object({ sectionId: z.string(), entryId: z.string().optional() }).optional(),
   humanNote: z.string().optional(),
   images: imageUploads,
+  /** Prototypes of the Project Claude may read as context. */
+  prototypeIds: ids,
 })
 
 /** Only the shape; every refusal about the Images and the Draft is the session's call, so its reason is the one shown. */
@@ -88,7 +92,14 @@ export const startPrototypeBody = z.object({
   startingPrototypeId: z.string().optional(),
 })
 
-export const continueSessionBody = z.object({ humanNote: z.string().optional() })
+/** Starts a Prototype Grilling Session: the same inputs as a Prototype Session, with the Draft optional. */
+export const startPrototypeGrillingBody = startPrototypeBody.extend({ draftId: z.string().optional() })
+
+/** Absent `prototypeIds`: the Continuation is given the Prototypes the earlier session had. */
+export const continueSessionBody = z.object({
+  humanNote: z.string().optional(),
+  prototypeIds: z.array(z.string()).optional(),
+})
 
 export const sayBody = z.object({
   text: z.string(),
