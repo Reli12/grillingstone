@@ -17,10 +17,12 @@ export const useProjectPrototypeRows = (projectId: string) =>
     queryFn: () => prototypesApi.getProjectRows(projectId),
   })
 
+/** The Images the start form offers for a Draft; with no Draft chosen ('') there is nothing to ask. */
 export const useDraftImages = (projectId: string, draftId: string) =>
   useQuery({
     queryKey: queryKeys.draftImages(projectId, draftId),
     queryFn: () => prototypesApi.getDraftImages(projectId, draftId),
+    enabled: draftId !== '',
   })
 
 export const usePrototypeRecord = (projectId: string, prototypeId: string) =>

@@ -91,47 +91,51 @@ describe('ProjectPrototypesTab empty state', () => {
 })
 
 describe('ProjectPrototypesTab + New Prototype', () => {
-  it('first asks which Draft, offering only Drafts at v1 or later', async () => {
-    prototypeBackend(archive)
+  const openChooser = async (user: ReturnType<typeof renderTab>['user']) => {
+    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
+    const form = await screen.findByRole('form', { name: 'New Prototype' })
+    return within(form).findByRole('combobox', { name: 'Draft (optional)' })
+  }
+
+  it('opens the form with a Draft chooser that offers only Drafts at v1 or later, none chosen', async () => {
+    prototypeBackend(archive, { drafts })
     const { user } = renderTab()
 
-    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
-    const chooser = screen.getByRole('group', { name: 'Which Draft is the Prototype of?' })
-    expect(within(chooser).getByRole('button', { name: archiveName })).toBeInTheDocument()
-    expect(within(chooser).getByRole('button', { name: /Export report/ })).toBeInTheDocument()
-    expect(within(chooser).queryByRole('button', { name: /Brand new Draft/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('form', { name: 'New Prototype' })).not.toBeInTheDocument()
+    const chooser = await openChooser(user)
+    expect(chooser).toHaveValue('')
+    expect(within(chooser).getByRole('option', { name: 'No Draft' })).toBeInTheDocument()
+    expect(within(chooser).getByRole('option', { name: archiveName })).toBeInTheDocument()
+    expect(within(chooser).getByRole('option', { name: /Export report/ })).toBeInTheDocument()
+    expect(within(chooser).queryByRole('option', { name: /Brand new Draft/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Write now' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Start grilling' })).toBeEnabled()
   })
 
   it('says so when no Draft has reached v1', async () => {
-    prototypeBackend(archive)
+    prototypeBackend(archive, { drafts: [brandNew] })
     const { user } = render(<ProjectPrototypesTab projectId={archive.projectId} drafts={[brandNew]} />)
 
-    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
+    await openChooser(user)
     expect(screen.getByText(/No Draft has reached v1 yet/)).toBeInTheDocument()
   })
 
   it('does not offer a Draft that has a Prototype being written', async () => {
-    prototypeBackend(archive, { rows: [runningOfArchive] })
+    prototypeBackend(archive, { rows: [runningOfArchive], drafts })
     const { user } = renderTab()
 
-    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
-    expect(screen.getByRole('button', { name: archiveName })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Export report/ })).toBeEnabled()
+    const chooser = await openChooser(user)
+    await vi.waitFor(() => expect(within(chooser).getByRole('option', { name: archiveName })).toBeDisabled())
+    expect(within(chooser).getByRole('option', { name: /Export report/ })).toBeEnabled()
   })
 
-  it('opens the same start form for the chosen Draft, and starts the session on it', async () => {
-    const api = prototypeBackend(exportDraft)
+  it('writes now on the chosen Draft with the single-turn session', async () => {
+    const api = prototypeBackend(exportDraft, { drafts })
     const { user } = renderTab()
 
-    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
-    await user.click(screen.getByRole('button', { name: /Export report/ }))
-
-    const form = await screen.findByRole('form', { name: 'New Prototype' })
-    expect(form).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Which Draft is the Prototype of?' })).not.toBeInTheDocument()
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    const chooser = await openChooser(user)
+    await user.selectOptions(chooser, exportDraft.id)
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() =>
       expect(api.requests).toContainEqual({
@@ -142,13 +146,13 @@ describe('ProjectPrototypesTab + New Prototype', () => {
     )
   })
 
-  it('closes the chooser with Cancel', async () => {
-    prototypeBackend(archive)
+  it('closes the form with Cancel', async () => {
+    prototypeBackend(archive, { drafts })
     const { user } = renderTab()
 
-    await user.click(await screen.findByRole('button', { name: '+ New Prototype' }))
+    await openChooser(user)
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('group', { name: 'Which Draft is the Prototype of?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'New Prototype' })).not.toBeInTheDocument()
   })
 })
 

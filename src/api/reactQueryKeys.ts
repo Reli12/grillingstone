@@ -18,6 +18,9 @@ export const queryKeys = {
     ['projects', projectId, 'drafts', draftId, 'prototype-images'] as const,
   // Not under `prototypes`: a stored Prototype's record does not change when the lists do.
   prototype: (projectId: string, prototypeId: string) => ['projects', projectId, 'prototype', prototypeId] as const,
+  // Not under `prototypes`: the server events fold the session's own status and messages into it.
+  prototypeGrillingSession: (projectId: string, sessionId: string) =>
+    ['projects', projectId, 'prototype-grilling', sessionId] as const,
   templates: ['templates'] as const,
   // Own root, so invalidating `templates` after an import does not re-run the preview.
   templateImportPreview: (bundle: unknown) => ['templateImportPreview', bundle] as const,

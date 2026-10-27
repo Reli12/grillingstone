@@ -1,4 +1,4 @@
-// The optional starting point of a Prototype: one of this Draft's earlier Prototypes, none chosen until the human does.
+// The optional starting point of a Prototype: any earlier Prototype of the Project, none chosen until the human does.
 import { useId } from 'react'
 
 import type { Prototype } from '#core/prototype/prototypeRecords.ts'
@@ -8,14 +8,14 @@ import { cn } from '@/lib/cn'
 import { prototypeLabel } from '@/lib/prototypeLabel'
 
 interface StartingPrototypePickerProps {
-  /** This Draft's earlier Prototypes, newest first. */
+  /** The Project's earlier Prototypes, newest first. */
   earlier: Prototype[]
   /** The id of the chosen Prototype; '' for none. */
   value: string
   onChange: (prototypeId: string) => void
 }
 
-/** The optional starting point of a Prototype: one of this Draft's earlier Prototypes, none chosen until the human does. */
+/** The optional starting point of a Prototype: any earlier Prototype of the Project, none chosen until the human does. */
 export function StartingPrototypePicker({ earlier, value, onChange }: Readonly<StartingPrototypePickerProps>) {
   const id = useId()
   return (

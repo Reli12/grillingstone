@@ -2,8 +2,10 @@
 import type { Prototype, PrototypeRow as Row } from '#core/prototype/prototypeRecords.ts'
 import type { PrototypeSessionSummary } from '#core/session/sessionTypes.ts'
 
+import { EndedGrillingRow } from '@/components/features/prototypes/endedGrillingRow/endedGrillingRow'
 import { FailedRow } from '@/components/features/prototypes/failedRow/failedRow'
 import { FinishedRow } from '@/components/features/prototypes/finishedRow/finishedRow'
+import { RunningGrillingRow } from '@/components/features/prototypes/runningGrillingRow/runningGrillingRow'
 import { RunningRow } from '@/components/features/prototypes/runningRow/runningRow'
 import { StoppedRow } from '@/components/features/prototypes/stoppedRow/stoppedRow'
 import { startedFromLabel } from '@/lib/prototypeLabel'
@@ -22,6 +24,10 @@ export function PrototypeRow({ row, prototypes, writing, onTryAgain }: Readonly<
   switch (row.kind) {
     case 'running':
       return <RunningRow session={row.session} />
+    case 'runningGrilling':
+      return <RunningGrillingRow session={row.session} />
+    case 'endedGrilling':
+      return <EndedGrillingRow session={row.session} />
     case 'failed':
       return (
         <FailedRow session={row.session} messages={row.messages} tryAgainDisabled={writing} onTryAgain={onTryAgain} />

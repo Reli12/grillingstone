@@ -4,6 +4,8 @@
 const projectPath = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}`
 const draftPath = (projectId: string, draftId: string) =>
   `${projectPath(projectId)}/drafts/${encodeURIComponent(draftId)}`
+const grillingPath = (projectId: string, sessionId: string) =>
+  `${projectPath(projectId)}/prototype-grilling-sessions/${encodeURIComponent(sessionId)}`
 
 export const endpoints = {
   settings: '/api/settings',
@@ -12,6 +14,9 @@ export const endpoints = {
   glossary: (projectId: string) => `${projectPath(projectId)}/glossary`,
   drafts: (projectId: string) => `${projectPath(projectId)}/drafts`,
   draft: draftPath,
+  /** POST creates a Draft from a Prototype and starts its first session. */
+  draftFromPrototype: (projectId: string, prototypeId: string) =>
+    `${projectPath(projectId)}/prototypes/${encodeURIComponent(prototypeId)}/drafts`,
   draftOps: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/ops`,
   draftReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/references`,
   decide: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/decide`,
@@ -38,6 +43,17 @@ export const endpoints = {
   /** What a session was started with, for Try again. */
   prototypeSessionInputs: (projectId: string, sessionId: string) =>
     `${projectPath(projectId)}/prototype-sessions/${encodeURIComponent(sessionId)}/inputs`,
+  /** POST starts a Prototype Grilling Session. */
+  startPrototypeGrilling: (projectId: string) => `${projectPath(projectId)}/prototype-grilling-sessions`,
+  /** GET reads the session with its conversation. */
+  prototypeGrillingSession: grillingPath,
+  prototypeGrillingMessages: (projectId: string, sessionId: string) => `${grillingPath(projectId, sessionId)}/messages`,
+  prototypeGrillingStop: (projectId: string, sessionId: string) => `${grillingPath(projectId, sessionId)}/stop`,
+  prototypeGrillingContinue: (projectId: string, sessionId: string) => `${grillingPath(projectId, sessionId)}/continue`,
+  prototypeGrillingEnd: (projectId: string, sessionId: string) => `${grillingPath(projectId, sessionId)}/end`,
+  /** An Image of the session's own folder, by its number in the session. */
+  prototypeGrillingImage: (projectId: string, sessionId: string, number: number) =>
+    `${grillingPath(projectId, sessionId)}/images/${number}`,
   prototype: (projectId: string, prototypeId: string) =>
     `${projectPath(projectId)}/prototypes/${encodeURIComponent(prototypeId)}`,
   /** The sandboxed page itself, for the viewer's iframe. */

@@ -2,6 +2,7 @@
 // offers, start and stop, and one Prototype's record. It records the requests it gets.
 import { http, HttpResponse } from 'msw'
 
+import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { DraftImage, Prototype, PrototypeRow, TickedImage } from '#core/prototype/prototypeRecords.ts'
 import type { ValidImage } from '#core/session/images.ts'
@@ -23,18 +24,21 @@ export const sessionOf = (draft: Draft, patch: Partial<PrototypeSessionSummary> 
   ...patch,
 })
 
-export const prototypeOf = (draft: Draft, patch: Partial<Prototype> = {}): Prototype => ({
+/** What a test may change about a Prototype; `draftVersion` stands for the version of its Draft link. */
+type PrototypePatch = Partial<Prototype> & { draftVersion?: number }
+
+export const prototypeOf = (draft: Draft, { draftVersion, ...patch }: PrototypePatch = {}): Prototype => ({
   id: 'proto-1',
   projectId: draft.projectId,
-  draftId: draft.id,
-  draftVersion: draft.version,
+  draft: { draftId: draft.id, draftVersion: draftVersion ?? draft.version },
+  writtenBy: { kind: 'prototype', sessionId: 'psess-1' },
   writtenAt: '2026-10-25T10:00:00Z',
   images: [],
   assumptions: [{ choice: 'Ten rows per page', why: 'The Draft gives no page size.' }],
   ...patch,
 })
 
-export const finishedRow = (draft: Draft, patch: Partial<Prototype> = {}): PrototypeRow => ({
+export const finishedRow = (draft: Draft, patch: PrototypePatch = {}): PrototypeRow => ({
   kind: 'finished',
   prototype: prototypeOf(draft, patch),
 })
@@ -55,19 +59,33 @@ export interface SessionInputs {
   startingPrototypeId?: string
 }
 
+export const draftSummaryOf = (draft: Draft, version = draft.version): DraftSummary => ({
+  id: draft.id,
+  projectId: draft.projectId,
+  title: draft.title,
+  requirement: draft.requirement,
+  workItemType: draft.workItemType,
+  version,
+  templateName: 'PBI',
+  pendingChanges: 0,
+  updatedAt: '2026-10-25T10:00:00Z',
+})
+
 interface Options {
   rows?: PrototypeRow[]
   images?: DraftImage[]
   draftTitle?: string
   /** Session id → the inputs it was started with. */
   inputs?: Record<string, SessionInputs>
+  /** The Project's Drafts, which the New Prototype form's Draft chooser lists; the Draft itself by default. */
+  drafts?: DraftSummary[]
 }
 
 const rowIdOf = (row: PrototypeRow) => (row.kind === 'finished' ? row.prototype.id : row.session.id)
 
 export function prototypeBackend(
   draft: Draft,
-  { rows = [], images = [], draftTitle = draft.title, inputs = {} }: Options = {},
+  { rows = [], images = [], draftTitle = draft.title, inputs = {}, drafts = [draftSummaryOf(draft)] }: Options = {},
 ) {
   const state = { rows, images, requests: [] as { method: string; path: string; body: unknown }[] }
   const { projectId, id: draftId } = draft
@@ -78,6 +96,7 @@ export function prototypeBackend(
   }
 
   server.use(
+    http.get(url(endpoints.drafts(projectId)), () => HttpResponse.json(drafts)),
     http.get(url(endpoints.draftPrototypes(projectId, draftId)), () => HttpResponse.json(state.rows)),
     http.get(url(endpoints.draftPrototypeImages(projectId, draftId)), () => HttpResponse.json(state.images)),
     http.post(url(endpoints.startPrototype(projectId, draftId)), async ({ request }) => {

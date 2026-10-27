@@ -1,9 +1,12 @@
 // With no session running, typing starts a new one: a fresh first session before v1, otherwise a New
+import { useState } from 'react'
+
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { ImageUpload } from '#core/session/images.ts'
 import { type SessionSummary, type Transcript } from '#core/session/sessionTypes.ts'
 
 import { NewSessionComposer } from '@/components/features/chat/newSessionComposer/newSessionComposer'
+import { PrototypeContextPicker } from '@/components/features/prototypes/prototypeContextPicker/prototypeContextPicker'
 import { SESSION_TITLES } from '@/constants/SessionConstants'
 import type { OnStarted } from '@/hooks/chat/useStartForm'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
@@ -60,17 +63,20 @@ export function IdleComposer({
   onShowChat,
 }: Readonly<IdleComposerProps>) {
   const { start, continueSession } = mutations
+  const [prototypeIds, setPrototypeIds] = useState<string[]>([])
   const beforeV1 = draft.version === 0
   const startByTyping = (text: string, images: ImageUpload[], onStarted: OnStarted) => {
     if (!continueFrom) {
-      // The images key is left out when there are none, so a text-only start is the request it always was.
+      // The keys are left out when there is nothing, so a plain start is the request it always was.
       const withImages = images.length ? { images } : {}
+      const withPrototypes = prototypeIds.length ? { prototypeIds } : {}
       const kind = beforeV1 ? 'first' : 'iteration'
       const onSuccess = (session: SessionSummary) => {
         onStarted(session.id)
+        setPrototypeIds([])
         onShowChat()
       }
-      start.mutate({ kind, humanNote: text, ...withImages }, { onSuccess })
+      start.mutate({ kind, humanNote: text, ...withImages, ...withPrototypes }, { onSuccess })
       return
     }
     const onSuccess = () => {
@@ -84,16 +90,26 @@ export function IdleComposer({
     : undefined
   const offerLatest = latest && canContinue(latest) ? () => onContinueFromChange(latest) : undefined
   const { placeholder, hint } = idleComposerText(!!continueFrom, beforeV1)
+  const toggle = (id: string) =>
+    setPrototypeIds((ids) => (ids.includes(id) ? ids.filter((existing) => existing !== id) : [...ids, id]))
   return (
-    <NewSessionComposer
-      starting={start.isPending || continueSession.isPending}
-      onStart={startByTyping}
-      sessionKey={`new-session:${draft.id}`}
-      blockedReason={draft.proposal ? PROPOSAL_OPEN_REASON : undefined}
-      onContinueLatest={offerLatest}
-      continuing={continuing}
-      placeholder={placeholder}
-      hint={hint}
-    />
+    <>
+      {/* A Continuation is given the Prototypes its session had, so only a fresh start picks them. */}
+      {!continueFrom && (
+        <div className="px-4">
+          <PrototypeContextPicker projectId={draft.projectId} prototypeIds={prototypeIds} onToggle={toggle} />
+        </div>
+      )}
+      <NewSessionComposer
+        starting={start.isPending || continueSession.isPending}
+        onStart={startByTyping}
+        sessionKey={`new-session:${draft.id}`}
+        blockedReason={draft.proposal ? PROPOSAL_OPEN_REASON : undefined}
+        onContinueLatest={offerLatest}
+        continuing={continuing}
+        placeholder={placeholder}
+        hint={hint}
+      />
+    </>
   )
 }

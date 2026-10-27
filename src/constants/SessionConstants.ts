@@ -7,12 +7,14 @@ export const SESSION_TITLES = {
   iteration: 'New Iteration',
   upgrade: 'Template upgrade',
   template: 'Template Session',
+  prototypeGrilling: 'Prototype Grilling Session',
 } as const
 
 /** What the Ready Check offers to write. */
 export const writeTarget = (kind: SessionBase['kind']) => {
   if (kind === 'first') return 'the Draft'
   if (kind === 'template') return 'the Template'
+  if (kind === 'prototypeGrilling') return 'the Prototype'
   // Every later session proposes changes instead of overwriting the Draft.
   return 'the Proposal'
 }
