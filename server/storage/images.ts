@@ -1,7 +1,7 @@
 // Images of Grilling Sessions, kept in the Project's folder: images/<sessionId>/<number>.<ext>.
 import fs from 'node:fs/promises'
 
-import type { ImageMediaType } from '#core/session/images.ts'
+import { imageExtension,type ImageMediaType } from '#core/session/images.ts'
 
 import { NotFound } from './errors.ts'
 import { isMissingFile, writeFileAtomic } from './fsUtil.ts'
@@ -15,15 +15,8 @@ export interface ImageLocation {
   mediaType: ImageMediaType
 }
 
-const EXTENSIONS = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-} as const satisfies Record<ImageMediaType, string>
-
 const fileOf = ({ projectId, sessionId, number, mediaType }: ImageLocation) =>
-  imageFile(projectId, sessionId, number, EXTENSIONS[mediaType])
+  imageFile(projectId, sessionId, number, imageExtension(mediaType))
 
 /** Saves an Image from its base64 data. */
 export async function saveImage(image: ImageLocation & { data: string }) {
@@ -35,6 +28,16 @@ export async function readImage(image: ImageLocation): Promise<Buffer> {
     return await fs.readFile(fileOf(image))
   } catch (error) {
     if (isMissingFile(error)) throw new NotFound(`No Image ${image.number}`)
+    throw error
+  }
+}
+
+/** An Image's size on disk, or undefined when its file is gone. */
+export async function imageBytes(image: ImageLocation): Promise<number | undefined> {
+  try {
+    return (await fs.stat(fileOf(image))).size
+  } catch (error) {
+    if (isMissingFile(error)) return undefined
     throw error
   }
 }

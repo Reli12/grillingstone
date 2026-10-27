@@ -87,6 +87,8 @@ export class DraftService {
   async delete(projectId: string, draftId: string) {
     await drafts.deleteDraft(projectId, draftId)
     this.hub.broadcast({ type: 'drafts', projectId })
+    // The Draft's Prototypes and session records went with it.
+    this.hub.broadcast({ type: 'prototypes', projectId })
   }
 
   /** Only Drafts that exist in the Project can be References. */

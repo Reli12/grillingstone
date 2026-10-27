@@ -13,6 +13,7 @@ const TemplatesPage = lazy(() => import('@/pages/TemplatesPage/TemplatesPage'))
 const NewTemplatePage = lazy(() => import('@/pages/NewTemplatePage/NewTemplatePage'))
 const TemplateSessionPage = lazy(() => import('@/pages/TemplateSessionPage/TemplateSessionPage'))
 const TemplateEditorPage = lazy(() => import('@/pages/TemplateEditorPage/TemplateEditorPage'))
+const PrototypeViewerPage = lazy(() => import('@/pages/PrototypeViewerPage/PrototypeViewerPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage/GuidePage'))
 const LegalPage = lazy(() => import('@/pages/LegalPage/LegalPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage/SettingsPage'))
@@ -21,8 +22,10 @@ export const routesPaths = {
   home: '/',
   project: (projectId: string) => `/p/${projectId}`,
   projectGlossary: (projectId: string) => `/p/${projectId}/glossary`,
+  projectPrototypes: (projectId: string) => `/p/${projectId}/prototypes`,
   newDraft: (projectId: string) => `/p/${projectId}/new`,
   draft: (projectId: string, draftId: string) => `/p/${projectId}/d/${draftId}`,
+  prototype: (projectId: string, prototypeId: string) => `/p/${projectId}/prototypes/${prototypeId}`,
   templates: '/templates',
   newTemplate: '/templates/new',
   templateSession: (sessionId: string) => `/templates/session/${sessionId}`,
@@ -43,8 +46,10 @@ const routes: RouteObject[] = [
       { path: routesPaths.home, element: page(<HomePage />) },
       { path: routesPaths.project(':projectId'), element: page(<ProjectPage />) },
       { path: routesPaths.projectGlossary(':projectId'), element: page(<ProjectPage />) },
+      { path: routesPaths.projectPrototypes(':projectId'), element: page(<ProjectPage />) },
       { path: routesPaths.newDraft(':projectId'), element: page(<NewDraftPage />) },
       { path: routesPaths.draft(':projectId', ':draftId'), element: page(<DraftPage />) },
+      { path: routesPaths.prototype(':projectId', ':prototypeId'), element: page(<PrototypeViewerPage />) },
       { path: routesPaths.templates, element: page(<TemplatesPage />) },
       { path: routesPaths.newTemplate, element: page(<NewTemplatePage />) },
       { path: routesPaths.templateSession(':sessionId'), element: page(<TemplateSessionPage />) },

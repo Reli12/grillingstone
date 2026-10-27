@@ -83,6 +83,9 @@ function applyTemplateMessage(qc: QueryClient, event: EventOf<'templateMessage'>
 }
 
 function applyMessage(qc: QueryClient, event: EventOf<'message'>) {
+  // The Draft's Images (offered when starting a Prototype) grow with a human message that carries Images.
+  if (event.message.role === 'human' && !!event.message.images?.length)
+    void qc.invalidateQueries({ queryKey: queryKeys.draftImages(event.projectId, event.draftId), exact: true })
   const transcriptsKey = queryKeys.transcripts(event.projectId, event.draftId)
   updateOrReload<Transcript[]>(qc, transcriptsKey, (old) => {
     // A session not yet in the list: refetch the list rather than guess where it belongs.
@@ -124,6 +127,11 @@ export function applyServerEvent(qc: QueryClient, event: ServerEvent) {
       break
     case 'message':
       applyMessage(qc, event)
+      break
+    // A Prototype Session's status and a change to the Project's Prototypes both mean the lists of rows are out of date.
+    case 'prototypeSession':
+    case 'prototypes':
+      void qc.invalidateQueries({ queryKey: queryKeys.prototypes(event.projectId) })
       break
   }
 }

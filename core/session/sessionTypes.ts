@@ -98,6 +98,32 @@ export interface TemplateTranscript extends TemplateSessionSummary {
   messages: ChatMessage[]
 }
 
+/** What Claude is doing in a running Prototype Session; derived by the server from its tool calls. */
+export type PrototypeStep = 'reading' | 'writing' | 'editing' | 'submitted' | 'fixing'
+
+/**
+ * A Prototype Session (ADR-0023): on one Draft in one Project; ends with at most one Prototype. It has no Transcript
+ * in the UI, so a summary is all the browser gets.
+ */
+export interface PrototypeSessionSummary {
+  id: string
+  kind: 'prototype'
+  projectId: string
+  draftId: string
+  /** The Draft version the Prototype is built from, as the Draft stood when the session started. */
+  draftVersion: number
+  status: SessionStatus
+  startedAt: string
+  endedAt?: string
+  error?: string
+  /** The earlier Prototype this session starts from. */
+  startingPrototypeId?: string
+  /** The Prototype it wrote, once accepted. */
+  prototypeId?: string
+  /** Claude's latest step while the session is live; absent before its first step and once it has ended. */
+  step?: PrototypeStep
+}
+
 /** Server → browser over the websocket. */
 export type ServerEvent =
   | { type: 'draft'; projectId: string; draft: Draft }
@@ -108,3 +134,7 @@ export type ServerEvent =
   | { type: 'templates' }
   | { type: 'templateSession'; session: TemplateSessionSummary }
   | { type: 'templateMessage'; sessionId: string; message: ChatMessage }
+  /** A Prototype Session started, changed status or ended. */
+  | { type: 'prototypeSession'; projectId: string; session: PrototypeSessionSummary }
+  /** A Project's Prototypes or Prototype rows changed; the lists refetch. */
+  | { type: 'prototypes'; projectId: string }

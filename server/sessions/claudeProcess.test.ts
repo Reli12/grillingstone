@@ -1,9 +1,11 @@
 // Tests for the `claude -p` launch arguments and the stdout JSON-lines reader.
+import { spawn } from 'node:child_process'
+
 import { describe, expect, it } from 'vitest'
 
 import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { claudeArgs, jsonLines } from './claudeProcess.ts'
+import { claudeArgs, ignoreBrokenPipe, jsonLines, sendMessage } from './claudeProcess.ts'
 
 describe('claudeArgs', () => {
   it('runs headless over stream-json with only the session tools and the guard hook', () => {
@@ -24,6 +26,18 @@ describe('claudeArgs', () => {
     expect(claudeArgs('RULES', '', { persist: true })).not.toContain('--resume')
     const resumed = claudeArgs('RULES', '', { persist: true, resume: 'claude-123' })
     expect(resumed[resumed.indexOf('--resume') + 1]).toBe('claude-123')
+  })
+})
+
+describe('sendMessage to a child that has gone', () => {
+  it('does not raise an unhandled error when the write meets a closed pipe', async () => {
+    const child = ignoreBrokenPipe(spawn(process.execPath, ['-e', '']))
+    await new Promise((resolve) => child.once('exit', resolve))
+
+    expect(() => sendMessage(child, 'too late')).not.toThrow()
+    // A write to a closed pipe fails on a later tick; without a listener that 'error' would be uncaught.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(child.stdin?.listenerCount('error')).toBeGreaterThan(0)
   })
 })
 

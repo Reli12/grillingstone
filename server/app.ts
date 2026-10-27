@@ -9,6 +9,7 @@ import { RawReply, Router } from './http/router.ts'
 import type { AppDeps } from './routes/deps.ts'
 import { draftRoutes } from './routes/draftRoutes.ts'
 import { projectRoutes } from './routes/projectRoutes.ts'
+import { prototypeRoutes } from './routes/prototypeRoutes.ts'
 import { sessionRoutes } from './routes/sessionRoutes.ts'
 import { settingsRoutes } from './routes/settingsRoutes.ts'
 import { templateRoutes } from './routes/templateRoutes.ts'
@@ -19,6 +20,7 @@ export function buildRouter(deps: AppDeps) {
   projectRoutes(router, deps)
   draftRoutes(router, deps)
   sessionRoutes(router, deps)
+  prototypeRoutes(router, deps)
   templateRoutes(router, deps)
   return router
 }
@@ -36,6 +38,7 @@ export function createApp(deps: AppDeps) {
           'content-type': data.contentType,
           'cache-control': IMAGE_CACHE_CONTROL,
           'x-content-type-options': 'nosniff',
+          ...data.headers,
         })
         res.end(data.bytes)
         return

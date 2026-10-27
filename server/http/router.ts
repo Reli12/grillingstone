@@ -11,13 +11,18 @@ export interface RequestContext {
 
 export type Handler = (ctx: RequestContext) => unknown
 
-/** A binary answer (an Image), sent as it is instead of as JSON. */
+/**
+ * A binary or HTML answer (an Image, a Prototype page), sent as it is instead of as JSON. `headers` (lower-case names)
+ * go on top of the defaults an Image gets, and replace them.
+ */
 export class RawReply {
   contentType: string
   bytes: Buffer
-  constructor(contentType: string, bytes: Buffer) {
+  headers: Record<string, string>
+  constructor(contentType: string, bytes: Buffer, headers: Record<string, string> = {}) {
     this.contentType = contentType
     this.bytes = bytes
+    this.headers = headers
   }
 }
 
