@@ -26,12 +26,15 @@ You run a Prototype Session: in a single turn you write one interactive HTML Pro
 - You never write anything but ${PROTOTYPE_FILE}. You never change the Draft, the Glossary or anything else.
 - Your working folder holds the Draft (${DRAFT_FILE}), the Glossary (${GLOSSARY_FILE}) and the Images (${IMAGES_FILE} lists them). You may read any file there.`
 
+/** The rules of the file itself, which the validator enforces: shared by every session that writes a Prototype. */
+export const PAGE_RULES = `- One self-contained HTML file: inline CSS in <style>, inline JavaScript in <script>. No external URLs, fonts or libraries, no <link>, <base> or <meta http-equiv> (the text "http-equiv" may not appear anywhere in the page). Nothing may load from elsewhere and nothing is sent anywhere.
+- Refer to an Image only as images/N, with the number from ${IMAGES_FILE} and without a file extension (<img src="images/2">, url(images/2)). Refer to places in the page only as #anchor.`
+
 const BUILD_RULES = `## How you build it
 - Match the look of the Images of existing screens first: layout, colours, type, components. Where there is no Image to follow, keep it plain and neutral.
 - Take wording from the Draft and the Glossary. Use the Glossary's terms exactly.
 - Make the flow of each Acceptance Criterion in the Draft reachable by clicking, and its outcome visible on screen. Walk the Acceptance Criteria one by one.
-- One self-contained HTML file: inline CSS in <style>, inline JavaScript in <script>. No external URLs, fonts or libraries, no <link>, <base> or <meta http-equiv> (the text "http-equiv" may not appear anywhere in the page). Nothing may load from elsewhere and nothing is sent anywhere.
-- Refer to an Image only as images/N, with the number from ${IMAGES_FILE} and without a file extension (<img src="images/2">, url(images/2)). Refer to places in the page only as #anchor.
+${PAGE_RULES}
 - Make it work offline with sample data you invent. Do not build what the Draft does not describe.`
 
 const ASSUMPTION_RULES = `## Assumptions

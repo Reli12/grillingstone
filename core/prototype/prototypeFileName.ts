@@ -35,13 +35,20 @@ function fileNameTime(iso: string): string {
   return `${date} ${pad(at.getHours())}.${pad(at.getMinutes())}`
 }
 
-export interface PrototypeFileNameInput {
-  draftTitle: string
-  draftVersion: number
+/** What a Prototype of no Draft is called in a file name. */
+const NO_DRAFT_NAME = 'Prototype'
+
+export type PrototypeFileNameInput = {
   /** When the Prototype was written, as an ISO timestamp. */
   writtenAt: string
-}
+} & (
+  | { draftTitle: string; draftVersion: number }
+  /** A Prototype of no Draft has neither. */
+  | { draftTitle?: undefined; draftVersion?: undefined }
+)
 
-export function prototypeFileName({ draftTitle, draftVersion, writtenAt }: PrototypeFileNameInput): string {
-  return [safeFileTitle(draftTitle), `v${draftVersion}`, fileNameTime(writtenAt)].join(SEPARATOR) + '.html'
+export function prototypeFileName(input: PrototypeFileNameInput): string {
+  const time = fileNameTime(input.writtenAt)
+  if (input.draftTitle === undefined) return [NO_DRAFT_NAME, time].join(SEPARATOR) + '.html'
+  return [safeFileTitle(input.draftTitle), `v${input.draftVersion}`, time].join(SEPARATOR) + '.html'
 }

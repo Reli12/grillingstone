@@ -14,7 +14,7 @@ import {
 import { liveDraftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { imageExtension, type ImageMediaType, type NumberedImage, type ValidImage } from '#core/session/images.ts'
 
-const EXTRA_IMAGE_SOURCE = 'Added on the start form'
+export const EXTRA_IMAGE_SOURCE = 'Added on the start form'
 const KEPT_NOTE = 'kept from the starting Prototype'
 const KEPT_FILE_NOTE = ' It is a file only: you are not shown it as an image block; Read it if you need it.'
 
@@ -37,13 +37,19 @@ export interface StartingPrototype {
 }
 
 export interface PrototypeInputsRequest {
-  draft: Draft
+  /** Absent for a Prototype Grilling Session that starts from no Draft: then there is no draft.md. */
+  draft?: Draft
   /** The Project's CONTEXT.md ('' when it does not exist). */
   glossary: string
   /** Ticked Images, already in the order to number them: oldest Grilling Session first. */
   ticked: PrototypeImage[]
   /** Images added on the start form; numbered after the ticked ones. */
   extra: ValidImage[]
+  /**
+   * A Continuation: the Images the earlier session added itself (start form and conversation), at the numbers they
+   * had there, so that what Claude remembers as "Image 7" is still Image 7.
+   */
+  carried?: Array<PrototypeImage & { number: number }>
   starting?: StartingPrototype
 }
 
@@ -77,14 +83,18 @@ const imagePath = (number: number, type: ImageMediaType) => `${IMAGES_FOLDER}/${
 const sameImage = (first: ValidImage, second: ValidImage) =>
   first.mediaType === second.mediaType && first.data === second.data
 
-function numberedImage(image: PrototypeImage, number: number, kept: boolean): InputImage {
+export function numberedImage(image: PrototypeImage, number: number, kept: boolean): InputImage {
   return { ...image, number, path: imagePath(number, image.mediaType), kept }
 }
 
 /** Ticked first, then start-form Images: the numbers of this session before anything kept. */
-function sessionImages({ ticked, extra }: PrototypeInputsRequest): InputImage[] {
+function sessionImages({ ticked, extra, carried = [] }: PrototypeInputsRequest): InputImage[] {
   const extras = extra.map((image) => ({ ...image, source: EXTRA_IMAGE_SOURCE }))
-  return [...ticked, ...extras].map((image, i) => numberedImage(image, i + 1, false))
+  const own = [...ticked, ...extras].map((image, i) => numberedImage(image, i + 1, false))
+  const kept = [...carried]
+    .sort((first, second) => first.number - second.number)
+    .map((image) => numberedImage(image, image.number, false))
+  return [...own, ...kept]
 }
 
 /**
@@ -94,7 +104,7 @@ function sessionImages({ ticked, extra }: PrototypeInputsRequest): InputImage[] 
 function startingNumbers(session: InputImage[], starting: StartingPrototype) {
   const renumbered = new Map<number, number>()
   const kept: InputImage[] = []
-  let next = session.length + 1
+  let next = Math.max(0, ...session.map((image) => image.number)) + 1
   for (const image of [...starting.images].sort((first, second) => first.number - second.number)) {
     const same = session.find((candidate) => sameImage(candidate, image))
     if (same) {
@@ -117,7 +127,7 @@ const renumberReferences = (html: string, renumbered: Map<number, number>) =>
     return number === undefined ? whole : `${IMAGES_FOLDER}/${number}`
   })
 
-function imagesListing(images: InputImage[]): string {
+export function imagesListing(images: InputImage[]): string {
   if (!images.length) return '# Images\n\nNo Images in this session.\n'
   const lines = images.map((image) => {
     const note = image.kept ? KEPT_FILE_NOTE : ''
@@ -126,7 +136,7 @@ function imagesListing(images: InputImage[]): string {
   return `# Images\n\nRefer to an Image in the page as images/N, with the number and no file extension.\n\n${lines.join('\n')}\n`
 }
 
-function startAssumptions(assumptions: PrototypeAssumption[]): string {
+export function startAssumptions(assumptions: PrototypeAssumption[]): string {
   const lines = assumptions.map((assumption) => `- ${assumption.choice}: ${assumption.why}`)
   return `# Assumptions of the starting Prototype\n\n${lines.join('\n')}\n`
 }
@@ -138,7 +148,7 @@ export function buildPrototypeInputs(request: PrototypeInputsRequest): Prototype
   const images = [...own, ...(carried?.kept ?? [])]
 
   const textFiles: InputFile[] = [
-    { path: DRAFT_FILE, content: liveDraftMarkdown(draft) },
+    ...(draft ? [{ path: DRAFT_FILE, content: liveDraftMarkdown(draft) }] : []),
     { path: GLOSSARY_FILE, content: glossary },
     { path: IMAGES_FILE, content: imagesListing(images) },
   ]

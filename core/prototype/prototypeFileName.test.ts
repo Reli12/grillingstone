@@ -13,6 +13,10 @@ describe('prototypeFileName', () => {
     )
   })
 
+  it('names a Prototype of no Draft by the time written only', () => {
+    expect(prototypeFileName({ writtenAt })).toBe('Prototype – 2026-10-25 14.05.html')
+  })
+
   it('makes the title safe for file names', () => {
     expect(safeFileTitle('A/B: "Archive" <devices>?  now*')).toBe('A B Archive devices now')
     expect(safeFileTitle('..hidden..')).toBe('hidden')
