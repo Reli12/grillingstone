@@ -42,7 +42,10 @@ try {
   const submitScript = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
   if (!projectDir || !submitScript)
     respondAndExit('deny', 'Session environment is missing GRILLINGSTONE_PROJECT_DIR / GRILLINGSTONE_SUBMIT_SCRIPT.')
-  const mode = process.env.GRILLINGSTONE_GUARD_MODE === 'template' ? 'template' : 'grilling'
+  const GUARD_MODES = ['grilling', 'template', 'prototype']
+  const requestedMode = process.env.GRILLINGSTONE_GUARD_MODE
+  // An unknown mode falls back to the Grilling Session rules, as an unset one always has.
+  const mode = GUARD_MODES.includes(requestedMode) ? requestedMode : 'grilling'
   const decision = decide(input.tool_name, input.tool_input ?? {}, {
     projectDir: realpath(projectDir),
     submitScript,

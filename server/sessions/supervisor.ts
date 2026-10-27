@@ -4,14 +4,27 @@
 // runs and what its submission means — comes from grillingSession.ts and templateSession.ts.
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs/promises'
 
+import { ALREADY_WRITING_PROTOTYPE, prototypeGrillingContinuation } from '#core/prototype/prototypeContinuation.ts'
+import {
+  type PrototypeGrillingSession,
+  prototypeGrillingSummaryOf,
+  type PrototypeSession,
+  prototypeSummaryOf,
+  type PrototypeWriterKind,
+  workFolderIdOf,
+} from '#core/prototype/prototypeRecords.ts'
+import { SUBMISSION_REFUSED_PREFIX } from '#core/prototype/prototypeStep.ts'
 import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
-import { buildMessageContent, type ImageRef, type ImageUpload } from '#core/session/images.ts'
+import { buildMessageContent, type ImageRef, type ImageUpload, type NumberedImage } from '#core/session/images.ts'
 import { newSessionState, type SessionEvent, type SessionState, transition } from '#core/session/sessionMachine.ts'
 import {
   type ChatMessage,
   LIVE_STATUSES,
+  type PrototypeGrillingSessionSummary,
+  type PrototypeSessionSummary,
   type SessionStatus,
   type SessionSummary,
   type TemplateRequest,
@@ -24,7 +37,16 @@ import type { Reason } from '#core/shared/validation.ts'
 import { CLAUDE_BIN } from '../config.ts'
 import { now } from '../services/clock.ts'
 import { getDraft } from '../storage/drafts.ts'
+import { prototypeWorkDir } from '../storage/paths.ts'
 import { allProjectIds } from '../storage/projects.ts'
+import {
+  getPrototypeGrillingSession,
+  listPrototypeGrillingSessions,
+  listPrototypes,
+  listPrototypeSessions,
+  savePrototypeGrillingSession,
+  savePrototypeSession,
+} from '../storage/prototypes.ts'
 import { getSettings } from '../storage/settings.ts'
 import { getTemplate } from '../storage/templates.ts'
 import {
@@ -36,9 +58,24 @@ import {
 } from '../storage/transcripts.ts'
 import { jsonLines, sendMessage, spawnClaude } from './claudeProcess.ts'
 import { type GrillingDeps, prepareGrillingSession, type StartArgs } from './grillingSession.ts'
+import {
+  preparePrototypeGrillingSession,
+  type PrototypeGrillingDeps,
+  type PrototypeGrillingStartArgs,
+} from './prototypeGrillingSession.ts'
+import { preparePrototypeSession, type PrototypeSessionDeps, type PrototypeStartArgs } from './prototypeSession.ts'
 import { SessionError } from './sessionError.ts'
 import { discardSessionImages, numberUploads, recordLastImage, saveNumbered } from './sessionImages.ts'
-import { type AnyTranscript, type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
+import {
+  type AnyTranscript,
+  isGrillingTranscript,
+  isPrototypeGrillingSession,
+  isPrototypeSession,
+  type PreparedSession,
+  type Scope,
+  type SubmitResult,
+  summaryOf,
+} from './sessionScope.ts'
 import { type KnownTool, readStreamEvent, type StreamStep } from './streamEvents.ts'
 import { prepareTemplateSession, type TemplateSessionDeps } from './templateSession.ts'
 
@@ -57,6 +94,10 @@ interface Live {
   /** Settles once the session has ended and its Transcript is saved. */
   ended: Promise<void>
   markEnded: () => void
+  /** A submission was refused during Claude's current turn (a session of rounds). */
+  refusedThisTurn: boolean
+  /** The human ended the session: it finishes instead of stopping once Claude Code has exited. */
+  ending: boolean
 }
 
 /** How much of Claude Code's stderr is kept, so a crash can be explained without holding all of it. */
@@ -67,8 +108,24 @@ const STDERR_LINES_IN_ERROR = 5
 const STOP_GRACE_MS = 3000
 
 const ALREADY_RUNNING_ON_DRAFT = 'A session is already running on this Draft — finish or stop it first.'
+const NO_MESSAGES_TO_PROTOTYPE = 'A Prototype Session takes no messages: it works from what it was started with.'
+const PROTOTYPE_NOT_SUBMITTED = 'Claude ended its turn without submitting a Prototype.'
 const INTERRUPTED_BY_RESTART =
   'The backend restarted while this session ran, so it ended. Continue it, or start a new session from what is saved.'
+const PROTOTYPE_INTERRUPTED_BY_RESTART = 'The backend restarted while this Prototype was being written'
+const ROUND_REFUSED =
+  'This round wrote no Prototype: Claude’s submission was refused and not fixed. Ask it to try again.'
+const NOT_A_PROTOTYPE_GRILLING_SESSION = 'This is not a running Prototype Grilling Session of this Project.'
+const ALREADY_CONTINUED = 'This session is already being continued.'
+const SESSION_ENDED_NOTE = 'Session ended.'
+const STOPPED_NOTHING_WRITTEN = 'Session stopped. Nothing was written.'
+
+/**
+ * A per-Draft key for the "being started" reservations. Every session that writes Prototypes, of either kind, takes
+ * the same one, so two of them never write for one Draft at once; a Grilling Session has its own.
+ */
+const startingKey = (kind: 'grilling' | PrototypeWriterKind, draftId: string) =>
+  `${kind === 'grilling' ? 'grilling' : 'prototype'}:${draftId}`
 
 /** A just-spawned session's in-memory state; `markEnded` settles `ended` once its Transcript is saved. */
 function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, token: string): Live {
@@ -81,10 +138,14 @@ function newLive(transcript: AnyTranscript, scope: Scope, child: ChildProcess, t
     token,
     stderrTail: '',
     tools: new Map(),
-    state: newSessionState(),
+    // A single-turn session has nobody to confirm a write, so its submission is allowed from the start; so is a
+    // Continuation's that was started confirmed (its chain already wrote a Prototype).
+    state: { ...newSessionState(), writeConfirmed: scope.singleTurn || transcript.writeConfirmed },
     queue: Promise.resolve(),
     ended,
     markEnded,
+    refusedThisTurn: false,
+    ending: false,
   }
 }
 
@@ -121,6 +182,15 @@ export interface Said {
   images?: ImageUpload[]
 }
 
+/** A Prototype Session left running when the backend went down is Failed, and its working folder is removed. */
+async function markPrototypeInterrupted(session: PrototypeSession) {
+  if (!LIVE_STATUSES.includes(session.status)) return
+  Object.assign(session, { status: 'failed', endedAt: now(), error: PROTOTYPE_INTERRUPTED_BY_RESTART })
+  session.messages.push(systemMessage(PROTOTYPE_INTERRUPTED_BY_RESTART, 'error'))
+  await fs.rm(prototypeWorkDir(session.id), { recursive: true, force: true })
+  await savePrototypeSession(session)
+}
+
 /** Marks a Transcript that was still running when the backend went down as interrupted, and saves it. */
 async function markInterruptedIfLive<T extends AnyTranscript>(transcript: T, save: (transcript: T) => Promise<void>) {
   const next = transition({ ...newSessionState(), status: transcript.status }, { type: 'backendRestarted' })
@@ -128,6 +198,13 @@ async function markInterruptedIfLive<T extends AnyTranscript>(transcript: T, sav
   Object.assign(transcript, { status: next.state.status, endedAt: now() })
   transcript.messages.push(systemMessage(INTERRUPTED_BY_RESTART, 'error'))
   await save(transcript)
+}
+
+/** A Prototype Grilling Session left running when the backend went down is interrupted; its folder is removed. */
+async function markGrillingInterrupted(session: PrototypeGrillingSession) {
+  await markInterruptedIfLive(session, savePrototypeGrillingSession)
+  if (!LIVE_STATUSES.includes(session.status))
+    await fs.rm(prototypeWorkDir(workFolderIdOf(session)), { recursive: true, force: true })
 }
 
 /** The error a session that exited on its own ends with: how it exited, then the end of its stderr. */
@@ -144,35 +221,67 @@ export class Supervisor {
   private starting = new Set<string>()
   /** `ended` promises of sessions whose Transcript is not saved yet — they may already be out of `live`. */
   private unsaved = new Set<Promise<void>>()
-  private deps: GrillingDeps & TemplateSessionDeps
+  private deps: GrillingDeps & TemplateSessionDeps & PrototypeSessionDeps & PrototypeGrillingDeps
 
-  constructor(deps: GrillingDeps & TemplateSessionDeps) {
+  constructor(deps: GrillingDeps & TemplateSessionDeps & PrototypeSessionDeps & PrototypeGrillingDeps) {
     this.deps = deps
   }
 
   /** Sessions cannot survive a backend restart; mark the ones that were running. */
   async markInterrupted() {
-    for (const projectId of await allProjectIds())
+    for (const projectId of await allProjectIds()) {
       for (const transcript of await listTranscripts(projectId)) await markInterruptedIfLive(transcript, saveTranscript)
+      for (const session of await listPrototypeSessions(projectId)) await markPrototypeInterrupted(session)
+      for (const session of await listPrototypeGrillingSessions(projectId)) await markGrillingInterrupted(session)
+    }
     for (const transcript of await listTemplateTranscripts())
       await markInterruptedIfLive(transcript, saveTemplateTranscript)
   }
 
+  /** The live Grilling Session on the Draft — what the chat shows. A Prototype Session is looked up separately. */
   liveForDraft(draftId: string): SessionSummary | undefined {
     for (const { transcript } of this.live.values())
-      if (transcript.kind !== 'template' && transcript.draftId === draftId) return summaryOf(transcript)
+      if (isGrillingTranscript(transcript) && transcript.draftId === draftId) return summaryOf(transcript)
+    return undefined
+  }
+
+  /** The live Prototype Session on the Draft, if one is being written. */
+  livePrototypeForDraft(draftId: string): PrototypeSessionSummary | undefined {
+    for (const { transcript } of this.live.values())
+      if (isPrototypeSession(transcript) && transcript.draftId === draftId) return prototypeSummaryOf(transcript)
+    return undefined
+  }
+
+  /** The live Prototype Grilling Session that started from the Draft, if one runs. */
+  livePrototypeGrillingForDraft(draftId: string): PrototypeGrillingSessionSummary | undefined {
+    for (const { transcript } of this.live.values())
+      if (isPrototypeGrillingSession(transcript) && transcript.draft?.draftId === draftId)
+        return prototypeGrillingSummaryOf(transcript)
     return undefined
   }
 
   /** A running Grilling Session's Transcript, as it is in memory; undefined once it has ended. */
   liveTranscript(sessionId: string): Transcript | undefined {
     const transcript = this.live.get(sessionId)?.transcript
-    return transcript && transcript.kind !== 'template' ? transcript : undefined
+    return transcript && isGrillingTranscript(transcript) ? transcript : undefined
   }
 
-  /** Whether a session runs on the Draft or is just being started on it; deleting the Draft is refused meanwhile. */
+  /** Whether a Prototype-writing session (either kind) runs on the Draft or is being started on it: the shared lock. */
+  prototypeLockHeld(draftId: string): boolean {
+    return (
+      this.livePrototypeForDraft(draftId) !== undefined ||
+      this.livePrototypeGrillingForDraft(draftId) !== undefined ||
+      this.starting.has(startingKey('prototype', draftId))
+    )
+  }
+
+  /** Whether a session of any kind runs on the Draft or is being started on it; deleting the Draft waits. */
   hasSessionOn(draftId: string): boolean {
-    return this.liveForDraft(draftId) !== undefined || this.starting.has(draftId)
+    return (
+      this.liveForDraft(draftId) !== undefined ||
+      this.prototypeLockHeld(draftId) ||
+      this.starting.has(startingKey('grilling', draftId))
+    )
   }
 
   liveTemplateSession(): TemplateSessionSummary | undefined {
@@ -189,19 +298,87 @@ export class Supervisor {
   // ── Starting ────────────────────────────────────────────────────────────
 
   async start(args: StartArgs): Promise<SessionSummary> {
-    if (this.liveForDraft(args.draftId) || this.starting.has(args.draftId))
-      throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
-    this.starting.add(args.draftId)
+    const key = startingKey('grilling', args.draftId)
+    if (this.liveForDraft(args.draftId) || this.starting.has(key)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
+    this.starting.add(key)
     try {
       return summaryOf(await this.launch(await prepareGrillingSession(args, this.deps)))
     } finally {
       // Once launched the session is in `live`, which holds the Draft from here on.
-      this.starting.delete(args.draftId)
+      this.starting.delete(key)
     }
   }
 
+  /** A Prototype Session: one per Draft at a time, beside any Grilling Session on it. */
+  async startPrototype(args: PrototypeStartArgs): Promise<PrototypeSessionSummary> {
+    const key = startingKey('prototype', args.draftId)
+    if (this.prototypeLockHeld(args.draftId)) throw new SessionError(ALREADY_WRITING_PROTOTYPE)
+    this.starting.add(key)
+    try {
+      return prototypeSummaryOf(await this.launch(await preparePrototypeSession(args, this.deps)))
+    } finally {
+      this.starting.delete(key)
+    }
+  }
+
+  /**
+   * A Prototype Grilling Session (ADR-0024). Started from a Draft it takes the Draft's Prototype lock; started from
+   * none it takes no lock, so any number of those run at once.
+   */
+  async startPrototypeGrilling(args: PrototypeGrillingStartArgs): Promise<PrototypeGrillingSessionSummary> {
+    const { draftId } = args
+    if (!draftId) {
+      const prepared = await preparePrototypeGrillingSession(args, this.deps)
+      return prototypeGrillingSummaryOf(await this.launch(prepared))
+    }
+    const key = startingKey('prototypeGrilling', draftId)
+    if (this.prototypeLockHeld(draftId)) throw new SessionError(ALREADY_WRITING_PROTOTYPE)
+    this.starting.add(key)
+    try {
+      return prototypeGrillingSummaryOf(await this.launch(await preparePrototypeGrillingSession(args, this.deps)))
+    } finally {
+      this.starting.delete(key)
+    }
+  }
+
+  /** The live session if it is a Prototype Grilling Session of the Project. */
+  private getPrototypeGrilling(projectId: string, sessionId: string): Live {
+    const live = this.live.get(sessionId)
+    if (!live || !isPrototypeGrillingSession(live.transcript) || live.transcript.projectId !== projectId)
+      throw new SessionError(NOT_A_PROTOTYPE_GRILLING_SESSION)
+    return live
+  }
+
+  /** The human says something in a Prototype Grilling Session: words, Images, or both. */
+  async sayInPrototypeGrilling(projectId: string, sessionId: string, said: Said) {
+    this.getPrototypeGrilling(projectId, sessionId)
+    await this.say(sessionId, said)
+  }
+
+  /** The human ends the session: it finishes, and the Prototypes written so far stay. */
+  endPrototypeGrilling(projectId: string, sessionId: string) {
+    const live = this.getPrototypeGrilling(projectId, sessionId)
+    live.ending = true
+    requestStop(live)
+  }
+
+  /** Stops a running Prototype Session or Prototype Grilling Session of the Project. */
+  stopPrototype(projectId: string, sessionId: string) {
+    const live = this.get(sessionId)
+    const { transcript } = live
+    const writesPrototypes = isPrototypeSession(transcript) || isPrototypeGrillingSession(transcript)
+    if (!writesPrototypes || transcript.projectId !== projectId)
+      throw new SessionError('This session is no longer running.')
+    requestStop(live)
+  }
+
   /** A Continuation (ADR-0014): a new session that resumes an ended one's Claude Code conversation. */
-  async continue(projectId: string, draftId: string, sessionId: string, humanNote?: string): Promise<SessionSummary> {
+  async continue(
+    projectId: string,
+    draftId: string,
+    sessionId: string,
+    { humanNote, prototypeIds }: { humanNote?: string; prototypeIds?: string[] } = {},
+  ): Promise<SessionSummary> {
     const earlier = await getTranscript(projectId, sessionId)
     if (earlier.draftId !== draftId) throw new SessionError('This session belongs to another Draft.')
     if (this.liveForDraft(draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
@@ -217,6 +394,60 @@ export class Supervisor {
       focus: next.focus,
       humanNote,
       continues: summaryOf(earlier),
+      ...(prototypeIds ? { prototypeIds } : {}),
+    })
+  }
+
+  /**
+   * A Continuation of an ended Prototype Grilling Session (ADR-0014, ADR-0024). The rules are
+   * prototypeGrillingContinuation's; the shared Prototype lock is checked here, where it is held.
+   */
+  async continuePrototypeGrilling(projectId: string, sessionId: string): Promise<PrototypeGrillingSessionSummary> {
+    // One conversation is resumed by one process: a Continuation being started, or already running, of this session
+    // refuses another. Reserved before anything is awaited, as the Draft locks are.
+    const key = `continuing:${sessionId}`
+    if (this.isContinuationRunning(sessionId) || this.starting.has(key)) throw new SessionError(ALREADY_CONTINUED)
+    this.starting.add(key)
+    try {
+      return await this.continueEnded(projectId, sessionId)
+    } finally {
+      // Once launched, the Continuation is in `live`, which the check above sees.
+      this.starting.delete(key)
+    }
+  }
+
+  /** Whether a Continuation of the ended Prototype Grilling Session is live. */
+  private isContinuationRunning(sessionId: string) {
+    for (const { transcript } of this.live.values())
+      if (isPrototypeGrillingSession(transcript) && transcript.continues === sessionId) return true
+    return false
+  }
+
+  private async continueEnded(projectId: string, sessionId: string): Promise<PrototypeGrillingSessionSummary> {
+    const earlier = await getPrototypeGrillingSession(projectId, sessionId)
+    // The Draft as it is now; a Draft that is gone surfaces as the rules' refusal.
+    const draft = earlier.draft ? await getDraft(projectId, earlier.draft.draftId).catch(() => undefined) : undefined
+    const surviving = new Set((await listPrototypes(projectId)).map((prototype) => prototype.id))
+    const next = prototypeGrillingContinuation({
+      earlier: {
+        status: this.live.has(sessionId) ? 'waiting' : earlier.status,
+        claudeSessionId: earlier.claudeSessionId,
+        draft: earlier.draft,
+        prototypeIds: earlier.prototypeIds,
+        startingPrototypeId: earlier.inputs.startingPrototypeId,
+      },
+      ...(draft ? { currentDraftVersion: draft.version } : {}),
+      surviving: [...surviving],
+      lockHeld: earlier.draft ? this.prototypeLockHeld(earlier.draft.draftId) : false,
+    })
+    if (!next.ok) throw new SessionError(next.reason)
+    return this.startPrototypeGrilling({
+      projectId,
+      ...(next.draft ? { draftId: next.draft.draftId } : {}),
+      tickedImages: earlier.inputs.tickedImages,
+      extraImages: [],
+      ...(next.startingPrototypeId ? { startingPrototypeId: next.startingPrototypeId } : {}),
+      continues: { earlier },
     })
   }
 
@@ -233,21 +464,34 @@ export class Supervisor {
     intro,
     resume,
     images = [],
+    numberedImages,
+    contextImages = [],
+    abandon,
   }: PreparedSession<T>): Promise<T> {
     // Saved before Claude Code starts, so a refused or unsaveable Image starts no session; if anything before the
-    // start fails, the Images already written are removed again.
-    let numbered: ReturnType<typeof numberUploads>
+    // start fails, the Images already written are removed again. A scope that kept its Images brings them numbered.
+    let numbered: NumberedImage[]
     let refs: ImageRef[]
     let model: string
     try {
-      numbered = numberUploads(transcript, images)
-      refs = await saveNumbered(transcript, numbered)
+      if (numberedImages) {
+        numbered = numberedImages
+        refs = []
+      } else {
+        const uploads = numberUploads(transcript, images)
+        refs = await saveNumbered(transcript, uploads)
+        numbered = uploads
+      }
       model = (await getSettings()).model
     } catch (error) {
       await discardSessionImages(transcript)
+      await abandon?.()
       throw error
     }
     recordLastImage(transcript, refs)
+    const lastContext = contextImages.at(-1)
+    // The Images of the given Prototypes come after the human's: later Images are numbered after them.
+    if (lastContext && isGrillingTranscript(transcript)) transcript.lastImageNumber = lastContext.number
     const token = randomUUID()
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
     const child = spawnClaude({ sessionId: transcript.id, token, scope, seed, model, conversation })
@@ -258,9 +502,9 @@ export class Supervisor {
     this.watch(live)
 
     await this.push(live, systemMessage(intro))
-    if (transcript.humanNote || refs.length)
-      await this.push(live, humanMessage('message', transcript.humanNote ?? '', refs))
-    sendMessage(child, buildMessageContent(seed.firstMessage, numbered))
+    const note = 'humanNote' in transcript ? transcript.humanNote : undefined
+    if (note || refs.length) await this.push(live, humanMessage('message', note ?? '', refs))
+    sendMessage(child, buildMessageContent(seed.firstMessage, [...numbered, ...contextImages]))
     // Claude Code may already have failed to start; that session has ended and stays ended.
     if (this.live.has(transcript.id)) await this.moveOn(live, { type: 'started' })
     return transcript
@@ -300,18 +544,27 @@ export class Supervisor {
     return live
   }
 
-  async say(sessionId: string, { text, kind, images = [] }: Said) {
+  /** A single-turn session works from what it was started with; nothing the human says reaches it. */
+  private getTalkative(sessionId: string): Live {
     const live = this.get(sessionId)
+    if (live.scope.singleTurn) throw new SessionError(NO_MESSAGES_TO_PROTOTYPE)
+    return live
+  }
+
+  async say(sessionId: string, { text, kind, images = [] }: Said) {
+    const live = this.getTalkative(sessionId)
     const said = text.trim()
     if (!said && !images.length) throw new SessionError('Say something first.')
-    const numbered = numberUploads(live.transcript, images)
+    // A session of rounds keeps the Images in its own folder; the others in the Transcript's Project.
+    const conversation = live.scope.conversationImages
+    const numbered = conversation ? conversation.number(images) : numberUploads(live.transcript, images)
     const turnBefore = { state: live.state, writeConfirmed: live.transcript.writeConfirmed }
     // Advancing first takes the turn before anything is awaited: a second message sent meanwhile is refused,
     // so two messages never get the same Image numbers.
     this.advance(live, { type: 'humanSaid' })
     let refs: ImageRef[]
     try {
-      refs = await saveNumbered(live.transcript, numbered)
+      refs = await (conversation ? conversation.save(numbered) : saveNumbered(live.transcript, numbered))
       if (!this.live.has(live.transcript.id)) throw new SessionError('This session is no longer running.')
     } catch (error) {
       // The message was not sent, so the turn is still the human's (unless the session ended meanwhile).
@@ -330,7 +583,7 @@ export class Supervisor {
 
   /** The human confirms the Ready Check, or says "enough — write it" at any moment. */
   async writeNow(sessionId: string) {
-    const live = this.get(sessionId)
+    const live = this.getTalkative(sessionId)
     const before = live.state
     this.advance(live, { type: 'writeConfirmed' })
     if (live.state === before) return // already writing: a second press changes nothing
@@ -372,19 +625,55 @@ export class Supervisor {
 
   /** After an accepted submission the session is done; otherwise it is the human's turn. */
   private async onTurnEnded(live: Live) {
+    if (live.scope.rounds) {
+      await this.endRound(live)
+      return
+    }
     if (live.state.accepted) live.child.stdin?.end()
+    if (live.scope.singleTurn && !live.state.accepted) await this.endUnsubmitted(live)
+    else await this.moveOn(live, { type: 'turnEnded' })
+  }
+
+  /**
+   * A round ends with Claude's turn and the session goes back to waiting. An accepted submission frees the next round
+   * to submit again. A round that was refused, or was asked to write and submitted nothing, failed alone: the human
+   * is told, and the session stays live.
+   */
+  private async endRound(live: Live) {
+    const { accepted, status } = live.state
+    const { refusedThisTurn } = live
+    live.state = { ...live.state, accepted: false }
+    live.refusedThisTurn = false
+    if (!accepted && refusedThisTurn) await this.push(live, systemMessage(ROUND_REFUSED, 'error'))
+    else if (!accepted && status === 'writing') await this.push(live, systemMessage(PROTOTYPE_NOT_SUBMITTED, 'error'))
     await this.moveOn(live, { type: 'turnEnded' })
+  }
+
+  /** A single-turn session whose turn ended with nothing accepted has no next turn: it ends as stopped or Failed. */
+  private async endUnsubmitted(live: Live) {
+    const { status } = this.advance(live, { type: 'exited' })
+    await this.end(live, status, status === 'failed' ? PROTOTYPE_NOT_SUBMITTED : undefined)
   }
 
   // ── Submissions (from scripts/writeDraft.mjs) ───────────────────────────
 
   async submit(sessionId: string, token: string, payload: unknown): Promise<SubmitResult> {
+    const notRunning: SubmitResult = {
+      ok: false,
+      reasons: [{ code: 'unknown-session', message: 'This session is not running.' }],
+    }
     const live = this.live.get(sessionId)
-    if (!live || live.token !== token)
-      return { ok: false, reasons: [{ code: 'unknown-session', message: 'This session is not running.' }] }
+    if (!live || live.token !== token) return notRunning
+    // Still this session, running? A Stop during an await below ends it, and an ended record is never written to.
+    const isRunning = () => this.live.get(sessionId) === live
+    // Claude's stream events are handled one after another; the one announcing this very command may still be in the
+    // queue, and must be recorded before the outcome of the submission, or a refusal would come before its command.
+    await live.queue
+    if (!isRunning()) return notRunning
     const refuse = async (reasons: Reason[]) => {
+      live.refusedThisTurn = true
       const listed = reasons.map((reason) => reason.message).join(' · ')
-      await this.push(live, systemMessage(`Submission refused — ${listed}`, 'error'))
+      await this.push(live, systemMessage(`${SUBMISSION_REFUSED_PREFIX} — ${listed}`, 'error'))
       return { ok: false as const, reasons }
     }
     // Checked before the submission is stored; committed only once it has been.
@@ -392,6 +681,7 @@ export class Supervisor {
     if (!allowed.ok) return refuse([allowed.reason])
 
     const result = await live.scope.submit(payload)
+    if (!isRunning()) return notRunning
     if (!result.ok) return refuse(result.reasons)
     const accepted = transition(live.state, { type: 'submissionAccepted' })
     if (accepted.ok) live.state = accepted.state
@@ -442,7 +732,9 @@ export class Supervisor {
     await live.queue
     if (!this.live.has(live.transcript.id)) return
     const { status } = this.advance(live, { type: 'exited' })
-    await this.end(live, status, status === 'failed' ? crashError(live.stderrTail, code, signal) : undefined)
+    // Ending is a stop the human wanted as an ending: the session finished, whatever it wrote.
+    const endStatus = live.ending && status === 'stopped' ? 'finished' : status
+    await this.end(live, endStatus, endStatus === 'failed' ? crashError(live.stderrTail, code, signal) : undefined)
   }
 
   private async end(live: Live, status: SessionStatus, error?: string) {
@@ -458,6 +750,8 @@ export class Supervisor {
     // Out of `live` first, so an exit racing a stop cannot end the session twice.
     this.live.delete(live.transcript.id)
     if (live.child.exitCode === null) live.child.kill('SIGTERM')
+    // Released before the final save, so a session seen as ended has its working folder gone.
+    await live.scope.release?.()
     const transcript = live.transcript
     transcript.endedAt = now()
     let last: ChatMessage | undefined
@@ -465,7 +759,9 @@ export class Supervisor {
       transcript.error = error
       last = systemMessage(error, 'error')
     } else if (status === 'stopped') {
-      last = systemMessage('Session stopped. Nothing was written.')
+      last = systemMessage(live.scope.stoppedNote ?? STOPPED_NOTHING_WRITTEN)
+    } else if (live.ending) {
+      last = systemMessage(SESSION_ENDED_NOTE)
     }
     if (last) transcript.messages.push(last)
     transcript.status = status

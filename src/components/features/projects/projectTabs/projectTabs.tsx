@@ -1,12 +1,13 @@
-// The Project page's tabs, each at its own URL: the Drafts, or the whole Glossary to maintain.
+// The Project page's tabs, each at its own URL: the Drafts, the whole Glossary to maintain, or the Prototypes.
 import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
 import { routesPaths } from '@/routes/routes'
+import type { ProjectTab } from '@/types/projectPage'
 
 interface ProjectTabsProps {
   projectId: string
-  glossarySelected: boolean
+  selected: ProjectTab
 }
 
 const tabClass = (selected: boolean) =>
@@ -15,25 +16,26 @@ const tabClass = (selected: boolean) =>
     selected ? 'bg-fog-deep font-medium text-ink' : 'text-ink-soft hover:text-ink',
   )
 
-export function ProjectTabs({ projectId, glossarySelected }: Readonly<ProjectTabsProps>) {
+const TABS = [
+  { tab: 'drafts', label: 'Drafts', path: routesPaths.project },
+  { tab: 'glossary', label: 'Glossary', path: routesPaths.projectGlossary },
+  { tab: 'prototypes', label: 'Prototypes', path: routesPaths.projectPrototypes },
+] as const satisfies ReadonlyArray<{ tab: ProjectTab; label: string; path: (projectId: string) => string }>
+
+export function ProjectTabs({ projectId, selected }: Readonly<ProjectTabsProps>) {
   return (
     <nav role="tablist" aria-label="Project" className="flex gap-1">
-      <Link
-        role="tab"
-        aria-selected={!glossarySelected}
-        to={routesPaths.project(projectId)}
-        className={tabClass(!glossarySelected)}
-      >
-        Drafts
-      </Link>
-      <Link
-        role="tab"
-        aria-selected={glossarySelected}
-        to={routesPaths.projectGlossary(projectId)}
-        className={tabClass(glossarySelected)}
-      >
-        Glossary
-      </Link>
+      {TABS.map(({ tab, label, path }) => (
+        <Link
+          key={tab}
+          role="tab"
+          aria-selected={selected === tab}
+          to={path(projectId)}
+          className={tabClass(selected === tab)}
+        >
+          {label}
+        </Link>
+      ))}
     </nav>
   )
 }

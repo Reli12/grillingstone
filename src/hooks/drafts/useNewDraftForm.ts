@@ -1,5 +1,5 @@
 // The list with the id removed if it was there, or added if it was not.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 
@@ -27,9 +27,10 @@ const templatesFor = (templates: Template[], tracker: Project['tracker'], type: 
 
 /**
  * The form's state. Only the Project's Tracker's Templates are offered. The Template shown as chosen is the
- * one picked, else the type's Default, else its first; picking another type clears the pick.
+ * one picked, else the type's Default, else its first; picking another type clears the pick. With
+ * `createdFromPrototypeId` the Draft is created from that Prototype, which its first session is given.
  */
-export function useNewDraftForm(project: Project, templates: Template[]) {
+export function useNewDraftForm(project: Project, templates: Template[], createdFromPrototypeId?: string) {
   const navigate = useNavigate()
   const { register, handleSubmit, control, setValue, formState } = useForm<NewDraftFormData>({
     resolver: zodResolver(newDraftSchema),
@@ -40,6 +41,9 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
   // Keyed by Project until the first session exists; a successful start moves the hint and sizes to it.
   const attachments = useImageAttachments(`new-draft:${project.id}`)
 
+  /** Prototypes of the Project the first session may read. */
+  const [prototypeIds, setPrototypeIds] = useState<string[]>([])
+
   const [type, templateId, references] = useWatch({ control, name: ['workItemType', 'templateId', 'references'] })
   const forType = useMemo(() => templatesFor(templates, project.tracker, type), [templates, type, project.tracker])
   const picked = forType.find((template) => template.id === templateId)
@@ -49,7 +53,13 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     if (!chosen) return
     const images = attachments.batch()
     create.mutate(
-      { ...rest, templateId: chosen.id, images: images.uploads },
+      {
+        ...rest,
+        templateId: chosen.id,
+        images: images.uploads,
+        ...(prototypeIds.length ? { prototypeIds } : {}),
+        ...(createdFromPrototypeId ? { createdFromPrototypeId } : {}),
+      },
       {
         onSuccess: ({ draft, session }) => {
           attachments.markSent(images, session.id)
@@ -63,6 +73,7 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     setValue('templateId', '')
   }
   const toggleReference = (id: string) => setValue('references', toggled(references, id))
+  const togglePrototype = (id: string) => setPrototypeIds(toggled(prototypeIds, id))
   const canStart = formState.isValid && !!chosen && !create.isPending
   return {
     register,
@@ -73,6 +84,8 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     onSubmit,
     chooseType,
     toggleReference,
+    prototypeIds,
+    togglePrototype,
     setValue,
     canStart,
     create,

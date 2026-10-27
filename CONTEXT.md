@@ -153,12 +153,16 @@ _Avoid_: sub-session, partial session
 ### Illustrating a Draft
 
 **Prototype**:
-An interactive mock-up of what a Draft describes, written by Claude and labelled with the Draft version it was built from. It illustrates the Draft and is never part of it: nothing in it is copied, Published or fed back into the Draft. Choices it makes that neither the Draft nor an Image settles are listed in it as assumptions.
-_Avoid_: mock-up, preview, design, wireframe
+An interactive mock-up written by Claude, belonging to a Project. It may be built from a Draft version, and is then labelled with it and illustrates that Draft; or it may come from Images and a Prototype Grilling Session alone, with no Draft. It is never part of a Draft: nothing in it is copied or Published, and it reaches a Draft only as context a Grilling Session reads. Choices it makes that neither its Draft, an Image nor the human settled are listed in it as assumptions.
+_Avoid_: mock-up, preview, design, wireframe, sketch
 
 **Prototype Session**:
-The single-turn session that writes one Prototype from a Draft at v1 or later. It sees only the Draft's non-Discarded content as it stands (never a pending Proposal), the Glossary for wording, Images, and optionally an earlier Prototype of the same Draft to start from. It never asks, and never changes the Draft, the Glossary or a Proposal. It is not a Grilling Session.
-_Avoid_: prototype grilling, generation, render
+The single-turn session that writes one Prototype from a Draft at v1 or later. It sees only the Draft's non-Discarded content as it stands (never a pending Proposal), the Glossary for wording, Images, and optionally an earlier Prototype of the same Project to start from. It never asks, and never changes the Draft, the Glossary or a Proposal. It is not a Grilling Session.
+_Avoid_: generation, render
+
+**Prototype Grilling Session**:
+A Grilling Session whose result is a Prototype instead of a Draft. It may start from Images, an earlier Prototype, at most one Draft, or any mix of them, and grills the human on what the Prototype should show before writing it. Its first Prototype follows a Ready Check; after that, each round of the human's feedback writes a new Prototype that starts from the previous one, until the human ends the session. Like any Grilling Session it has a Transcript and can be picked up by a Continuation, which starts from its newest Prototype and from its Draft as that Draft is now. It sees what a Prototype Session sees, plus Images the human adds during the conversation, and like it never changes a Draft, the Glossary or a Proposal. Unlike a Prototype Session, it always asks.
+_Avoid_: design session, prototype chat
 
 ## Relationships
 
@@ -170,7 +174,10 @@ _Avoid_: prototype grilling, generation, render
 - An Azure DevOps **Task** usually belongs to a **PBI** or a **Bug**, and a Jira **Sub-task** to a **Story**, **Task** or **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
 - A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
 - An **Image** is something the human shows; what Claude reads in it counts as observed only once the human confirms it.
-- A **Draft** has any number of **Prototypes**; each is written by one **Prototype Session**, and may start from one earlier **Prototype** of the same Draft. A Draft has at most one running **Prototype Session**, which may run beside a **Grilling Session** on it.
+- A **Project** has any number of **Prototypes**. A Prototype belongs to a **Draft**, labelled with the version it started from, exactly when the session that wrote it started from that Draft; otherwise it belongs to the Project alone.
+- A **Grilling Session** may be given any number of **Prototypes** of its Project as context, whether it writes a new Draft's v1 or a **Proposal** for an existing one. It reads each one's content, assumptions and **Images**, never the **Transcript** of the session that wrote it. Like an **Image**, what Claude reads in a Prototype counts as settled only once the human confirms it; its assumptions never do on their own.
+- A **Draft** created from a **Prototype** records it as where it came from. This is history only: the Prototype does not become one of the Draft's Prototypes, and no later session reads it unless the human gives it again.
+- A **Draft** has any number of **Prototypes**; each is written by a **Prototype Session** or a **Prototype Grilling Session**, and may start from one earlier **Prototype** of the same Project. A Draft has at most one running session of those two kinds together, which may run beside a **Grilling Session** on it.
 - A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**, one of those the Project's **Tracker** defines.
 - A **Tracker** defines its own **Work Item Types**. An Azure DevOps Task and a Jira Sub-task both live inside another item; a Jira Task stands on its own beside a Story. Jira has no Feature and Azure DevOps has no Sub-task.
 - A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.

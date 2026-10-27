@@ -13,6 +13,7 @@ import { defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/f
 import { endpoints } from '@/api/endpoints/endpoints'
 import DraftPage from '@/pages/DraftPage/DraftPage'
 import { draftBackend, liveSession } from '@test/mocks/draftBackend'
+import { finishedRow, prototypeBackend } from '@test/mocks/prototypeBackend'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
@@ -101,6 +102,14 @@ describe('DraftPage before v1', () => {
         body: { text: 'Yes, alerts muted', kind: 'answer' },
       }),
     )
+  })
+
+  it('offers no Prototypes before the Draft has reached v1', async () => {
+    draftBackend(draft, { transcripts: [transcript(draft, grillingMessages)] })
+    renderPage(draft)
+    await screen.findByText('Keep telemetry?')
+    expect(screen.queryByRole('tab', { name: 'Prototypes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New Prototype' })).not.toBeInTheDocument()
   })
 
   it('opens the Glossary beside the chat', async () => {
@@ -464,6 +473,29 @@ describe('DraftPage from v1', () => {
     await user.click(screen.getByRole('button', { name: 'Narrow panel' }))
     expect(screen.getByRole('button', { name: 'Widen panel' })).toHaveAttribute('aria-pressed', 'false')
     expect(await columns()).toHaveClass('lg:grid-cols-[minmax(360px,440px)_1fr]')
+  })
+
+  it('has a Prototypes tab beside Sessions and Glossary, listing the Draft’s Prototypes', async () => {
+    const draft = v1Draft()
+    draftBackend(draft)
+    prototypeBackend(draft, { rows: [finishedRow(draft)] })
+    const { user } = renderPage(draft)
+
+    await user.click(await screen.findByRole('tab', { name: 'Prototypes' }))
+
+    expect(screen.getByRole('tab', { name: 'Prototypes' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('link', { name: /^v1 · / })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New Prototype' })).toBeEnabled()
+  })
+
+  it('shows the Prototypes tab while a Grilling Session runs, and New Prototype stays available', async () => {
+    const draft = v1Draft()
+    draftBackend(draft, { liveSession: liveSession(draft) })
+    prototypeBackend(draft)
+    const { user } = renderPage(draft)
+
+    await user.click(await screen.findByRole('tab', { name: 'Prototypes' }))
+    expect(await screen.findByRole('button', { name: 'New Prototype' })).toBeEnabled()
   })
 
   it('shows why the Draft cannot load', async () => {

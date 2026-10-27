@@ -5,7 +5,12 @@ import type { ChatMessage, SessionBase } from '#core/session/sessionTypes.ts'
 import type { PreparedImage } from '@/lib/imagePreparation'
 
 /** Any session's Transcript — Grilling or Template Session. */
-export type AnyTranscript = SessionBase & { messages: ChatMessage[]; continues?: string; projectId?: string }
+export type AnyTranscript = SessionBase & {
+  messages: ChatMessage[]
+  continues?: string
+  projectId?: string
+  prototypeIds?: string[]
+}
 
 export type HumanMessage = Extract<ChatMessage, { role: 'human' }>
 

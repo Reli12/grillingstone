@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { BookOpenText, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/atoms/button/button'
+import { CreatedFromPrototype } from '@/components/features/prototypes/createdFromPrototype/createdFromPrototype'
 import { routesPaths } from '@/routes/routes'
 import type { LayoutProps } from '@/types/draftPage'
 
@@ -24,6 +25,9 @@ export function FirstSessionHeader({
           , new {draft.workItemType} in the {draft.template.name}
         </p>
         <p className="mt-0.5 line-clamp-2 font-serif text-[17px] text-ink">{draft.requirement}</p>
+        {!!draft.createdFromPrototypeId && (
+          <CreatedFromPrototype projectId={projectId} prototypeId={draft.createdFromPrototypeId} />
+        )}
       </div>
       <Button
         size="sm"

@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { THEMES } from '#core/contract/apiTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
+import { tickedImageSchema } from '#core/prototype/prototypeRecords.ts'
 import { TRACKERS } from '#core/shared/tracker.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -44,6 +45,8 @@ export const newDraftBody = z.object({
   references: ids,
   /** Images shown with the requirement; the first session receives them. */
   images: imageUploads,
+  /** Prototypes of the Project the first session may read. */
+  prototypeIds: ids,
 })
 
 export const referencesBody = z.object({ references: ids })
@@ -76,9 +79,27 @@ export const startSessionBody = z.object({
   focus: z.object({ sectionId: z.string(), entryId: z.string().optional() }).optional(),
   humanNote: z.string().optional(),
   images: imageUploads,
+  /** Prototypes of the Project Claude may read as context. */
+  prototypeIds: ids,
 })
 
-export const continueSessionBody = z.object({ humanNote: z.string().optional() })
+/** Only the shape; every refusal about the Images and the Draft is the session's call, so its reason is the one shown. */
+export const startPrototypeBody = z.object({
+  /** Images of the Draft's Grilling Sessions, ticked on the start form. */
+  tickedImages: z.array(tickedImageSchema).default([]),
+  /** Images added on the start form, under the same rules as in a Grilling Session. */
+  extraImages: imageUploads,
+  startingPrototypeId: z.string().optional(),
+})
+
+/** Starts a Prototype Grilling Session: the same inputs as a Prototype Session, with the Draft optional. */
+export const startPrototypeGrillingBody = startPrototypeBody.extend({ draftId: z.string().optional() })
+
+/** Absent `prototypeIds`: the Continuation is given the Prototypes the earlier session had. */
+export const continueSessionBody = z.object({
+  humanNote: z.string().optional(),
+  prototypeIds: z.array(z.string()).optional(),
+})
 
 export const sayBody = z.object({
   text: z.string(),

@@ -146,4 +146,73 @@ describe('Permission Guard', () => {
       expect(decide(tool, input as Record<string, unknown>, tctx).allow).toBe(false)
     })
   })
+
+  describe('in a Prototype Session', () => {
+    const work = '/data/projects/portal/prototype-work/sess-1'
+    const links: Record<string, string> = {
+      [`${work}/linked.html`]: '/etc/passwd',
+      [`${work}/prototype.html`]: '/etc/hosts',
+    }
+    const pctx: GuardContext = {
+      projectDir: work,
+      submitScript: script,
+      realpath: (filePath) => links[filePath] ?? filePath,
+      mode: 'prototype',
+    }
+    // The same folder with no symlinks, so the allowed cases are not about symlinks.
+    const plain: GuardContext = { ...pctx, realpath: (filePath) => filePath }
+
+    it.each([
+      ['Read', { file_path: `${work}/draft.md` }],
+      ['Read', { file_path: 'images.md' }],
+      ['Read', { file_path: `${work}/images/1.png` }],
+      ['Glob', { pattern: '**/*' }],
+      ['Grep', { pattern: 'AC01', path: work }],
+      ['Write', { file_path: `${work}/prototype.html`, content: '<p>x</p>' }],
+      ['Edit', { file_path: `${work}/prototype.html`, old_string: 'a', new_string: 'b' }],
+      ['Edit', { file_path: 'prototype.html', old_string: 'a', new_string: 'b' }],
+      ['MultiEdit', { file_path: `${work}/prototype.html`, edits: [] }],
+      ['Bash', submit('{"prototype": "prototype.html", "assumptions": []}')],
+    ])('allows %s %j', (tool, input) => {
+      expect(decide(tool, input, plain)).toEqual({ allow: true })
+    })
+
+    it.each([
+      ['Write another file in the folder', 'Write', { file_path: `${work}/index.html`, content: '' }],
+      ['Write into a sub-folder', 'Write', { file_path: `${work}/images/prototype.html`, content: '' }],
+      ['Write draft.md', 'Write', { file_path: `${work}/draft.md`, content: '' }],
+      ['Edit the Glossary copy', 'Edit', { file_path: `${work}/CONTEXT.md`, old_string: 'a', new_string: 'b' }],
+      ['Write the real Glossary', 'Write', { file_path: '/data/projects/portal/CONTEXT.md', content: '' }],
+      ['Write prototype.html elsewhere', 'Write', { file_path: '/data/projects/portal/prototype.html', content: '' }],
+      ['Write via ..', 'Write', { file_path: `${work}/images/../index.html`, content: '' }],
+      ['Write without a path', 'Write', { content: '' }],
+      ['Read outside the folder', 'Read', { file_path: '/data/projects/portal/drafts/d-1.json' }],
+      ['Read the Project Glossary', 'Read', { file_path: '/data/projects/portal/CONTEXT.md' }],
+      ['Glob climbing out', 'Glob', { pattern: '../**/*' }],
+      ['a skill', 'Skill', { skill: 'grill-with-docs' }],
+      ['web search', 'WebSearch', { query: 'material design' }],
+      ['web fetch', 'WebFetch', { url: 'https://example.com', prompt: 'x' }],
+      ['Bash anything else', 'Bash', { command: 'ls' }],
+      ['Bash a different script', 'Bash', submit('{}', `node "/tmp/x.mjs" <<'GRILLINGSTONE_JSON'`)],
+      ['a subagent', 'Task', { prompt: 'x' }],
+    ])('denies %s', (_name, tool, input) => {
+      const decision = decide(tool, input, plain)
+      expect(decision.allow).toBe(false)
+      if (!decision.allow) expect(decision.reason.length).toBeGreaterThan(10)
+    })
+
+    it('denies a prototype.html that is a symlink out of the folder', () => {
+      const input = { file_path: `${work}/prototype.html`, content: '' }
+      expect(decide('Write', input, pctx).allow).toBe(false)
+    })
+
+    it('denies a write through another symlink in the folder', () => {
+      expect(decide('Write', { file_path: `${work}/linked.html`, content: '' }, pctx).allow).toBe(false)
+    })
+
+    it('matches the submit command exactly, as every other session does', () => {
+      const chained = { command: `node "${script}" <<'GRILLINGSTONE_JSON' && rm -rf ~\n{}\nGRILLINGSTONE_JSON` }
+      expect(decide('Bash', chained, plain).allow).toBe(false)
+    })
+  })
 })

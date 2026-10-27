@@ -3,8 +3,12 @@
 // session would. It asks one question card; on "Write it now." it runs the real submit script with a valid
 // payload for its kind of session (v1 Draft, Proposal or Template). A message containing CRASH makes it die.
 // A turn with Images (a content array) is answered with one extra line, "Received image blocks: Image 1 (image/png, …)".
+// In a Prototype Session (GRILLINGSTONE_GUARD_MODE=prototype) it takes one turn: reads draft.md, writes prototype.html
+// in its working folder and submits it (see prototypeTurn).
 // Like Claude Code it names its session in an init event; with --resume it keeps the name it is given.
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import readline from 'node:readline'
 
 import { methodSkeleton } from '#core/template/templateValidator.ts'
@@ -69,12 +73,151 @@ function readContent(content) {
   return { text, images }
 }
 
+/** Announces a tool call and its result, the way Claude Code's stream shows them. */
+function toolCall(id, name, input, result) {
+  toolUse(id, name, input)
+  toolResult(id, result)
+}
+
+/** The call alone: Claude Code announces it before the tool runs. */
+function toolUse(id, name, input) {
+  emit({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name, input }] } })
+}
+
+function toolResult(id, result) {
+  const block = { type: 'tool_result', tool_use_id: id, content: result.content }
+  emit({ type: 'user', message: { content: [{ ...block, ...(result.isError ? { is_error: true } : {}) }] } })
+}
+
+/** Runs the real submit script with a payload on stdin, as the submit Bash command would. */
+function submit(id, body) {
+  const script = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
+  const command = `node "${script}" <<'GRILLINGSTONE_JSON'\n…\nGRILLINGSTONE_JSON`
+  // Announced before it runs, like Claude Code does, so the backend knows the command before it gets the submission.
+  toolUse(id, 'Bash', { command })
+  const run = spawnSync(process.execPath, [script], {
+    input: JSON.stringify(body),
+    env: process.env,
+    encoding: 'utf8',
+  })
+  toolResult(id, { content: run.stdout, isError: run.status !== 0 })
+  return run
+}
+
+// Markers in a Prototype Session's draft.md steer the fake: the first submit is refused, or the turn waits a few
+// seconds after reading the Draft (fake:hold, so a browser test can see the running row), or never ends
+// (fake:hang), or it crashes (fake:crash), or it ends the turn without submitting (fake:no-submit).
+const REFUSE_FIRST_MARKER = 'fake:refuse-first'
+const HOLD_MARKER = 'fake:hold'
+const HOLD_MS = 4000
+const HANG_MARKER = 'fake:hang'
+// …or it dies after reading the Draft, or ends its turn without writing or submitting anything.
+const CRASH_MARKER = 'fake:crash'
+const NO_SUBMIT_MARKER = 'fake:no-submit'
+const STARTING_ASSUMPTIONS_FILE = 'start-assumptions.md'
+const PROTOTYPE_ASSUMPTIONS = [{ choice: 'Sample devices are invented', why: 'The Draft names no example data.' }]
+
+const prototypePage = (withImage, extra) =>
+  `<!doctype html><html><head><title>Prototype</title></head><body><main id="top"><h1>Prototype</h1>${withImage ? '<img src="images/1" alt="Reference">' : ''}<button id="go" onclick="document.getElementById('out').textContent = 'Done'">Go</button><p id="out"></p>${extra}</main></body></html>`
+
+/**
+ * A Prototype Session's single turn: read the Draft, write prototype.html in the working folder, submit it; when
+ * the Draft carries the refuse marker the first page has an external link, which the Edit then removes.
+ */
+async function prototypeTurn(images) {
+  if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
+  const draftPath = path.join(process.cwd(), 'draft.md')
+  const draft = fs.readFileSync(draftPath, 'utf8')
+  toolCall('read-1', 'Read', { file_path: draftPath }, { content: 'ok' })
+  // Opt-in (e2e/prototypes.spec.ts): hold the turn open so a browser test can see the running row and grill meanwhile.
+  if (draft.includes(HOLD_MARKER)) await new Promise((resolve) => setTimeout(resolve, HOLD_MS))
+  if (draft.includes(HANG_MARKER)) return // the turn never ends, so the session stays running
+  if (draft.includes(CRASH_MARKER)) {
+    process.stderr.write('fake claude crashed\n')
+    process.exit(3)
+  }
+  if (draft.includes(NO_SUBMIT_MARKER)) {
+    say('I am done.')
+    done()
+    return
+  }
+  const filePath = path.join(process.cwd(), 'prototype.html')
+  const refuseFirst = draft.includes(REFUSE_FIRST_MARKER)
+  const badLink = '<a href="https://example.com/elsewhere">elsewhere</a>'
+  const body = { prototype: 'prototype.html', assumptions: PROTOTYPE_ASSUMPTIONS }
+
+  // Starting from an earlier Prototype (start-assumptions.md is in the folder): keep the page it left in
+  // prototype.html, as the seed asks, and only touch it up.
+  if (fs.existsSync(path.join(process.cwd(), STARTING_ASSUMPTIONS_FILE))) {
+    const touchUp = { file_path: filePath, old_string: 'Prototype', new_string: 'Prototype' }
+    toolCall('edit-0', 'Edit', touchUp, { content: 'ok' })
+  } else {
+    fs.writeFileSync(filePath, prototypePage(images.length > 0, refuseFirst ? badLink : ''))
+    toolCall('write-1', 'Write', { file_path: filePath, content: '…' }, { content: 'ok' })
+  }
+  let run = submit('submit-1', body)
+  if (run.status !== 0 && refuseFirst) {
+    fs.writeFileSync(filePath, prototypePage(images.length > 0, ''))
+    toolCall('edit-1', 'Edit', { file_path: filePath, old_string: badLink, new_string: '' }, { content: 'ok' })
+    run = submit('submit-2', body)
+  }
+  say(run.status === 0 ? 'Written.' : 'Refused.')
+  done()
+}
+
+// A Prototype Grilling Session is the prototype guard mode too; its system prompt says which one this is. It is a
+// conversation: one question card until "Write it now.", then a Prototype per round. The marker fake:refuse-unfixed in a
+// message makes that round's page refused without a fix; fake:ask makes it ask a question instead of writing.
+const GRILLING_PROMPT_MARKER = 'You run a Prototype Grilling Session'
+const REFUSE_UNFIXED_MARKER = 'fake:refuse-unfixed'
+const ASK_MARKER = 'fake:ask'
+const isPrototypeGrilling = process.argv.some((arg) => arg.includes(GRILLING_PROMPT_MARKER))
+let round = 0
+
+const askQuestion = () =>
+  say(
+    'One question.\n```pbi-question\n{"question": "What should the screen show?", "recommended": "A list", "options": ["A grid"]}\n```',
+  )
+
+/** One turn of a Prototype Grilling Session: a question, or a round that writes (then edits) prototype.html and submits. */
+function prototypeGrillingTurn(text, images) {
+  if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
+  const filePath = path.join(process.cwd(), 'prototype.html')
+  const confirmed = text === 'Write it now.'
+  if ((round === 0 && !confirmed) || text.includes(ASK_MARKER)) {
+    toolCall('read-1', 'Read', { file_path: path.join(process.cwd(), 'CONTEXT.md') }, { content: 'ok' })
+    askQuestion()
+    done()
+    return
+  }
+  round += 1
+  const badLink = '<a href="https://example.com/elsewhere">elsewhere</a>'
+  const extra = text.includes(REFUSE_UNFIXED_MARKER) ? badLink : ''
+  const page = prototypePage(false, `<p id="round">Round ${round}</p>${extra}`)
+  const exists = fs.existsSync(filePath)
+  fs.writeFileSync(filePath, page)
+  const edit = { file_path: filePath, old_string: 'a', new_string: 'a' }
+  if (exists) toolCall(`edit-r${round}`, 'Edit', edit, { content: 'ok' })
+  else toolCall(`write-r${round}`, 'Write', { file_path: filePath, content: '…' }, { content: 'ok' })
+  const run = submit(`submit-r${round}`, { prototype: 'prototype.html', assumptions: PROTOTYPE_ASSUMPTIONS })
+  say(run.status === 0 ? 'Written.' : 'Refused.')
+  done()
+}
+
 for await (const line of readline.createInterface({ input: process.stdin })) {
   const { text, images } = readContent(JSON.parse(line).message.content)
   if (!seed) {
     seed = text
     emit({ type: 'system', subtype: 'init', session_id: claudeSessionId })
     if (resumeAt >= 0) say('Picking up where we left off.')
+  }
+  if (isPrototypeGrilling && process.env.GRILLINGSTONE_GUARD_MODE === 'prototype') {
+    prototypeGrillingTurn(text, images)
+    continue
+  }
+  if (process.env.GRILLINGSTONE_GUARD_MODE === 'prototype') {
+    await prototypeTurn(images)
+    continue
   }
   if (text.includes('CRASH')) {
     process.stderr.write('fake claude crashed\n')
@@ -98,31 +241,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     done()
     continue
   }
-  const script = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
-  emit({
-    type: 'assistant',
-    message: {
-      content: [
-        {
-          type: 'tool_use',
-          id: 'submit-1',
-          name: 'Bash',
-          input: { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n…\nGRILLINGSTONE_JSON` },
-        },
-      ],
-    },
-  })
-  const run = spawnSync(process.execPath, [script], {
-    input: JSON.stringify(payload()),
-    env: process.env,
-    encoding: 'utf8',
-  })
-  emit({
-    type: 'user',
-    message: {
-      content: [{ type: 'tool_result', tool_use_id: 'submit-1', content: run.stdout, is_error: run.status !== 0 }],
-    },
-  })
+  const run = submit('submit-1', payload())
   say(run.status === 0 ? 'Written.' : 'Refused.')
   done()
 }

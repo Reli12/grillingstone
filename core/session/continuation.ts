@@ -7,15 +7,17 @@ import { LIVE_STATUSES, type SessionSummary } from '#core/session/sessionTypes.t
 export type Continuation =
   { ok: true; kind: SessionKind; focus?: { sectionId: string; entryId?: string } } | { ok: false; reason: string }
 
+export const STILL_RUNNING = 'This session is still running.'
+export const NOT_CONTINUABLE = 'This session ran before sessions could be continued — start a new one.'
+
 /** `latestTemplateVersion` is the newest version of the Draft's Template, if it still exists. */
 export function continuation(
   earlier: SessionSummary,
   draft: Draft,
   latestTemplateVersion: number | undefined,
 ): Continuation {
-  if (LIVE_STATUSES.includes(earlier.status)) return { ok: false, reason: 'This session is still running.' }
-  if (!earlier.claudeSessionId)
-    return { ok: false, reason: 'This session ran before sessions could be continued — start a new one.' }
+  if (LIVE_STATUSES.includes(earlier.status)) return { ok: false, reason: STILL_RUNNING }
+  if (!earlier.claudeSessionId) return { ok: false, reason: NOT_CONTINUABLE }
   if (draft.version === 0) return { ok: true, kind: 'first' }
   if (draft.proposal) return { ok: false, reason: 'Triage the open Proposal before continuing a session.' }
 

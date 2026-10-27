@@ -16,7 +16,9 @@ export function Messages({ transcript, live, ...handlers }: Readonly<MessagesPro
   const lastClaude = messages.findLastIndex((message) => message.role === 'claude')
   const canAct = live && transcript.status === 'waiting'
   const { projectId } = transcript
-  const imageUrl = projectId ? (number: number) => endpoints.sessionImage(projectId, transcript.id, number) : undefined
+  // A Prototype Grilling Session keeps its Images in its own folder, so it has its own route for them.
+  const imageRoute = transcript.kind === 'prototypeGrilling' ? endpoints.prototypeGrillingImage : endpoints.sessionImage
+  const imageUrl = projectId ? (number: number) => imageRoute(projectId, transcript.id, number) : undefined
   return (
     <div className="space-y-3.5">
       {messages.map((message, i) => {

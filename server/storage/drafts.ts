@@ -9,6 +9,7 @@ import { NotFound } from './errors.ts'
 import { KeyedLock, listJson, readJson, writeFileAtomic, writeJson } from './fsUtil.ts'
 import { draftFile, draftsDir } from './paths.ts'
 import { getProject } from './projects.ts'
+import { deletePrototypesOf } from './prototypes.ts'
 import { deleteTranscriptsOf } from './transcripts.ts'
 
 const lock = new KeyedLock()
@@ -53,6 +54,8 @@ export async function deleteDraft(projectId: string, draftId: string) {
     await fs.rm(draftFile(projectId, draftId, 'md'), { force: true })
     // Its Transcripts and their Images go too, so nothing deleted keeps using disk space.
     await deleteTranscriptsOf(projectId, draftId)
+    // …and so do its Prototypes and Prototype Session records.
+    await deletePrototypesOf(projectId, draftId)
   })
 }
 

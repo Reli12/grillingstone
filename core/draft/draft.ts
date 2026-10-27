@@ -15,6 +15,7 @@ export function newDraft(args: {
   template: Template
   requirement: string
   references?: string[]
+  createdFromPrototypeId?: string
   now: string
 }): Draft {
   return {
@@ -30,6 +31,7 @@ export function newDraft(args: {
     sections: [],
     iterationLog: [],
     proposal: null,
+    ...(args.createdFromPrototypeId ? { createdFromPrototypeId: args.createdFromPrototypeId } : {}),
     createdAt: args.now,
     updatedAt: args.now,
   }

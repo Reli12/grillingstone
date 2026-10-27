@@ -22,6 +22,8 @@ export interface NewDraftInput {
   templateId: string
   requirement: string
   references: string[]
+  /** The Prototype of the Project the Draft is created from; recorded as history only. */
+  createdFromPrototypeId?: string
 }
 
 export class DraftService {
@@ -43,7 +45,15 @@ export class DraftService {
     if (!requirement) throw new DraftInputError('Describe the requirement so Claude has something to grill.')
     const references = await this.existingReferences(projectId, input.references)
     const draft = await drafts.createDraft(
-      newDraft({ projectId, workItemType: input.workItemType, template, requirement, references, now: now() }),
+      newDraft({
+        projectId,
+        workItemType: input.workItemType,
+        template,
+        requirement,
+        references,
+        ...(input.createdFromPrototypeId ? { createdFromPrototypeId: input.createdFromPrototypeId } : {}),
+        now: now(),
+      }),
     )
     this.hub.broadcast({ type: 'drafts', projectId })
     return draft
@@ -87,6 +97,8 @@ export class DraftService {
   async delete(projectId: string, draftId: string) {
     await drafts.deleteDraft(projectId, draftId)
     this.hub.broadcast({ type: 'drafts', projectId })
+    // The Draft's Prototypes and session records went with it.
+    this.hub.broadcast({ type: 'prototypes', projectId })
   }
 
   /** Only Drafts that exist in the Project can be References. */

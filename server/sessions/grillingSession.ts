@@ -1,6 +1,7 @@
 // A Grilling Session runs in its Project's folder and writes a Draft (first session) or a Proposal (later ones).
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { parseGlossary } from '#core/glossary/glossary.ts'
+import { buildPrototypeContext } from '#core/prototype/prototypeContext.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
@@ -22,6 +23,7 @@ import { projectDir } from '../storage/paths.ts'
 import { getProject } from '../storage/projects.ts'
 import { getTemplate } from '../storage/templates.ts'
 import { saveTranscript } from '../storage/transcripts.ts'
+import { prototypeContextEntries } from './prototypeContextEntries.ts'
 import { SessionError } from './sessionError.ts'
 import { type PreparedSession, type Scope, type SubmitResult, summaryOf } from './sessionScope.ts'
 
@@ -35,6 +37,11 @@ export interface StartArgs {
   continues?: SessionSummary
   /** Images sent with the first message; the Supervisor saves and checks them. */
   images?: ImageUpload[]
+  /**
+   * Prototypes of the Project Claude may read as context. Absent on a Continuation: it is given the ones the earlier
+   * session had, unless they were deleted.
+   */
+  prototypeIds?: string[]
 }
 
 export interface GrillingDeps {
@@ -42,6 +49,8 @@ export interface GrillingDeps {
   drafts: DraftService
   glossary: GlossaryService
 }
+
+const NOT_A_PROTOTYPE = 'A Prototype you gave is not one of this Project’s Prototypes.'
 
 /** How much of the requirement stands in for a Reference that has no title yet. */
 const UNTITLED_REFERENCE_LENGTH = 60
@@ -126,6 +135,7 @@ interface IntroInput {
   upgradeTo: Template | undefined
   glossaryMarkdown: string
   referenceCount: number
+  prototypeCount: number
 }
 
 /** What a later session works on, as the intro names it. */
@@ -136,10 +146,19 @@ function laterSessionName(kind: SessionKind, focus: Focus, upgradeTo: Template |
 }
 
 /** The first system line: what kind of session this is and what Claude has to work from. */
-function grillingIntro({ args, draft, focus, upgradeTo, glossaryMarkdown, referenceCount }: IntroInput) {
+function grillingIntro({
+  args,
+  draft,
+  focus,
+  upgradeTo,
+  glossaryMarkdown,
+  referenceCount,
+  prototypeCount,
+}: IntroInput) {
   const terms = plural(parseGlossary(glossaryMarkdown).length, 'term')
   const referencesPart = referenceCount ? ` and ${plural(referenceCount, 'Reference')}` : ''
-  const context = `the Glossary (${terms})${referencesPart}`
+  const prototypesPart = prototypeCount ? `${referenceCount ? ',' : ' and'} ${plural(prototypeCount, 'Prototype')}` : ''
+  const context = `the Glossary (${terms})${referencesPart}${prototypesPart}`
   const what = laterSessionName(args.kind, focus, upgradeTo)
   const first = args.kind === 'first'
   if (args.continues && first)
@@ -169,7 +188,10 @@ function grillingScope(args: StartArgs, deps: GrillingDeps, submit: Scope['submi
 }
 
 /** What the session starts from, beyond the request itself. */
-type SeedMaterial = Pick<SeedInput, 'draft' | 'projectName' | 'glossary' | 'references' | 'upgradeTo'>
+type SeedMaterial = Pick<
+  SeedInput,
+  'draft' | 'projectName' | 'glossary' | 'references' | 'upgradeTo' | 'prototypeContext'
+>
 
 function seedFor(args: StartArgs, material: SeedMaterial) {
   return buildSeed({
@@ -182,10 +204,11 @@ function seedFor(args: StartArgs, material: SeedMaterial) {
   })
 }
 
-function newTranscript(args: StartArgs, focus: Focus): Transcript {
+function newTranscript(args: StartArgs, focus: Focus, prototypeIds: string[]): Transcript {
   const humanNote = args.humanNote?.trim()
   const { continues } = args
   return {
+    ...(prototypeIds.length ? { prototypeIds } : {}),
     id: newId('sess'),
     projectId: args.projectId,
     draftId: args.draftId,
@@ -216,9 +239,23 @@ export async function prepareGrillingSession(
   const focus = kind === 'focused' ? focusOf(draft, args.focus) : undefined
   const upgradeTo = kind === 'upgrade' ? await upgradeTargetOf(draft) : undefined
   const references = await loadReferences(projectId, draft)
+  const entries = await prototypeContextEntries(projectId, args.prototypeIds ?? args.continues?.prototypeIds ?? [])
+  // Prototypes the human picks now must exist; ones a Continuation is given again may have been deleted since.
+  if (args.prototypeIds && entries.some((entry) => entry.kind === 'deleted')) throw new SessionError(NOT_A_PROTOTYPE)
+  // The Prototypes' Images are numbered after the ones this message carries, which come after the last of the session.
+  const firstImageNumber = (args.continues?.lastImageNumber ?? 0) + (args.images?.length ?? 0) + 1
+  const context = buildPrototypeContext({ entries, firstImageNumber })
+  const givenIds = entries.flatMap((entry) => (entry.kind === 'prototype' ? [entry.id] : []))
 
-  const seed = seedFor(args, { draft, projectName: project.name, glossary: glossary.markdown, references, upgradeTo })
-  const transcript = newTranscript(args, focus)
+  const seed = seedFor(args, {
+    draft,
+    projectName: project.name,
+    glossary: glossary.markdown,
+    references,
+    upgradeTo,
+    prototypeContext: context.markdown,
+  })
+  const transcript = newTranscript(args, focus, givenIds)
   const submit = grillingSubmitter(args, transcript.id, upgradeTo, deps)
   const intro = grillingIntro({
     args,
@@ -227,12 +264,14 @@ export async function prepareGrillingSession(
     upgradeTo,
     glossaryMarkdown: glossary.markdown,
     referenceCount: references.length,
+    prototypeCount: givenIds.length,
   })
 
   return {
     transcript,
     seed,
     intro,
+    ...(context.images.length ? { contextImages: context.images } : {}),
     ...(args.continues ? { resume: args.continues.claudeSessionId } : {}),
     ...(args.images?.length ? { images: args.images } : {}),
     scope: grillingScope(args, deps, submit),

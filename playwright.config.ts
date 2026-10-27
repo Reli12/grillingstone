@@ -32,7 +32,11 @@ export default defineConfig({
     {
       command: 'node e2e/startBackend.mjs',
       // The backend allows browser calls only from GRILLINGSTONE_WEB_PORT, so it needs both ports.
-      env: { ...ports, GRILLINGSTONE_DATA_DIR: 'data-e2e', GRILLINGSTONE_CLAUDE_BIN: FAKE_CLAUDE },
+      env: {
+        ...ports,
+        GRILLINGSTONE_DATA_DIR: 'data-e2e',
+        GRILLINGSTONE_CLAUDE_BIN: FAKE_CLAUDE,
+      },
       port: Number(SERVER_PORT),
       reuseExistingServer: false,
     },
