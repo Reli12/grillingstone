@@ -3,6 +3,7 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { parseGlossary } from '#core/glossary/glossary.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSubmission.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import { buildSeed, type SeedInput } from '#core/session/grillingSeed.ts'
 import type { ImageUpload } from '#core/session/images.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
@@ -171,11 +172,12 @@ function grillingScope(args: StartArgs, deps: GrillingDeps, submit: Scope['submi
 /** What the session starts from, beyond the request itself. */
 type SeedMaterial = Pick<SeedInput, 'draft' | 'projectName' | 'glossary' | 'references' | 'upgradeTo'>
 
-function seedFor(args: StartArgs, material: SeedMaterial) {
+function seedFor(args: StartArgs, sessionId: string, material: SeedMaterial) {
   return buildSeed({
     kind: args.kind,
     ...material,
     submitCommand: `node "${SUBMIT_SCRIPT}"`,
+    payloadFile: submitPayloadFile(sessionId),
     focus: args.focus,
     humanNote: args.humanNote,
     continuing: !!args.continues,
@@ -217,8 +219,9 @@ export async function prepareGrillingSession(
   const upgradeTo = kind === 'upgrade' ? await upgradeTargetOf(draft) : undefined
   const references = await loadReferences(projectId, draft)
 
-  const seed = seedFor(args, { draft, projectName: project.name, glossary: glossary.markdown, references, upgradeTo })
   const transcript = newTranscript(args, focus)
+  const material = { draft, projectName: project.name, glossary: glossary.markdown, references, upgradeTo }
+  const seed = seedFor(args, transcript.id, material)
   const submit = grillingSubmitter(args, transcript.id, upgradeTo, deps)
   const intro = grillingIntro({
     args,
