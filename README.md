@@ -69,14 +69,16 @@ and no permission prompts. A `PreToolUse` hook (`scripts/permissionHook.mjs`) ch
 default. It allows:
 
 - reading, searching and globbing inside the Project's folder (paths are normalised and symlinks resolved);
-- editing only the Glossary (`CONTEXT.md`) and markdown decision records under the Project's `plan/`;
+- editing only the Glossary (`CONTEXT.md`), markdown decision records under the Project's `plan/`, and the
+  session's own submission file `.submit/<session id>.json`;
 - web search and fetch, and the `grill-with-docs` skill;
-- exactly one Bash command: the submit script in its fixed heredoc form.
+- exactly one Bash command: the submit script, with no arguments. It reads the submission file, so the JSON never
+  goes through the shell and has no length limit.
 
 Drafts themselves can only change through the submit script. Only one session runs per Draft at a time.
 
-A **Template Session** runs the same way with a stricter scope. It works in its own empty folder, writes no files,
-loads no skills and has no Glossary. It submits a Template instead of a Draft, and isn't kept for continuing.
+A **Template Session** runs the same way with a stricter scope. It works in its own empty folder, writes no files except its
+submission file, loads no skills and has no Glossary. It submits a Template instead of a Draft, and isn't kept for continuing.
 
 ## Requirements
 
