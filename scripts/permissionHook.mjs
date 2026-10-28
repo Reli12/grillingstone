@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse hook for headless Grilling Sessions (ADR-0006): deny by default, decided by core/session/permissionGuard.ts.
-// Reads the hook payload on stdin; the Project folder and submit script come from the session's environment.
+// Reads the hook payload on stdin; the Project folder, submit script and session id come from the session's environment.
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -40,12 +40,17 @@ try {
   const input = JSON.parse(fs.readFileSync(STDIN, 'utf8'))
   const projectDir = process.env.GRILLINGSTONE_PROJECT_DIR
   const submitScript = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
-  if (!projectDir || !submitScript)
-    respondAndExit('deny', 'Session environment is missing GRILLINGSTONE_PROJECT_DIR / GRILLINGSTONE_SUBMIT_SCRIPT.')
+  const sessionId = process.env.GRILLINGSTONE_SESSION_ID
+  if (!projectDir || !submitScript || !sessionId)
+    respondAndExit(
+      'deny',
+      'Session environment is missing GRILLINGSTONE_PROJECT_DIR / GRILLINGSTONE_SUBMIT_SCRIPT / GRILLINGSTONE_SESSION_ID.',
+    )
   const mode = process.env.GRILLINGSTONE_GUARD_MODE === 'template' ? 'template' : 'grilling'
   const decision = decide(input.tool_name, input.tool_input ?? {}, {
     projectDir: realpath(projectDir),
     submitScript,
+    sessionId,
     realpath,
     mode,
   })

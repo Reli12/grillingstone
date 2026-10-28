@@ -1,8 +1,12 @@
 // End-to-end tests of the HTTP API: each test boots the real backend with a fake Claude and data in
 // data-test/, then drives Projects, Drafts, sessions and Templates the way the browser would.
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import { TRACKERS } from '#core/shared/tracker.ts'
 import { workItemTypes } from '#core/shared/workItemType.ts'
@@ -12,6 +16,7 @@ import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import { startBackend } from '../test/server/testBackend.ts'
+import { projectDir } from './storage/paths.ts'
 
 let backend: Awaited<ReturnType<typeof startBackend>>
 const call = (...args: Parameters<typeof backend.call>) => backend.call(...args)
@@ -230,8 +235,13 @@ describe('Drafts and Grilling Sessions', () => {
 
   it('stops a session without writing, and reports a crashed one', async () => {
     const grilled = await grillingDraft()
+    // A submission written but never ACCEPTED is cleared when the session ends.
+    const leftover = path.join(projectDir(grilled.projectId), submitPayloadFile(grilled.sessionId))
+    fs.mkdirSync(path.dirname(leftover), { recursive: true })
+    fs.writeFileSync(leftover, '{}')
     await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
     await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+    expect(fs.existsSync(leftover)).toBe(false)
     expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version).toBe(
       0,
     )

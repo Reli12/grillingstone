@@ -3,16 +3,18 @@
 // symlink-resolved, and the single allowed Bash command is matched exactly.
 import path from 'node:path'
 
-import { SUBMIT_HEREDOC } from '#core/session/cardProtocol.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 
 export interface GuardContext {
   /** Absolute, symlink-resolved Project folder. */
   projectDir: string
   /** Absolute path of scripts/writeDraft.mjs. */
   submitScript: string
+  /** The session's id, which names its one writable submission file. */
+  sessionId: string
   /** Resolves symlinks (for paths that do not exist yet: of their longest existing ancestor). */
   realpath: (filePath: string) => string
-  /** A Template Session writes nothing and loads no skills; its folder is its own empty working folder. */
+  /** A Template Session writes only its payload file and loads no skills; its folder is its own working folder. */
   mode?: 'grilling' | 'template'
 }
 
@@ -36,10 +38,6 @@ export const SESSION_TOOLS = [
 
 // Either path separator, so a pattern is split the same way on every platform.
 const PATH_SEPARATOR = /[\\/]/
-// Windows line endings, normalised to "\n" before splitting a command into lines.
-const CRLF = /\r\n/g
-// The newlines at the very end of a command.
-const TRAILING_NEWLINES = /\n+$/
 
 const ALLOW: Decision = { allow: true }
 const deny = (reason: string): Decision => ({ allow: false, reason })
@@ -63,9 +61,15 @@ function readable(ctx: GuardContext, filePath: string | undefined, what: string)
 
 const climbs = (pattern: string) => path.isAbsolute(pattern) || pattern.split(PATH_SEPARATOR).includes('..')
 
+/**
+ * The one file every session may write: its own submission, read by the submit command. Compared against the
+ * unresolved expected path, so a symlinked .submit folder resolves elsewhere and is refused.
+ */
+const isPayloadFile = (ctx: GuardContext, filePath: string | undefined) =>
+  !!filePath && resolve(ctx, filePath) === path.join(ctx.projectDir, submitPayloadFile(ctx.sessionId))
+
 function writable(ctx: GuardContext, filePath: string | undefined): Decision {
-  const why =
-    'Sessions may edit only the Glossary (CONTEXT.md) and markdown decision records under plan/. Drafts change only through the submit command.'
+  const why = `Sessions may edit only the Glossary (CONTEXT.md), markdown decision records under plan/ and the submission file ${submitPayloadFile(ctx.sessionId)}. Drafts change only through the submit command.`
   if (!filePath) return deny(`No file_path given. ${why}`)
   const real = resolve(ctx, filePath)
   if (real === path.join(ctx.projectDir, 'CONTEXT.md')) return ALLOW
@@ -75,22 +79,14 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
 }
 
 /**
- * The only Bash a session may run: `node "<submitScript>" <<'GRILLINGSTONE_JSON'` followed by the JSON and a final
- * GRILLINGSTONE_JSON line. The quoted delimiter disables every expansion inside the heredoc, and nothing may follow it.
+ * The only Bash a session may run: `node "<submitScript>"`, matched exactly, so nothing can be chained onto it.
+ * The script reads its JSON from the payload file, so the payload never passes through a shell.
  */
 function submitCommand(ctx: GuardContext, command: unknown): Decision {
-  const usage = `The only allowed Bash command is:\nnode "${ctx.submitScript}" <<'${SUBMIT_HEREDOC}'\n{ …json… }\n${SUBMIT_HEREDOC}`
+  const allowed = new Set([`node "${ctx.submitScript}"`, `node ${ctx.submitScript}`])
+  const usage = `The only allowed Bash command is:\nnode "${ctx.submitScript}"\nWrite the JSON to ${submitPayloadFile(ctx.sessionId)} first.`
   if (typeof command !== 'string') return deny(usage)
-  const lines = command.replace(CRLF, '\n').replace(TRAILING_NEWLINES, '').split('\n')
-  const opener = new Set([
-    `node "${ctx.submitScript}" <<'${SUBMIT_HEREDOC}'`,
-    `node ${ctx.submitScript} <<'${SUBMIT_HEREDOC}'`,
-  ])
-  if (!opener.has(lines[0].trim())) return deny(usage)
-  const terminators = lines.map((line, i) => (line === SUBMIT_HEREDOC ? i : -1)).filter((i) => i > 0)
-  if (terminators.length !== 1 || terminators[0] !== lines.length - 1)
-    return deny(`The heredoc must end with a single final "${SUBMIT_HEREDOC}" line and nothing after it. ${usage}`)
-  return ALLOW
+  return allowed.has(command.trim()) ? ALLOW : deny(usage)
 }
 
 export function decide(tool: string, input: Record<string, unknown>, ctx: GuardContext): Decision {
@@ -110,8 +106,11 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
     case 'Edit':
     case 'Write':
     case 'MultiEdit':
+      if (isPayloadFile(ctx, str(input.file_path))) return ALLOW
       if (ctx.mode === 'template')
-        return deny('A Template Session writes no files — submit the Template with the submit command instead.')
+        return deny(
+          `A Template Session writes only ${submitPayloadFile(ctx.sessionId)} — then runs the submit command.`,
+        )
       return writable(ctx, str(input.file_path))
     case 'Bash':
       return submitCommand(ctx, input.command)

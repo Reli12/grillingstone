@@ -4,8 +4,10 @@
 // runs and what its submission means — comes from grillingSession.ts and templateSession.ts.
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
-import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
+import { submitPayloadFile, WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
 import { buildMessageContent, type ImageRef, type ImageUpload } from '#core/session/images.ts'
 import { newSessionState, type SessionEvent, type SessionState, transition } from '#core/session/sessionMachine.ts'
@@ -469,6 +471,8 @@ export class Supervisor {
     }
     if (last) transcript.messages.push(last)
     transcript.status = status
+    // A session stopped or crashed between writing its submission and an ACCEPTED leaves the file behind.
+    await fs.rm(path.join(live.scope.cwd, submitPayloadFile(transcript.id)), { force: true })
     await live.scope.save(transcript)
     if (last) live.scope.emitMessage(transcript, last)
     live.scope.emitSession(transcript)

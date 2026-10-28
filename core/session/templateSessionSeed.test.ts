@@ -5,6 +5,7 @@ import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
+const payloadFile = '.submit/sess-1.json'
 
 describe('Template Session seed', () => {
   it('tells Claude which Work Item Type the Template is for and what the human wants it for', () => {
@@ -14,6 +15,7 @@ describe('Template Session seed', () => {
       purpose: 'Spike PBIs: timeboxed investigations ending in a recommendation',
       examples: '',
       submitCommand,
+      payloadFile,
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('PBI')
@@ -27,6 +29,7 @@ describe('Template Session seed', () => {
       purpose: 'Spike PBIs',
       examples: '',
       submitCommand,
+      payloadFile,
       ...extra,
     })
     return seed.systemPrompt + '\n' + seed.firstMessage
@@ -88,7 +91,11 @@ describe('Template Session seed', () => {
 
   it('shows how to submit the Template through the submit command, gated on the human confirming', () => {
     const all = seedText()
-    expect(all).toContain(`${submitCommand} <<'GRILLINGSTONE_JSON'`)
+    expect(all).toContain(`Write the JSON to ${payloadFile} with the Write tool`)
+    expect(all).toContain(`Run exactly this Bash command, nothing else: ${submitCommand}`)
+    expect(all).not.toContain('<<')
+    expect(all).toContain('Never submit a test or partial payload')
+    expect(all).toContain('tell the human the exact error and stop')
     expect(all).toContain('"sections"')
     expect(all).toContain('Write it now.')
     expect(all).toContain('pbi-question')

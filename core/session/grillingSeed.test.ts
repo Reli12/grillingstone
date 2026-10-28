@@ -8,6 +8,7 @@ import type { Template } from '#core/template/templateTypes.ts'
 import { defaultBugTemplate, defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
+const payloadFile = '.submit/sess-1.json'
 
 describe('Session Seed Builder', () => {
   it('gives a first session the Template method, its Sections and the requirement', () => {
@@ -25,11 +26,42 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('Frontend PBI Guide')
     expect(all).toContain('Managers need to archive devices.')
     expect(all).toContain('acceptanceCriteria')
+  })
+
+  it('submits through the payload file and the bare command, for v1 and for a Proposal', () => {
+    for (const kind of ['first', 'iteration'] as const) {
+      const draft =
+        kind === 'first'
+          ? newDraft({
+              projectId: 'p',
+              workItemType: 'PBI',
+              template: defaultPbiTemplate,
+              requirement: 'x',
+              now: meta.date,
+            })
+          : v1Draft()
+      const seed = buildSeed({
+        kind,
+        draft,
+        projectName: 'P',
+        glossary: '',
+        references: [],
+        submitCommand,
+        payloadFile,
+      })
+      expect(seed.systemPrompt).toContain(`Write the JSON to ${payloadFile} with the Write tool`)
+      expect(seed.systemPrompt).toContain(`Run exactly this Bash command, nothing else: ${submitCommand}`)
+      expect(seed.systemPrompt).not.toContain('<<')
+      expect(seed.systemPrompt).toContain('Never submit a test or partial payload')
+      expect(seed.systemPrompt).toContain('there is no size limit')
+      expect(seed.systemPrompt).toContain('tell the human the exact error and stop')
+    }
   })
 
   it('names the Tracker the Draft is written for', () => {
@@ -41,6 +73,7 @@ describe('Session Seed Builder', () => {
         glossary: '',
         references: [],
         submitCommand,
+        payloadFile,
       })
     const azure = seedFor(defaultPbiTemplate, 'PBI')
     expect(azure.systemPrompt).toContain('one Azure DevOps PBI Draft')
@@ -65,6 +98,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('a requirement or an observed defect')
@@ -82,6 +116,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
     })
     const all = seed.systemPrompt + seed.firstMessage
     const ac = sectionByKey(draft, 'acceptanceCriteria')
@@ -108,6 +143,7 @@ describe('Session Seed Builder', () => {
         },
       ],
       submitCommand,
+      payloadFile,
     })
     const all = seed.systemPrompt + seed.firstMessage
     expect(all).toContain('Hidden from dashboards, still billed.')
@@ -128,6 +164,7 @@ describe('Session Seed Builder', () => {
         glossary: '',
         references: [],
         submitCommand,
+        payloadFile,
       }),
     ).join('\n')
     const discardedPart = all.slice(all.indexOf('Discarded by the human'))
@@ -146,6 +183,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
       focus: { sectionId: scope.id },
       humanNote: 'BA wants bulk archive back in',
     })
@@ -177,6 +215,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
       upgradeTo,
     })
     expect(seed.firstMessage).toContain('Analytics Events')
@@ -191,6 +230,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
     })
     expect(seed.systemPrompt + seed.firstMessage).not.toMatch(/transcript|previous conversation/i)
   })
@@ -210,6 +250,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
       humanNote: 'Only Account Admins may export.',
     })
     expect(seed.firstMessage).toContain('Only Account Admins may export.')
@@ -234,6 +275,7 @@ describe('Session Seed Builder', () => {
         glossary: '',
         references: [],
         submitCommand,
+        payloadFile,
         focus: kind === 'focused' ? { sectionId: sectionByKey(draft, 'scope').id } : undefined,
       })
       expect(systemPrompt, kind).toContain('put your reading to the human as a question')
@@ -251,6 +293,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
       humanNote: 'Bulk archive is back',
       continuing: true,
     })
@@ -276,6 +319,7 @@ describe('Session Seed Builder', () => {
       glossary: '',
       references: [],
       submitCommand,
+      payloadFile,
       continuing: true,
     })
     expect(seed.firstMessage).toContain('continues your earlier conversation')

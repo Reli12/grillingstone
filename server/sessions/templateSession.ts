@@ -1,4 +1,5 @@
 // A Template Session runs in an empty working folder — no Project, no Glossary — and writes one new Template.
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import type { TemplateRequest, TemplateTranscript } from '#core/session/sessionTypes.ts'
 import { buildTemplateSeed } from '#core/session/templateSessionSeed.ts'
 import { newId } from '#core/shared/ids.ts'
@@ -98,6 +99,7 @@ export async function prepareTemplateSession(
     examples: request.examples,
     base,
     submitCommand: `node "${SUBMIT_SCRIPT}"`,
+    payloadFile: submitPayloadFile(transcript.id),
   })
   const intro = templateIntro(request, base)
   const cwd = await makeTemplateSessionDir(transcript.id)
