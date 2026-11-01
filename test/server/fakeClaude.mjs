@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // A stand-in for `claude -p` in server and browser (e2e/) tests: reads stream-json user messages on stdin and answers like a
-// session would. It asks one question card; on "Write it now." it runs the real submit script with a valid
-// payload for its kind of session (v1 Draft, Proposal or Template). A message containing CRASH makes it die.
+// session would. It asks one question card; on "Write it now." it writes a valid payload file for its kind of session
+// (v1 Draft, Proposal or Template) and runs the real submit script. A message containing CRASH makes it die.
 // A turn with Images (a content array) is answered with one extra line, "Received image blocks: Image 1 (image/png, …)".
 // Like Claude Code it names its session in an init event; with --resume it keeps the name it is given.
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import readline from 'node:readline'
 
 import { methodSkeleton } from '#core/template/templateValidator.ts'
@@ -99,24 +101,20 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     continue
   }
   const script = process.env.GRILLINGSTONE_SUBMIT_SCRIPT
+  // Like a real session: write the payload file first, then run the bare submit command.
+  const payloadPath = path.join(process.cwd(), '.submit', `${process.env.GRILLINGSTONE_SESSION_ID}.json`)
+  fs.mkdirSync(path.dirname(payloadPath), { recursive: true })
+  fs.writeFileSync(payloadPath, JSON.stringify(payload()))
   emit({
     type: 'assistant',
     message: {
       content: [
-        {
-          type: 'tool_use',
-          id: 'submit-1',
-          name: 'Bash',
-          input: { command: `node "${script}" <<'GRILLINGSTONE_JSON'\n…\nGRILLINGSTONE_JSON` },
-        },
+        { type: 'tool_use', id: 'payload-1', name: 'Write', input: { file_path: payloadPath, content: '…' } },
+        { type: 'tool_use', id: 'submit-1', name: 'Bash', input: { command: `node "${script}"` } },
       ],
     },
   })
-  const run = spawnSync(process.execPath, [script], {
-    input: JSON.stringify(payload()),
-    env: process.env,
-    encoding: 'utf8',
-  })
+  const run = spawnSync(process.execPath, [script], { env: process.env, encoding: 'utf8' })
   emit({
     type: 'user',
     message: {

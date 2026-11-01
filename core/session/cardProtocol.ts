@@ -13,8 +13,15 @@ export const WRITE_NOW_MESSAGE = 'Write it now.'
 export const QUESTION_FENCE = 'pbi-question'
 export const READY_FENCE = 'pbi-ready'
 
-/** Delimiter of the submit command's heredoc; the Permission Guard allows exactly this form. */
-export const SUBMIT_HEREDOC = 'GRILLINGSTONE_JSON'
+/** The folder, inside a session's working folder, that holds submission files. */
+export const SUBMIT_DIR = '.submit'
+
+/**
+ * Where a session writes its submission (relative to its working folder) before running the submit command.
+ * The JSON travels in a file, not the command line: Windows mangles commands longer than about 8,000 characters.
+ * One file per session, because Grilling Sessions on different Drafts of a Project share the Project folder.
+ */
+export const submitPayloadFile = (sessionId: string) => `${SUBMIT_DIR}/${sessionId}.json`
 
 /** How a session asks questions and runs the Ready Check — shared by Grilling and Template Sessions. */
 export function cardProtocol(target: string, writeWhat: string): string {
@@ -36,6 +43,23 @@ When you believe you understand enough to write ${target}, run the Ready Check i
 Never write ${writeWhat} before the human confirms. Their confirmation arrives as the message "${WRITE_NOW_MESSAGE}" — either after your Ready Check, or at any moment when they cut the session short.`
 }
 
-/** The heredoc form of the one Bash command a session may run. */
-export const submitUsage = (submitCommand: string, firstLine: string) =>
-  `${submitCommand} <<'${SUBMIT_HEREDOC}'\n${firstLine}\n${SUBMIT_HEREDOC}`
+/** How a session submits: the command it may run and the file it writes first. */
+export interface SubmitProtocol {
+  submitCommand: string
+  /** The session's own submission file, from submitPayloadFile. */
+  payloadFile: string
+}
+
+/** The two submit steps — shared by Grilling and Template Sessions. */
+export function submitSteps({ submitCommand, payloadFile }: SubmitProtocol, what: string): string {
+  return `When the human has confirmed, submit ${what} in two steps:
+
+1. Write the JSON to ${payloadFile} with the Write tool.
+2. Run exactly this Bash command, nothing else: ${submitCommand}`
+}
+
+/** What a session does with the submit command's answer. */
+export const submitOutcomeRules = (payloadFile: string) =>
+  `The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons. On REFUSED, fix every reason by editing ${payloadFile} (Edit is fine; there is no need to rewrite it) and run the command again.
+Never submit a test or partial payload, and never submit before the human confirms. Write the full content; there is no size limit.
+If the command fails with anything other than ACCEPTED or REFUSED, do not guess at a cause or retry with changes; tell the human the exact error and stop.`
