@@ -38,6 +38,11 @@ export function DraftRow({ draft }: Readonly<{ draft: DraftSummary }>) {
         </span>
         <span className="mt-0.5 block text-[13px] text-ink-faint">
           {versionText}, {draft.templateName}
+          {draft.changedBacklogCopies?.map((workItemId) => (
+            <span key={workItemId} className="ml-2 font-medium text-redpencil">
+              Backlog Copy #{workItemId} changed
+            </span>
+          ))}
           {draft.pendingChanges > 0 && (
             <span className="ml-2 font-medium text-redpencil">
               {draft.pendingChanges} change{draft.pendingChanges === 1 ? '' : 's'} to triage
