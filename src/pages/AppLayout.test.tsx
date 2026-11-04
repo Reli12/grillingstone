@@ -1,4 +1,4 @@
-// Tests for AppLayout: the header's Project switcher, New Project link and home link, and the footer.
+// Tests for AppLayout: the header's Project switcher, New Project link and home link, and the footer with the version.
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -8,6 +8,8 @@ import { rememberProject } from '@/lib/lastProject'
 import AppLayout from '@/pages/AppLayout'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
+
+import packageJson from '../../package.json' with { type: 'json' }
 
 const projects = [
   { id: 'customer-portal', name: 'Customer Portal', createdAt: '', drafts: 2 },
@@ -47,6 +49,16 @@ describe('AppLayout', () => {
     const footer = screen.getByRole('contentinfo')
     expect(footer).toHaveTextContent('© 2026 Dorijan Polanc · MIT License')
     expect(within(footer).getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal')
+  })
+
+  it('names the running version in the footer and links its release notes', () => {
+    server.use(http.get(`*${endpoints.projects}`, () => HttpResponse.json([])))
+    render(<AppLayout />, { route: '/', path: '/' })
+    const version = `v${packageJson.version}`
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: version })).toHaveAttribute(
+      'href',
+      `https://github.com/Reli12/grillingstone/releases/tag/${version}`,
+    )
   })
 
   it('hides the switcher without Projects', () => {

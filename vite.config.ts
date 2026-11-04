@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 import { createLogger } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+import packageJson from './package.json' with { type: 'json' }
+
 const serverPort = Number(process.env.GRILLINGSTONE_SERVER_PORT ?? 5311)
 
 // The backend restarts under `node --watch` whenever server/ or core/ changes, cutting every open
@@ -21,6 +23,8 @@ logger.error = (msg, options) => {
 export default defineConfig({
   customLogger: logger,
   plugins: [react(), tailwindcss()],
+  // The running version, shown in the footer; release-please bumps it in package.json.
+  define: { __APP_VERSION__: JSON.stringify(packageJson.version) },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
