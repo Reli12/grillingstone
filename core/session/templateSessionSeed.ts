@@ -1,7 +1,13 @@
 // Template Session seed: what a session that writes a new Template starts from. It belongs to no Project
 // and sees no Glossary — a Template is reused across Projects and shared with colleagues — so its only
 // material is the purpose, the pasted examples and an optional base Template (read-only).
-import { cardProtocol, type Seed, submitUsage } from '#core/session/cardProtocol.ts'
+import {
+  cardProtocol,
+  type Seed,
+  submitOutcomeRules,
+  type SubmitProtocol,
+  submitSteps,
+} from '#core/session/cardProtocol.ts'
 import { type Tracker, TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { fieldLabel, type SectionTarget } from '#core/shared/trackerFields.ts'
 import {
@@ -13,7 +19,7 @@ import {
 import type { Template } from '#core/template/templateTypes.ts'
 import { SKELETON_PARTS } from '#core/template/templateValidator.ts'
 
-export interface TemplateSeedInput {
+export interface TemplateSeedInput extends SubmitProtocol {
   tracker: Tracker
   workItemType: WorkItemType
   /** What the human wants the Template for, in their words. */
@@ -21,7 +27,6 @@ export interface TemplateSeedInput {
   /** Example work items pasted by the human ('' for none). */
   examples: string
   base?: Template
-  submitCommand: string
 }
 
 const templateJson = (template: Pick<Template, 'name' | 'sections'>) =>
@@ -87,9 +92,7 @@ function submitSection(input: TemplateSeedInput, targets: SectionTarget[]): stri
   const defaultLogField = fieldLabel(defaultIterationLogTarget(tracker, workItemType))
   const example = `{"name": "Spike ${workItemType}", "sections": [{"key": "question", "heading": "Question", "shape": "prose", "locked": true, "guidance": "…", "target": "${targets[0]}"}], "method": "# Spike ${workItemType} Guide\\n\\n## Purpose\\n…"}`
   return `## How you submit
-You never write files. When the human has confirmed, submit the whole Template as JSON by running exactly this Bash command (the quoted heredoc delimiter is required):
-
-${submitUsage(input.submitCommand, '{ …the Template JSON… }')}
+You write no files except ${input.payloadFile}. ${submitSteps(input, 'the whole Template')}
 
 JSON shape:
 ${example}
@@ -98,7 +101,8 @@ ${example}
 - "iterationLogTarget": one of those fields — where the Iteration Log is appended (optional; defaults to ${defaultLogField})
 - The Tracker and Work Item Type are fixed to ${TRACKER_LABELS[tracker]} ${workItemType}; do not include them.
 
-The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`
+${submitOutcomeRules(input.payloadFile)}
+After ACCEPTED, reply with one short sentence telling the human the Template is saved, and stop.`
 }
 
 /** The base Template, shown read-only as starting material for the new one. */

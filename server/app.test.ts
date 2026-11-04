@@ -1,8 +1,12 @@
 // End-to-end tests of the HTTP API: each test boots the real backend with a fake Claude and data in
 // data-test/, then drives Projects, Drafts, sessions and Templates the way the browser would.
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import { TRACKERS } from '#core/shared/tracker.ts'
 import { workItemTypes } from '#core/shared/workItemType.ts'
@@ -12,6 +16,7 @@ import { validateTemplate } from '#core/template/templateValidator.ts'
 import { defaultPbiTemplate } from '#core/testing/fixtures.ts'
 
 import { startBackend } from '../test/server/testBackend.ts'
+import { projectDir } from './storage/paths.ts'
 
 let backend: Awaited<ReturnType<typeof startBackend>>
 const call = (...args: Parameters<typeof backend.call>) => backend.call(...args)
@@ -102,6 +107,19 @@ describe('projects and Glossary', () => {
     expect((await call('POST', '/api/projects', { name: '  ' })).status).toBe(400)
     expect((await call('GET', '/api/projects/missing')).status).toBe(404)
     expect((await call('GET', '/api/projects/..%2Fetc')).status).toBe(404)
+  })
+
+  it('deletes a Project with everything in it, but not while a session runs in it', async () => {
+    const grilled = await grillingDraft()
+    const busy = await call('DELETE', `/api/projects/${grilled.projectId}`)
+    expect(busy.status).toBe(409)
+    expect((await call('GET', `/api/projects/${grilled.projectId}`)).status).toBe(200)
+
+    await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
+    await vi.waitFor(async () => expect((await call('DELETE', `/api/projects/${grilled.projectId}`)).status).toBe(200))
+    expect((await call('GET', `/api/projects/${grilled.projectId}`)).status).toBe(404)
+    expect((await call('GET', '/api/projects')).body).toEqual([])
+    expect((await call('DELETE', `/api/projects/${grilled.projectId}`)).status).toBe(404)
   })
 
   it('gives a new Project the Default Tracker unless it names one, and fixes it once a Draft exists', async () => {
@@ -217,8 +235,13 @@ describe('Drafts and Grilling Sessions', () => {
 
   it('stops a session without writing, and reports a crashed one', async () => {
     const grilled = await grillingDraft()
+    // A submission written but never ACCEPTED is cleared when the session ends.
+    const leftover = path.join(projectDir(grilled.projectId), submitPayloadFile(grilled.sessionId))
+    fs.mkdirSync(path.dirname(leftover), { recursive: true })
+    fs.writeFileSync(leftover, '{}')
     await call('POST', `/api/sessions/${grilled.sessionId}/stop`)
     await waitForStatus(grilled.projectId, grilled.draftId, 'stopped')
+    expect(fs.existsSync(leftover)).toBe(false)
     expect((await call('GET', `/api/projects/${grilled.projectId}/drafts/${grilled.draftId}`)).body.draft.version).toBe(
       0,
     )

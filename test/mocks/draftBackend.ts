@@ -52,6 +52,8 @@ export function draftBackend(
       HttpResponse.json({ id: projectId, name: 'Customer Portal', createdAt: '', tracker: 'azure-devops' }),
     ),
     http.get(url(endpoints.drafts(projectId)), () => HttpResponse.json(otherDrafts)),
+    // No Backlog Copies unless a test sets them up with backlogBackend().
+    http.get(url(endpoints.backlogCopies(projectId)), () => HttpResponse.json([])),
     http.get(url(endpoints.glossary(projectId)), () => HttpResponse.json({ markdown: '', version: 'v0' })),
     http.get(url(endpoints.templates), () => HttpResponse.json(templates)),
     http.get(url(endpoints.draft(projectId, draftId)), () =>

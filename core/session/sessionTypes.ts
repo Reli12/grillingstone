@@ -1,4 +1,5 @@
 // What the backend tells the browser about Grilling and Template Sessions, and what a Transcript holds.
+import type { CodeFolderSnapshot } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { Segment } from '#core/session/blockExtractor.ts'
 import type { ImageRef } from '#core/session/images.ts'
@@ -69,6 +70,8 @@ export interface SessionSummary extends SessionBase {
   continues?: string
   /** The number of the last Image of this Transcript, so a Continuation numbers after it. */
   lastImageNumber?: number
+  /** The Code Folders it read and their branch state at its start; absent when it read none (ADR-0016). */
+  codeFolders?: CodeFolderSnapshot[]
 }
 
 export interface Transcript extends SessionSummary {
@@ -131,6 +134,7 @@ export type ServerEvent =
   | { type: 'message'; projectId: string; draftId: string; sessionId: string; message: ChatMessage }
   | { type: 'glossary'; projectId: string }
   | { type: 'drafts'; projectId: string }
+  | { type: 'backlogCopies'; projectId: string }
   | { type: 'templates' }
   | { type: 'templateSession'; session: TemplateSessionSummary }
   | { type: 'templateMessage'; sessionId: string; message: ChatMessage }

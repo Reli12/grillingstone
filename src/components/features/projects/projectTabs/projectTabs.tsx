@@ -1,4 +1,5 @@
-// The Project page's tabs, each at its own URL: the Drafts, the whole Glossary to maintain, or the Prototypes.
+// The Project page's tabs, each at its own URL: the Drafts, the Backlog Copies (Azure DevOps Projects only), the
+// whole Glossary to maintain, the Code Folders its sessions may read, or the Prototypes.
 import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
@@ -8,6 +9,8 @@ import type { ProjectTab } from '@/types/projectPage'
 interface ProjectTabsProps {
   projectId: string
   selected: ProjectTab
+  /** Backlog Copies exist only in Azure DevOps Projects. */
+  showBacklog: boolean
 }
 
 const tabClass = (selected: boolean) =>
@@ -18,14 +21,17 @@ const tabClass = (selected: boolean) =>
 
 const TABS = [
   { tab: 'drafts', label: 'Drafts', path: routesPaths.project },
+  { tab: 'backlog', label: 'Backlog Copies', path: routesPaths.projectBacklog },
   { tab: 'glossary', label: 'Glossary', path: routesPaths.projectGlossary },
+  { tab: 'code', label: 'Code Folders', path: routesPaths.projectCode },
   { tab: 'prototypes', label: 'Prototypes', path: routesPaths.projectPrototypes },
 ] as const satisfies ReadonlyArray<{ tab: ProjectTab; label: string; path: (projectId: string) => string }>
 
-export function ProjectTabs({ projectId, selected }: Readonly<ProjectTabsProps>) {
+export function ProjectTabs({ projectId, selected, showBacklog }: Readonly<ProjectTabsProps>) {
+  const tabs = TABS.filter(({ tab }) => showBacklog || tab !== 'backlog')
   return (
     <nav role="tablist" aria-label="Project" className="flex gap-1">
-      {TABS.map(({ tab, label, path }) => (
+      {tabs.map(({ tab, label, path }) => (
         <Link
           key={tab}
           role="tab"

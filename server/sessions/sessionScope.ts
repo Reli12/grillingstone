@@ -1,5 +1,6 @@
 // The shared shape of a session, whichever kind it is: the Scope that says where it runs and what its
 // submission means, and the PreparedSession the Supervisor launches.
+import type { CodeFolder } from '#core/codeFolder/codeFolderTypes.ts'
 import type { PrototypeSession } from '#core/prototype/prototypeRecords.ts'
 import type { Seed } from '#core/session/cardProtocol.ts'
 import type { ImageUpload, NumberedImage } from '#core/session/images.ts'
@@ -38,6 +39,8 @@ export interface Scope {
   singleTurn?: boolean
   /** Called when the session has ended, just before its final state is saved: removes its working folder. */
   release?: () => Promise<void>
+  /** The Code Folders the session may read through the code tools; absent when it reads none (ADR-0016). */
+  codeFolders?: CodeFolder[]
 }
 
 /** A session ready to launch. */
@@ -55,6 +58,8 @@ export interface PreparedSession<T extends AnyTranscript> {
   numberedImages?: NumberedImage[]
   /** Undoes the preparation when the session never starts. */
   abandon?: () => Promise<void>
+  /** Runs once the seed has been sent to Claude Code. */
+  onLaunched?: () => Promise<void>
 }
 
 /** The Transcript without its messages: what lists and live-session lookups send to the browser. */

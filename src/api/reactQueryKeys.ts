@@ -6,6 +6,11 @@ export const queryKeys = {
   project: (projectId: string) => ['projects', projectId] as const,
   glossary: (projectId: string) => ['projects', projectId, 'glossary'] as const,
   drafts: (projectId: string) => ['projects', projectId, 'drafts'] as const,
+  backlogCopies: (projectId: string) => ['projects', projectId, 'backlogCopies'] as const,
+  /** Branch state changes outside the tool, so it is read afresh whenever it is shown. */
+  codeFolderState: (projectId: string) => ['projects', projectId, 'codeFolderState'] as const,
+  codeFolderExclusions: (projectId: string, folderId: string) =>
+    ['projects', projectId, 'codeFolderExclusions', folderId] as const,
   draft: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId] as const,
   transcripts: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId, 'sessions'] as const,
   copyFields: (projectId: string, draftId: string) => ['projects', projectId, 'drafts', draftId, 'copy'] as const,

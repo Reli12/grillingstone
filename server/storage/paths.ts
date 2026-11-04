@@ -31,6 +31,13 @@ const numberedImageFile = (dir: string, number: number, ext: string) => {
 }
 export const imageFile = (projectId: string, sessionId: string, number: number, ext: string) =>
   numberedImageFile(sessionImagesDir(projectId, sessionId), number, ext)
+/** Backlog Copies (ADR-0015): inside the Project, so a session reads a Copy's markdown without new permissions. */
+export const BACKLOG_COPIES_FOLDER = 'backlog-copies'
+export const backlogCopiesDir = (projectId: string) => path.join(projectDir(projectId), BACKLOG_COPIES_FOLDER)
+export const backlogCopyFile = (projectId: string, copyId: string, ext: 'json' | 'md') =>
+  path.join(backlogCopiesDir(projectId), `${safeId(copyId)}.${ext}`)
+/** Where a session finds a Copy's markdown, relative to its working folder (the Project folder). */
+export const backlogCopySessionPath = (copyId: string) => `${BACKLOG_COPIES_FOLDER}/${safeId(copyId)}.md`
 export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
 
 /** A Project's Prototypes (ADR-0023): <id>.html is the stored page, <id>.source.html Claude's file, <id>.json the record. */

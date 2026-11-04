@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildPrototypeSeed, type PrototypeSeedInput } from '#core/prototype/prototypeSeed.ts'
 
 const submitCommand = 'node "/tool/scripts/writeDraft.mjs"'
+const payloadFile = '.submit/psess-1.json'
 
 const seedText = (overrides: Partial<PrototypeSeedInput> = {}) => {
   const seed = buildPrototypeSeed({
@@ -13,6 +14,7 @@ const seedText = (overrides: Partial<PrototypeSeedInput> = {}) => {
     hasImages: true,
     hasStartingPrototype: false,
     submitCommand,
+    payloadFile,
     ...overrides,
   })
   return { ...seed, all: `${seed.systemPrompt}\n${seed.firstMessage}` }
@@ -61,9 +63,11 @@ describe('Prototype seed', () => {
       expect(systemPrompt).toContain(topic)
   })
 
-  it('shows the submit command with the payload shape, and what a refusal means', () => {
+  it('shows the payload file, the bare submit command, the payload shape, and what a refusal means', () => {
     const { systemPrompt } = seedText()
-    expect(systemPrompt).toContain(`${submitCommand} <<'GRILLINGSTONE_JSON'`)
+    expect(systemPrompt).toContain(`Write this JSON to ${payloadFile}`)
+    expect(systemPrompt).toContain(`Run exactly this Bash command, nothing else: ${submitCommand}`)
+    expect(systemPrompt).not.toContain('GRILLINGSTONE_JSON')
     expect(systemPrompt).toContain('"prototype": "prototype.html"')
     expect(systemPrompt).toContain('"assumptions"')
     expect(systemPrompt).toMatch(/REFUSED/)

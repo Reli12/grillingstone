@@ -1,10 +1,11 @@
 // The list with the id removed if it was there, or added if it was not.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 
+import type { PastedCopy } from '#core/backlog/backlogCopy.ts'
 import type { Project } from '#core/contract/apiTypes.ts'
 import { type WorkItemType } from '#core/shared/workItemType.ts'
 import { type Template, templateTracker } from '#core/template/templateTypes.ts'
@@ -34,22 +35,41 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
   const { register, handleSubmit, control, setValue, formState } = useForm<NewDraftFormData>({
     resolver: zodResolver(newDraftSchema),
     mode: 'onChange',
-    defaultValues: { workItemType: FIRST_TYPE[project.tracker], templateId: '', requirement: '', references: [] },
+    defaultValues: {
+      workItemType: FIRST_TYPE[project.tracker],
+      templateId: '',
+      requirement: '',
+      references: [],
+      backlogReferences: [],
+      newBacklogCopies: [],
+    },
   })
   const create = useCreateDraft(project.id)
   // Keyed by Project until the first session exists; a successful start moves the hint and sizes to it.
   const attachments = useImageAttachments(`new-draft:${project.id}`)
+  // "Code this session reads" for the first session; read by default (ADR-0016).
+  const [readCodeFolders, setReadCodeFolders] = useState(true)
 
-  const [type, templateId, references] = useWatch({ control, name: ['workItemType', 'templateId', 'references'] })
+  const [type, templateId, references, backlogReferences, newBacklogCopies] = useWatch({
+    control,
+    name: ['workItemType', 'templateId', 'references', 'backlogReferences', 'newBacklogCopies'],
+  })
   const forType = useMemo(() => templatesFor(templates, project.tracker, type), [templates, type, project.tracker])
   const picked = forType.find((template) => template.id === templateId)
   const chosen = picked ?? forType.find((template) => template.isDefault) ?? forType[0]
 
-  const onSubmit = handleSubmit(({ templateId: _, ...rest }) => {
+  const onSubmit = handleSubmit(({ templateId: _, backlogReferences: picked, newBacklogCopies: pasted, ...rest }) => {
     if (!chosen) return
     const images = attachments.batch()
+    // Left out when empty, so a Draft without Backlog References sends the body it always did.
+    const backlog = {
+      ...(picked.length ? { backlogReferences: picked } : {}),
+      ...(pasted.length ? { newBacklogCopies: pasted } : {}),
+    }
+    // Left out unless switched off, so a session that reads code sends the body it always did.
+    const code = readCodeFolders ? {} : { readCodeFolders }
     create.mutate(
-      { ...rest, templateId: chosen.id, images: images.uploads },
+      { ...rest, ...backlog, ...code, templateId: chosen.id, images: images.uploads },
       {
         onSuccess: ({ draft, session }) => {
           attachments.markSent(images, session.id)
@@ -63,6 +83,18 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     setValue('templateId', '')
   }
   const toggleReference = (id: string) => setValue('references', toggled(references, id))
+  // Setting a Backlog Reference re-checks the requirement, which is optional while one is attached.
+  const revalidate = { shouldValidate: true }
+  const toggleBacklogReference = (id: string) =>
+    setValue('backlogReferences', toggled(backlogReferences, id), revalidate)
+  const addBacklogCopy = (pasted: PastedCopy) => setValue('newBacklogCopies', [...newBacklogCopies, pasted], revalidate)
+  const removeBacklogCopy = (index: number) =>
+    setValue(
+      'newBacklogCopies',
+      newBacklogCopies.filter((_pasted, at) => at !== index),
+      revalidate,
+    )
+  const hasBacklog = backlogReferences.length + newBacklogCopies.length > 0
   const canStart = formState.isValid && !!chosen && !create.isPending
   return {
     register,
@@ -70,12 +102,20 @@ export function useNewDraftForm(project: Project, templates: Template[]) {
     forType,
     chosen,
     references,
+    backlogReferences,
+    newBacklogCopies,
+    hasBacklog,
     onSubmit,
     chooseType,
     toggleReference,
+    toggleBacklogReference,
+    addBacklogCopy,
+    removeBacklogCopy,
     setValue,
     canStart,
     create,
     attachments,
+    readCodeFolders,
+    setReadCodeFolders,
   }
 }

@@ -51,6 +51,8 @@ export const useDraftOp = (projectId: string, draftId: string) =>
   useDraftMutation(projectId, draftId, (op: HumanOp) => draftsApi.applyOp(projectId, draftId, op))
 export const useSetReferences = (projectId: string, draftId: string) =>
   useDraftMutation(projectId, draftId, (refs: string[]) => draftsApi.setReferences(projectId, draftId, refs))
+export const useSetBacklogReferences = (projectId: string, draftId: string) =>
+  useDraftMutation(projectId, draftId, (ids: string[]) => draftsApi.setBacklogReferences(projectId, draftId, ids))
 export const useDecide = (projectId: string, draftId: string) =>
   useDraftMutation(projectId, draftId, ({ changeId, accept }: { changeId: string; accept: boolean }) =>
     draftsApi.decide(projectId, draftId, changeId, accept),
@@ -94,8 +96,11 @@ function useSessionLaunch<V>(projectId: string, draftId: string, fn: (v: V) => P
 export const useStartSession = (projectId: string, draftId: string) =>
   useSessionLaunch(projectId, draftId, (body: StartSessionRequest) => draftsApi.startSession(projectId, draftId, body))
 export const useContinueSession = (projectId: string, draftId: string) =>
-  useSessionLaunch(projectId, draftId, ({ sessionId, humanNote }: { sessionId: string; humanNote: string }) =>
-    draftsApi.continueSession(projectId, draftId, sessionId, humanNote),
+  useSessionLaunch(
+    projectId,
+    draftId,
+    ({ sessionId, humanNote, readCodeFolders }: { sessionId: string; humanNote: string; readCodeFolders?: boolean }) =>
+      draftsApi.continueSession(projectId, draftId, sessionId, humanNote, readCodeFolders),
   )
 
 export const useSay = () =>

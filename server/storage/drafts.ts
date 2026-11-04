@@ -1,6 +1,8 @@
 // Drafts: JSON is the source of truth, with a readable markdown rendering regenerated on every save (ADR-0004).
 import fs from 'node:fs/promises'
 
+import type { BacklogCopy } from '#core/backlog/backlogCopy.ts'
+import { changedBacklogCopies } from '#core/backlog/backlogReference.ts'
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
@@ -65,7 +67,8 @@ export async function listDrafts(projectId: string): Promise<Draft[]> {
   return drafts.sort((first, second) => second.updatedAt.localeCompare(first.updatedAt))
 }
 
-export const summarize = (draft: Draft): DraftSummary => ({
+/** A Draft for lists; `copies` are the Project's Backlog Copies, for the changed-Copy flag. */
+export const summarize = (draft: Draft, copies: BacklogCopy[] = []): DraftSummary => ({
   id: draft.id,
   projectId: draft.projectId,
   title: draft.title,
@@ -74,5 +77,6 @@ export const summarize = (draft: Draft): DraftSummary => ({
   version: draft.version,
   templateName: draft.template.name,
   pendingChanges: draft.proposal?.changes.filter((change) => change.status === 'pending').length ?? 0,
+  changedBacklogCopies: changedBacklogCopies(draft, copies).map((copy) => copy.workItemId),
   updatedAt: draft.updatedAt,
 })

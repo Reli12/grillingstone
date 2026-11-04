@@ -7,11 +7,11 @@ import { defaultPbiTemplate, meta } from '#core/testing/fixtures.ts'
 
 import { resetTestData } from '../../test/server/testBackend.ts'
 import { createDraft, getDraft, updateDraft } from './drafts.ts'
-import { Conflict, StaleWrite } from './errors.ts'
+import { Conflict, NotFound, StaleWrite } from './errors.ts'
 import { writeJson } from './fsUtil.ts'
 import { getGlossary, saveGlossary } from './glossary.ts'
 import { projectFile, safeId } from './paths.ts'
-import { createProject, getProject, listProjects, updateProject } from './projects.ts'
+import { createProject, deleteProject, getProject, listProjects, updateProject } from './projects.ts'
 import { getSettings, saveSettings } from './settings.ts'
 
 beforeEach(resetTestData)
@@ -58,6 +58,17 @@ describe('storage', () => {
     const dirty = { author: ' ', model: ' ', theme: 'neon' as never, defaultTracker: 'linear' as never }
     expect(await saveSettings(dirty)).toMatchObject({ model: '', theme: 'system', defaultTracker: 'azure-devops' })
     expect((await getSettings()).author).toBeTruthy()
+  })
+
+  it('deletes a Project with its Drafts and Glossary, leaving the other Projects', async () => {
+    const draft = await draftIn()
+    const { projectId } = draft
+    const other = await createProject('Other', 'jira', meta.date)
+    await deleteProject(projectId)
+    await expect(getProject(projectId)).rejects.toThrow(NotFound)
+    await expect(getDraft(projectId, draft.id)).rejects.toThrow(NotFound)
+    expect((await listProjects()).map((project) => project.id)).toEqual([other.id])
+    await expect(deleteProject(projectId)).rejects.toThrow(NotFound)
   })
 
   describe("a Project's Tracker", () => {

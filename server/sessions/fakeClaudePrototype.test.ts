@@ -40,6 +40,7 @@ async function runFake(options: { draft: string; images?: unknown[]; until: 'res
     env: {
       ...process.env,
       GRILLINGSTONE_GUARD_MODE: 'prototype',
+      GRILLINGSTONE_SESSION_ID: 'sess-1',
       GRILLINGSTONE_SUBMIT_SCRIPT: SUBMIT_STUB,
       GRILLINGSTONE_TEST_IMAGES: JSON.stringify(imageMap),
     },
@@ -82,14 +83,15 @@ const saidText = (events: FakeEvent[]) =>
     .join('\n')
 
 describe('the fake Claude in Prototype mode', () => {
-  it('reads the Draft, writes prototype.html, runs the submit command once and ends its turn', async () => {
+  it('reads the Draft, writes prototype.html and its payload file, runs the submit command once and ends its turn', async () => {
     const events = await runFake({ draft: '# Archive device\n', until: 'result' })
 
     const uses = toolUses(events)
-    expect(uses.map((use) => use.name)).toEqual(['Read', 'Write', 'Bash'])
+    expect(uses.map((use) => use.name)).toEqual(['Read', 'Write', 'Write', 'Bash'])
     expect(uses[0].input.file_path).toBe(inSession('draft.md'))
     expect(uses[1].input.file_path).toBe(inSession('prototype.html'))
-    expect(uses[2].input.command).toContain('GRILLINGSTONE_JSON')
+    expect(uses[2].input.file_path).toBe(inSession('.submit/sess-1.json'))
+    expect(uses[3].input.command).toBe(`node "${SUBMIT_STUB}"`)
     expect(toolResults(events).at(-1)?.content).toContain('ACCEPTED')
     expect(events.at(-1)).toMatchObject({ type: 'result', is_error: false })
 
@@ -115,9 +117,17 @@ describe('the fake Claude in Prototype mode', () => {
   it('submits a refused Prototype first when the Draft says so, then fixes the file with Edit and submits again', async () => {
     const events = await runFake({ draft: '# Archive device\nfake:refuse-first\n', until: 'result' })
 
-    expect(toolUses(events).map((use) => use.name)).toEqual(['Read', 'Write', 'Bash', 'Edit', 'Bash'])
+    expect(toolUses(events).map((use) => use.name)).toEqual(['Read', 'Write', 'Write', 'Bash', 'Edit', 'Write', 'Bash'])
     const results = toolResults(events)
-    expect(results.map((result) => result.content.split('\n')[0])).toEqual(['ok', 'ok', 'REFUSED', 'ok', 'ACCEPTED'])
+    expect(results.map((result) => result.content.split('\n')[0])).toEqual([
+      'ok',
+      'ok',
+      'ok',
+      'REFUSED',
+      'ok',
+      'ok',
+      'ACCEPTED',
+    ])
     expect(results.find((result) => result.content.startsWith('REFUSED'))?.is_error).toBe(true)
     expect(await fs.readFile(inSession('prototype.html'), 'utf8')).not.toContain('https://')
     await expect(fs.stat(inSession('stored.html'))).resolves.toBeTruthy()

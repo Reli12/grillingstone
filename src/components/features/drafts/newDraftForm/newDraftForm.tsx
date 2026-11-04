@@ -1,4 +1,5 @@
-// The New Draft form: the requirement and its Images, Work Item Type, Template and References for a Draft.
+// The New Draft form: the requirement and its Images, Work Item Type, Template, References and — in an Azure DevOps
+// Project — Backlog References for a Draft.
 import { Link } from 'react-router'
 
 import type { DraftSummary, Project } from '#core/contract/apiTypes.ts'
@@ -8,6 +9,8 @@ import { TextArea } from '@/components/atoms/textArea/textArea'
 import { ImageNotices } from '@/components/features/chat/imageNotices/imageNotices'
 import { ImagePicker } from '@/components/features/chat/imagePicker/imagePicker'
 import { ImageThumbnails } from '@/components/features/chat/imageThumbnails/imageThumbnails'
+import { SessionCodeChoice } from '@/components/features/codeFolders/sessionCodeChoice/sessionCodeChoice'
+import { BacklogReferencePicker } from '@/components/features/drafts/backlogReferencePicker/backlogReferencePicker'
 import { DraftTypePicker } from '@/components/features/drafts/draftTypePicker/draftTypePicker'
 import { ReferencePicker } from '@/components/features/drafts/referencePicker/referencePicker'
 import { StartButton } from '@/components/features/drafts/startButton/startButton'
@@ -37,15 +40,20 @@ export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFo
           What do you want to grill?
         </h1>
         <p className="mt-2 max-w-lg text-ink-soft">
-          Describe the requirement in your own words — a sentence is enough. Paste the BA’s Feature text or business
-          rules if you have them.
+          {form.hasBacklog
+            ? 'Which part of the Feature does this PBI cover? Optional — leave it empty and the first session will ask you.'
+            : 'Describe the requirement in your own words — a sentence is enough. Paste the BA’s Feature text or business rules if you have them.'}
         </p>
         <TextArea
           autoFocus
           minRows={9}
           {...form.register('requirement')}
           {...form.attachments.textareaProps}
-          placeholder="Managers need to archive devices so they stop cluttering dashboards…"
+          placeholder={
+            form.hasBacklog
+              ? 'BR1 and BR4 only — the archive action and its audit entry…'
+              : 'Managers need to archive devices so they stop cluttering dashboards…'
+          }
           aria-label="Requirement"
           className="mt-5 font-serif text-[16px] leading-7"
         />
@@ -60,12 +68,23 @@ export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFo
       </section>
 
       <aside className="space-y-7 md:pt-12">
+        {project.tracker === 'azure-devops' && (
+          <BacklogReferencePicker
+            projectId={project.id}
+            picked={form.backlogReferences}
+            pasted={form.newBacklogCopies}
+            onToggle={form.toggleBacklogReference}
+            onPaste={form.addBacklogCopy}
+            onRemovePasted={form.removeBacklogCopy}
+          />
+        )}
         <DraftTypePicker tracker={project.tracker} type={form.type} onChoose={form.chooseType} />
         <TemplatePicker
           templates={form.forType}
           chosenId={form.chosen?.id}
           onChoose={(templateId) => form.setValue('templateId', templateId)}
         />
+        <SessionCodeChoice projectId={project.id} read={form.readCodeFolders} onChange={form.setReadCodeFolders} />
         <StartButton disabled={!form.canStart} starting={form.create.isPending} />
       </aside>
     </form>

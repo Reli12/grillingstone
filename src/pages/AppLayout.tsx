@@ -1,13 +1,12 @@
 // The frame around every page: the header with the Project switcher and navigation, a banner while the
 // backend can't be reached, and the footer with the copyright and the Legal link.
-import { NavLink, Outlet, useParams } from 'react-router'
+import { NavLink, Outlet } from 'react-router'
 
 import { Wordmark } from '@/components/atoms/wordmark/wordmark'
 import { LegalFooter } from '@/components/features/legal/legalFooter/legalFooter'
 import { ProjectSwitcher } from '@/components/features/projects/projectSwitcher/projectSwitcher'
 import { useBackendConnection } from '@/context/ServerEvents/ServerEvents'
 import { cn } from '@/lib/cn'
-import { lastProject } from '@/lib/lastProject'
 import { routesPaths } from '@/routes/routes'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,11 +17,10 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function AppLayout() {
   const connection = useBackendConnection()
-  const projectId = useParams().projectId ?? lastProject()
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-sheet px-4">
-        <NavLink to={projectId ? routesPaths.project(projectId) : routesPaths.home} className="rounded">
+        <NavLink to={routesPaths.home} className="rounded">
           <Wordmark />
         </NavLink>
         <span className="h-5 w-px bg-line" aria-hidden />

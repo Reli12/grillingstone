@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
 
 import { endpoints } from '@/api/endpoints/endpoints'
+import { lastProject, rememberProject } from '@/lib/lastProject'
 import HomePage from '@/pages/HomePage/HomePage'
 import { settingsFixture } from '@test/mocks/handlers'
 import { server } from '@test/mocks/server'
@@ -14,6 +15,44 @@ describe('HomePage', () => {
     render(<HomePage />, { path: '/' })
     expect(await screen.findByRole('link', { name: /Customer Portal/ })).toBeInTheDocument()
     expect(screen.getByText('2 Drafts')).toBeInTheDocument()
+  })
+
+  it('deletes a Project after asking, and forgets it as the last Project', async () => {
+    rememberProject('customer-portal')
+    const deleted: string[] = []
+    server.use(
+      http.delete('*/api/projects/:projectId', ({ params }) => {
+        deleted.push(String(params.projectId))
+        return HttpResponse.json({ ok: true })
+      }),
+    )
+    const { user } = render(<HomePage />, { path: '/' })
+    await user.click(await screen.findByRole('button', { name: 'Delete Customer Portal' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Delete “Customer Portal”?' }))
+    expect(dialog.getByText(/its 2 Drafts/)).toBeInTheDocument()
+
+    await user.click(dialog.getByRole('button', { name: 'Keep it' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(deleted).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Delete Customer Portal' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Project' }))
+    await vi.waitFor(() => expect(deleted).toEqual(['customer-portal']))
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(lastProject()).toBeNull()
+  })
+
+  it('keeps the dialog open with the reason when the delete is refused', async () => {
+    server.use(
+      http.delete('*/api/projects/:projectId', () =>
+        HttpResponse.json({ error: 'Stop the running session in this Project first.' }, { status: 409 }),
+      ),
+    )
+    const { user } = render(<HomePage />, { path: '/' })
+    await user.click(await screen.findByRole('button', { name: 'Delete Customer Portal' }))
+    const dialog = within(screen.getByRole('dialog'))
+    await user.click(dialog.getByRole('button', { name: 'Delete Project' }))
+    expect(await dialog.findByText('Stop the running session in this Project first.')).toBeInTheDocument()
   })
 
   it('welcomes a first-time user', async () => {

@@ -7,17 +7,15 @@ import {
   PROTOTYPE_FILE,
   START_ASSUMPTIONS_FILE,
 } from '#core/prototype/prototypeFiles.ts'
-import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
+import { type Seed, type SubmitProtocol } from '#core/session/cardProtocol.ts'
 
-export interface PrototypeSeedInput {
+export interface PrototypeSeedInput extends SubmitProtocol {
   projectName: string
   draftTitle: string
   draftVersion: number
   /** Whether Claude's first message carries image blocks. */
   hasImages: boolean
   hasStartingPrototype: boolean
-  /** Shell command prefix that submits JSON on stdin, e.g. `node "/abs/scripts/writeDraft.mjs"`. */
-  submitCommand: string
 }
 
 const ROLE = `# Your role
@@ -37,14 +35,15 @@ const BUILD_RULES = `## How you build it
 const ASSUMPTION_RULES = `## Assumptions
 Every choice the Draft and the Images do not settle is an assumption, and you list each one: what you chose, and why it was a guess. These count: layout, sample data, wording that is not in the Draft or the Glossary, empty and error states, and navigation. A Prototype that lists none is refused.`
 
-function submitRules(submitCommand: string): string {
-  const firstLine = '{"prototype": "prototype.html", "assumptions": [{"choice": "…", "why": "…"}]}'
+function submitRules({ submitCommand, payloadFile }: SubmitProtocol): string {
+  const payload = '{"prototype": "prototype.html", "assumptions": [{"choice": "…", "why": "…"}]}'
   return `## How you submit
-Write the whole page to ${PROTOTYPE_FILE} with Write. Then submit it by running exactly this Bash command (the quoted heredoc delimiter is required):
+Write the whole page to ${PROTOTYPE_FILE} with Write. Then submit it in two steps:
 
-${submitUsage(submitCommand, firstLine)}
+1. Write this JSON to ${payloadFile} with the Write tool: ${payload}
+2. Run exactly this Bash command, nothing else: ${submitCommand}
 
-The tool reads ${PROTOTYPE_FILE} from your folder; the JSON only names it and lists the assumptions. It prints ACCEPTED, or REFUSED with the reasons: fix every reason in ${PROTOTYPE_FILE} with Edit and submit again. After ACCEPTED, reply with one short sentence saying the Prototype is written, and stop.`
+The tool reads ${PROTOTYPE_FILE} from your folder; the JSON only names it and lists the assumptions. It prints ACCEPTED, or REFUSED with the reasons: fix every reason in ${PROTOTYPE_FILE} (or ${payloadFile}) with Edit and run the command again. After ACCEPTED, reply with one short sentence saying the Prototype is written, and stop.`
 }
 
 const STARTING_RULES = `## Starting from an earlier Prototype
@@ -79,7 +78,7 @@ export function buildPrototypeSeed(input: PrototypeSeedInput): Seed {
     BUILD_RULES,
     ASSUMPTION_RULES,
     ...(input.hasStartingPrototype ? [STARTING_RULES] : []),
-    submitRules(input.submitCommand),
+    submitRules(input),
   ].join('\n\n')
   return { systemPrompt, firstMessage: firstMessage(input) }
 }

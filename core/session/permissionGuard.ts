@@ -4,23 +4,34 @@
 import path from 'node:path'
 
 import { PROTOTYPE_FILE } from '#core/prototype/prototypeFiles.ts'
-import { SUBMIT_HEREDOC } from '#core/session/cardProtocol.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 
 export interface GuardContext {
   /** Absolute, symlink-resolved Project folder. */
   projectDir: string
   /** Absolute path of scripts/writeDraft.mjs. */
   submitScript: string
+  /** The session's id, which names its one writable submission file. */
+  sessionId: string
   /** Resolves symlinks (for paths that do not exist yet: of their longest existing ancestor). */
   realpath: (filePath: string) => string
   /**
-   * A Template Session writes nothing and loads no skills; its folder is its own empty working folder.
-   * A Prototype Session writes only `prototype.html` in its folder, loads no skills and reaches no web.
+   * A Template Session writes only its payload file and loads no skills; its folder is its own working folder.
+   * A Prototype Session writes only `prototype.html` and its payload file, loads no skills and reaches no web.
    */
   mode?: GuardMode
+  /** The session was started with "Read Code Folders": the code tools are allowed (ADR-0016). */
+  codeFolders?: boolean
 }
 
 export type GuardMode = 'grilling' | 'template' | 'prototype'
+
+/** The MCP server that provides the code tools, as named in the session's MCP configuration. */
+export const CODE_TOOLS_SERVER = 'code'
+/** The code tools by their own names, as the MCP server lists them. */
+export const CODE_TOOL_NAMES = ['list_code_files', 'search_code', 'read_code_file'] as const
+/** The only MCP tools a session may ever call: read-only, over its own Code Folders. */
+export const CODE_TOOLS: string[] = CODE_TOOL_NAMES.map((tool) => `mcp__${CODE_TOOLS_SERVER}__${tool}`)
 
 export type Decision = { allow: true } | { allow: false; reason: string }
 
@@ -42,10 +53,6 @@ export const SESSION_TOOLS = [
 
 // Either path separator, so a pattern is split the same way on every platform.
 const PATH_SEPARATOR = /[\\/]/
-// Windows line endings, normalised to "\n" before splitting a command into lines.
-const CRLF = /\r\n/g
-// The newlines at the very end of a command.
-const TRAILING_NEWLINES = /\n+$/
 
 const ALLOW: Decision = { allow: true }
 const deny = (reason: string): Decision => ({ allow: false, reason })
@@ -69,9 +76,15 @@ function readable(ctx: GuardContext, filePath: string | undefined, what: string)
 
 const climbs = (pattern: string) => path.isAbsolute(pattern) || pattern.split(PATH_SEPARATOR).includes('..')
 
+/**
+ * The one file every session may write: its own submission, read by the submit command. Compared against the
+ * unresolved expected path, so a symlinked .submit folder resolves elsewhere and is refused.
+ */
+const isPayloadFile = (ctx: GuardContext, filePath: string | undefined) =>
+  !!filePath && resolve(ctx, filePath) === path.join(ctx.projectDir, submitPayloadFile(ctx.sessionId))
+
 function writable(ctx: GuardContext, filePath: string | undefined): Decision {
-  const why =
-    'Sessions may edit only the Glossary (CONTEXT.md) and markdown decision records under plan/. Drafts change only through the submit command.'
+  const why = `Sessions may edit only the Glossary (CONTEXT.md), markdown decision records under plan/ and the submission file ${submitPayloadFile(ctx.sessionId)}. Drafts change only through the submit command.`
   if (!filePath) return deny(`No file_path given. ${why}`)
   const real = resolve(ctx, filePath)
   if (real === path.join(ctx.projectDir, 'CONTEXT.md')) return ALLOW
@@ -82,7 +95,7 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
 
 /** A Prototype Session's one writable file; its folder is the guard's `projectDir`. */
 function writablePrototype(ctx: GuardContext, filePath: string | undefined): Decision {
-  const why = `A Prototype Session may write only ${PROTOTYPE_FILE} in its own folder. Submit it with the submit command.`
+  const why = `A Prototype Session may write only ${PROTOTYPE_FILE} and ${submitPayloadFile(ctx.sessionId)} in its own folder. Submit it with the submit command.`
   if (!filePath) return deny(`No file_path given. ${why}`)
   return resolve(ctx, filePath) === path.join(ctx.projectDir, PROTOTYPE_FILE)
     ? ALLOW
@@ -90,28 +103,20 @@ function writablePrototype(ctx: GuardContext, filePath: string | undefined): Dec
 }
 
 /**
- * The only Bash a session may run: `node "<submitScript>" <<'GRILLINGSTONE_JSON'` followed by the JSON and a final
- * GRILLINGSTONE_JSON line. The quoted delimiter disables every expansion inside the heredoc, and nothing may follow it.
+ * The only Bash a session may run: `node "<submitScript>"`, matched exactly, so nothing can be chained onto it.
+ * The script reads its JSON from the payload file, so the payload never passes through a shell.
  */
 function submitCommand(ctx: GuardContext, command: unknown): Decision {
-  const usage = `The only allowed Bash command is:\nnode "${ctx.submitScript}" <<'${SUBMIT_HEREDOC}'\n{ …json… }\n${SUBMIT_HEREDOC}`
+  const allowed = new Set([`node "${ctx.submitScript}"`, `node ${ctx.submitScript}`])
+  const usage = `The only allowed Bash command is:\nnode "${ctx.submitScript}"\nWrite the JSON to ${submitPayloadFile(ctx.sessionId)} first.`
   if (typeof command !== 'string') return deny(usage)
-  const lines = command.replace(CRLF, '\n').replace(TRAILING_NEWLINES, '').split('\n')
-  const opener = new Set([
-    `node "${ctx.submitScript}" <<'${SUBMIT_HEREDOC}'`,
-    `node ${ctx.submitScript} <<'${SUBMIT_HEREDOC}'`,
-  ])
-  if (!opener.has(lines[0].trim())) return deny(usage)
-  const terminators = lines.map((line, i) => (line === SUBMIT_HEREDOC ? i : -1)).filter((i) => i > 0)
-  if (terminators.length !== 1 || terminators[0] !== lines.length - 1)
-    return deny(`The heredoc must end with a single final "${SUBMIT_HEREDOC}" line and nothing after it. ${usage}`)
-  return ALLOW
+  return allowed.has(command.trim()) ? ALLOW : deny(usage)
 }
 
 /** Write, Edit and MultiEdit: what each kind of session may change. */
 function writeDecision(ctx: GuardContext, filePath: string | undefined): Decision {
   if (ctx.mode === 'template')
-    return deny('A Template Session writes no files — submit the Template with the submit command instead.')
+    return deny(`A Template Session writes only ${submitPayloadFile(ctx.sessionId)} — then runs the submit command.`)
   if (ctx.mode === 'prototype') return writablePrototype(ctx, filePath)
   return writable(ctx, filePath)
 }
@@ -140,6 +145,7 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
     case 'Edit':
     case 'Write':
     case 'MultiEdit':
+      if (isPayloadFile(ctx, str(input.file_path))) return ALLOW
       return writeDecision(ctx, str(input.file_path))
     case 'Bash':
       return submitCommand(ctx, input.command)
@@ -151,6 +157,11 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
     case 'Skill':
       return skillDecision(ctx, str(input.skill) ?? '')
     default:
+      if (CODE_TOOLS.includes(tool)) {
+        if (ctx.mode === 'template') return deny('A Template Session reads no Code Folders.')
+        if (ctx.mode === 'prototype') return deny('A Prototype Session reads no Code Folders.')
+        return ctx.codeFolders ? ALLOW : deny('This session was started without reading Code Folders.')
+      }
       return deny(`${tool} is not available in a Grilling Session.`)
   }
 }

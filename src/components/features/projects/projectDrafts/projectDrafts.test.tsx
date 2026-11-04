@@ -18,6 +18,7 @@ const draft: DraftSummary = {
   version: 1,
   templateName: 'Default PBI Template',
   pendingChanges: 0,
+  changedBacklogCopies: [],
   updatedAt: '2026-10-14T10:00:00.000Z',
 }
 

@@ -5,10 +5,11 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
+import path from 'node:path'
 
 import { type PrototypeSession, prototypeSummaryOf } from '#core/prototype/prototypeRecords.ts'
 import { SUBMISSION_REFUSED_PREFIX } from '#core/prototype/prototypeStep.ts'
-import { WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
+import { submitPayloadFile, WRITE_NOW_MESSAGE } from '#core/session/cardProtocol.ts'
 import { continuation } from '#core/session/continuation.ts'
 import { buildMessageContent, type ImageRef, type ImageUpload, type NumberedImage } from '#core/session/images.ts'
 import { newSessionState, type SessionEvent, type SessionState, transition } from '#core/session/sessionMachine.ts'
@@ -25,6 +26,7 @@ import {
 import { newId } from '#core/shared/ids.ts'
 import type { Reason } from '#core/shared/validation.ts'
 
+import { type CodeToolResult, runCodeTool } from '../codeFolders/codeTools.ts'
 import { CLAUDE_BIN } from '../config.ts'
 import { now } from '../services/clock.ts'
 import { getDraft } from '../storage/drafts.ts'
@@ -269,7 +271,13 @@ export class Supervisor {
   }
 
   /** A Continuation (ADR-0014): a new session that resumes an ended one's Claude Code conversation. */
-  async continue(projectId: string, draftId: string, sessionId: string, humanNote?: string): Promise<SessionSummary> {
+  async continue(
+    projectId: string,
+    draftId: string,
+    sessionId: string,
+    humanNote?: string,
+    readCodeFolders?: boolean,
+  ): Promise<SessionSummary> {
     const earlier = await getTranscript(projectId, sessionId)
     if (earlier.draftId !== draftId) throw new SessionError('This session belongs to another Draft.')
     if (this.liveForDraft(draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
@@ -285,6 +293,7 @@ export class Supervisor {
       focus: next.focus,
       humanNote,
       continues: summaryOf(earlier),
+      ...(readCodeFolders === undefined ? {} : { readCodeFolders }),
     })
   }
 
@@ -303,6 +312,7 @@ export class Supervisor {
     images = [],
     numberedImages,
     abandon,
+    onLaunched,
   }: PreparedSession<T>): Promise<T> {
     // Saved before Claude Code starts, so a refused or unsaveable Image starts no session; if anything before the
     // start fails, the Images already written are removed again. A scope that kept its Images brings them numbered.
@@ -338,6 +348,8 @@ export class Supervisor {
     const note = 'humanNote' in transcript ? transcript.humanNote : undefined
     if (note || refs.length) await this.push(live, humanMessage('message', note ?? '', refs))
     sendMessage(child, buildMessageContent(seed.firstMessage, numbered))
+    // A failure here must not take the running session down with it.
+    await onLaunched?.().catch((error: unknown) => console.error('[supervisor] after-launch step failed', error))
     // Claude Code may already have failed to start; that session has ended and stays ended.
     if (this.live.has(transcript.id)) await this.moveOn(live, { type: 'started' })
     return transcript
@@ -500,6 +512,21 @@ export class Supervisor {
     return result
   }
 
+  // ── Code tools (from scripts/codeTools.mjs, ADR-0016) ─────────────────────
+
+  /** Runs a code tool over the Code Folders this session was started with; a session without any has none. */
+  async codeTool(
+    sessionId: string,
+    token: string,
+    tool: string,
+    input: Record<string, unknown>,
+  ): Promise<CodeToolResult> {
+    const live = this.live.get(sessionId)
+    if (!live || live.token !== token) return { isError: true, text: 'This session is not running.' }
+    if (!live.scope.codeFolders?.length) return { isError: true, text: 'This session reads no Code Folders.' }
+    return runCodeTool(live.scope.codeFolders, tool, input)
+  }
+
   // ── Transcript bookkeeping ──────────────────────────────────────────────
 
   private async push(live: Live, message: ChatMessage) {
@@ -572,6 +599,8 @@ export class Supervisor {
     }
     if (last) transcript.messages.push(last)
     transcript.status = status
+    // A session stopped or crashed between writing its submission and an ACCEPTED leaves the file behind.
+    await fs.rm(path.join(live.scope.cwd, submitPayloadFile(transcript.id)), { force: true })
     await live.scope.save(transcript)
     if (last) live.scope.emitMessage(transcript, last)
     live.scope.emitSession(transcript)

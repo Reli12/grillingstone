@@ -2,28 +2,111 @@
 // method, ADR-0007), the current Draft, the Glossary, References and what the human Discarded.
 // No earlier Transcript is passed on: the Draft is the memory. A Continuation (ADR-0014) also has Claude
 // Code's own conversation, so its task says the Draft below wins over anything said there.
+import { backlogCopyHeading } from '#core/backlog/backlogCopy.ts'
+import type { DeliveredReference } from '#core/backlog/backlogDelivery.ts'
+import type { CodeFolderSnapshot } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
-import { type Seed, submitUsage } from '#core/session/cardProtocol.ts'
+import { type Seed, submitOutcomeRules, type SubmitProtocol, submitSteps } from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { type Template, type TemplateSection, templateTracker } from '#core/template/templateTypes.ts'
 
-export interface SeedInput {
+export interface SeedInput extends SubmitProtocol {
   kind: SessionKind
   draft: Draft
   projectName: string
   /** The Project's CONTEXT.md, verbatim ('' when it does not exist yet). */
   glossary: string
   references: { title: string; workItemType: string; markdown: string }[]
-  /** Shell command prefix that submits JSON on stdin, e.g. `node "/abs/scripts/writeDraft.mjs"`. */
-  submitCommand: string
+  /** The Draft's Backlog References as the delivery policy decided, each with its readable file's path. */
+  backlogReferences?: SeededBacklogReference[]
   focus?: { sectionId: string; entryId?: string }
   /** What the human said when starting a later session ("BA wants bulk archive back in"). */
   humanNote?: string
   upgradeTo?: Template
   /** A Continuation: Claude Code resumes the earlier conversation of an ended session. */
   continuing?: boolean
+  /** The Code Folders this session may read, as they are now, and the labels of missing ones (ADR-0016). */
+  codeFolders?: { folders: CodeFolderSnapshot[]; missing: string[] }
+}
+
+/** A delivered Backlog Reference plus where its readable file is, relative to the session's folder. */
+export type SeededBacklogReference = DeliveredReference & { path: string }
+
+const backlogContent = ({ copy }: SeededBacklogReference) =>
+  copy.acceptanceCriteria
+    ? `${copy.content.trim()}\n\nAcceptance Criteria:\n${copy.acceptanceCriteria.trim()}`
+    : copy.content.trim()
+
+/** What a re-paste changed, or why no single diff can be shown. */
+function changeNote(reference: SeededBacklogReference) {
+  if (reference.changes) return `Changed since this Draft's last session:\n${reference.changes}`
+  return `This Copy was re-pasted ${reference.missedRepastes ?? 'several'} times since this Draft's last session, so no single list of changes exists: read it in full and look for what affects this Draft.`
+}
+
+function backlogReferenceText(reference: SeededBacklogReference) {
+  const heading = backlogCopyHeading(reference.copy)
+  if (reference.mode === 'listed') return `- ${heading} — read ${reference.path}`
+  const changed = reference.mode === 'full-with-changes' ? `${changeNote(reference)}\n\n` : ''
+  return `### ${heading}\n${changed}${backlogContent(reference)}`
+}
+
+/** The Draft's Backlog References: full ones as blocks, listed ones as lines with where to read them. */
+function backlogReferencesBlock(references: SeededBacklogReference[] = []): string {
+  if (!references.length) return ''
+  const full = references.filter((reference) => reference.mode !== 'listed').map(backlogReferenceText)
+  const listed = references.filter((reference) => reference.mode === 'listed').map(backlogReferenceText)
+  const listedPart = listed.length
+    ? `Listed only — read one with the Read tool when its intent matters, and always before changing content that cites one of its business rules:\n${listed.join('\n')}`
+    : ''
+  return [
+    "## Backlog References (the human's copies of Azure DevOps work items this Draft derives from — context with no obligation and no hierarchy: this Draft may cover only part of them)",
+    ...full,
+    listedPart,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+
+/** One line per Code Folder: where it stands, and whether to trust it as current. */
+function codeFolderLine(folder: CodeFolderSnapshot) {
+  if (!folder.inGit) return `- ${folder.label} — not in git, so no branch information`
+  const changes = folder.uncommitted ? plural(folder.uncommitted, 'uncommitted change') : 'no uncommitted changes'
+  const doubt = !folder.onDefaultBranch || folder.uncommitted ? ' — possibly not yet true' : ''
+  let where: string
+  if (!folder.branch && !folder.defaultBranch) where = `at detached commit ${folder.commit}`
+  else if (!folder.branch) where = `at detached commit ${folder.commit}, NOT its default branch ${folder.defaultBranch}`
+  else if (folder.onDefaultBranch) where = `on ${folder.branch} (its default branch) at ${folder.commit}`
+  else where = `on ${folder.branch}, NOT its default branch ${folder.defaultBranch}, at ${folder.commit}`
+  return `- ${folder.label} — ${where}, ${changes}${doubt}`
+}
+
+/** What the session may read of the human's code, and how to use it (ADR-0016, ADR-0017). */
+function codeFoldersBlock(codeFolders: SeedInput['codeFolders']): string {
+  if (!codeFolders?.folders.length) return ''
+  const missing = codeFolders.missing.length
+    ? `\nMissing, so not readable this session: ${codeFolders.missing.join(', ')}.`
+    : ''
+  return `## Code Folders (the human's source code on this machine — how the app works today, never what should happen)
+Read them only with the code tools list_code_files, search_code and read_code_file, naming a folder by its label. You can't change them, and Read, Grep and Glob don't reach them.
+${codeFolders.folders.map(codeFolderLine).join('\n')}${missing}
+
+Using code:
+- Code tells you how the app works today, never what should happen: the requirement, the Backlog References and the human decide intent.
+- Look before you ask: don't ask the human what the code can answer. Use it to ask sharper questions ("I see no archived status on devices — is this new?").
+- Cite every claim you take from code as \`label: path\`, e.g. \`app: src/devices/DeviceList.tsx\`.
+- Where code and the requirement disagree, ask the human. What stays unresolved goes into the Draft as an Open Question.
+- Code off its default branch or with uncommitted changes is possibly not yet true: say so when you rely on it.
+- Excluded Files (secrets, and whatever the folder's ignore rules keep out) can't be read, searched or listed. Don't try to work around this.`
+}
+
+/** The v1 task when the human left the requirement empty and let the Backlog References speak. */
+function whichPartTask(input: SeedInput, note: string) {
+  const items = (input.backlogReferences ?? []).map((reference) => backlogCopyHeading(reference.copy)).join(', ')
+  return `Write the first Draft (v1) of this ${input.draft.workItemType}. The human gave no requirement of their own, only the Backlog References above (${items}).${note}\n\nYour first question: which part of ${items} this ${input.draft.workItemType} covers — a referenced item is often split across several Drafts.`
 }
 
 /** One numbered line per Template Section: key, heading, shape and the rules that come with it. */
@@ -58,14 +141,13 @@ Change objects (ids come from the current Draft below):
 - Content marked "editedByHuman" or "movedByHuman" is the human's deliberate work: change it only when the session really requires it. Such changes, and anything touching Discarded content, are shown to the human as Conflicts.
 - You cannot delete or discard anything; the human does that.`
   return `## How you write
-You never write Draft files yourself. When the human has confirmed, submit ${first ? 'the whole Draft' : 'a Proposal'} as JSON by running exactly this Bash command (the quoted heredoc delimiter is required):
-
-${submitUsage(input.submitCommand, payload.split('\n')[0])}
+You never write Draft files yourself. ${submitSteps(input, first ? 'the whole Draft' : 'a Proposal')}
 
 JSON shape:
 ${payload}
 
-The tool validates the submission. It prints ACCEPTED, or REFUSED with the reasons — then fix every reason and submit again. After ACCEPTED, reply with one short sentence telling the human it is written, and stop.`
+${submitOutcomeRules(input.payloadFile)}
+After ACCEPTED, reply with one short sentence telling the human it is written, and stop.`
 }
 
 // The human-edit markers Claude sees, so it treats the human's deliberate work with care.
@@ -154,6 +236,7 @@ function task(input: SeedInput): string {
   if (input.continuing) return continuationTask(input, note)
   switch (input.kind) {
     case 'first':
+      if (!draft.requirement.trim() && input.backlogReferences?.length) return whichPartTask(input, note)
       return `Write the first Draft (v1) of this ${draft.workItemType}. The human described it as:\n\n"""\n${draft.requirement}\n"""${note}\n\nStart grilling with your first question.`
     case 'focused':
       return `${focusLine(draft, input.focus)} Grill only about this part.${note}\nYour Proposal may also suggest knock-on changes elsewhere (e.g. Acceptance Criteria or Dependencies affected by a Scope change) — as separate changes the human can reject.\nStart with your first question.`
@@ -213,6 +296,8 @@ ${template.method}`
     `Project: ${input.projectName} · Work Item Type: ${trackerName} ${draft.workItemType} · Template: ${template.name}`,
     glossary,
     references,
+    backlogReferencesBlock(input.backlogReferences),
+    codeFoldersBlock(input.codeFolders),
     current,
     first ? '' : discardedList(draft),
     `## Your task\n${task(input)}`,

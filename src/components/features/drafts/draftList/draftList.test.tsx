@@ -16,6 +16,7 @@ const draft = (id: string, patch: Partial<DraftSummary>): DraftSummary => ({
   version: 1,
   templateName: 'Default PBI Template',
   pendingChanges: 0,
+  changedBacklogCopies: [],
   updatedAt: '2026-09-23T09:00:00Z',
   ...patch,
 })
@@ -48,5 +49,12 @@ describe('DraftList', () => {
     expect(screen.getByText('Archive everything')).toBeInTheDocument()
     expect(screen.getByText(/Grilling — no Draft yet/)).toBeInTheDocument()
     expect(screen.getByText(new Date('2026-08-01T09:00:00Z').toLocaleDateString())).toBeInTheDocument()
+  })
+
+  it('flags a Draft whose Backlog Copies were re-pasted since its last session', () => {
+    render(<DraftList drafts={[draft('a', { changedBacklogCopies: [1234, 1422] }), draft('b', {})]} />)
+    expect(screen.getByText('Backlog Copy #1234 changed')).toBeInTheDocument()
+    expect(screen.getByText('Backlog Copy #1422 changed')).toBeInTheDocument()
+    expect(screen.getAllByText(/Backlog Copy #\d+ changed/)).toHaveLength(2)
   })
 })

@@ -16,7 +16,9 @@ describe('describeTool', () => {
     expect(summary('Write', { file_path: '/p/plan/adr/1.md' })).toBe('Wrote plan/adr/1.md')
     expect(summary('WebSearch', { query: 'ADO' })).toBe('Searched the web for "ADO"')
     expect(summary('WebFetch', { url: 'https://x' })).toBe('Read https://x')
-    expect(summary('Bash', { command: `node "${SUBMIT_SCRIPT}" <<'GRILLINGSTONE_JSON'` })).toBe('Submitted the Draft')
+    expect(summary('Bash', { command: `node "${SUBMIT_SCRIPT}"` })).toBe('Submitted the Draft')
+    expect(summary('Write', { file_path: '/p/.submit/sess-1.json' })).toBeNull()
+    expect(summary('Edit', { file_path: '/p/.submit/sess-1.json' })).toBeNull()
     expect(summary('Bash', { command: 'ls -la\nrm x' })).toBe('Tried to run `ls -la`')
     expect(summary('Skill', { skill: 'grill-with-docs' })).toBe('Loaded the grill-with-docs skill')
     expect(summary('TodoWrite', {})).toBeNull()
@@ -100,5 +102,54 @@ describe('readStreamEvent', () => {
     })
     expect(failed[1]).toEqual({ type: 'turnEnded' })
     expect(readStreamEvent({ type: 'system' }, ctx())).toEqual([])
+  })
+})
+
+describe('code tools in the chat (ADR-0016)', () => {
+  it('summarises the code tools with the cited Code Folder', () => {
+    const summary = (name: string, input: Record<string, unknown>) => describeTool(name, input, ctx())
+    expect(summary('mcp__code__read_code_file', { folder: 'app', path: 'src/devices/DeviceList.tsx' })).toBe(
+      'Read app: src/devices/DeviceList.tsx',
+    )
+    expect(summary('mcp__code__search_code', { folder: 'ui', pattern: 'archive' })).toBe('Searched ui for "archive"')
+    expect(summary('mcp__code__search_code', { pattern: 'archive' })).toBe('Searched the Code Folders for "archive"')
+    expect(summary('mcp__code__list_code_files', { folder: 'app', subfolder: 'src/devices' })).toBe(
+      'Listed app: src/devices',
+    )
+    expect(summary('mcp__code__list_code_files', { folder: 'app' })).toBe('Listed app')
+  })
+
+  it('marks a read of an Excluded File as refused, not as a failure', () => {
+    const tools = new Map<string, KnownTool>()
+    const used = readStreamEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'tool_use', id: 'c1', name: 'mcp__code__read_code_file', input: { folder: 'app', path: '.env' } },
+          ],
+        },
+      },
+      ctx(tools),
+    )
+    const step = used[0] as { type: 'message'; toolUseId: string; tool: KnownTool }
+    tools.set(step.toolUseId, step.tool)
+    const [result] = readStreamEvent(
+      {
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'c1',
+              is_error: true,
+              content: 'app: .env is an Excluded File — it can’t be read, searched or listed.',
+            },
+          ],
+        },
+      },
+      ctx(tools),
+    )
+    expect(result).toMatchObject({ type: 'toolResult', outcome: 'denied' })
   })
 })

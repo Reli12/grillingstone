@@ -9,6 +9,7 @@ import { buildPrototypeInputs, type PrototypeImage, type StartingPrototype } fro
 import { type PrototypeSession, prototypeSummaryOf, type TickedImage } from '#core/prototype/prototypeRecords.ts'
 import { buildPrototypeSeed } from '#core/prototype/prototypeSeed.ts'
 import { PROTOTYPE_SUBMIT_LABEL } from '#core/prototype/prototypeStep.ts'
+import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import {
   base64ByteLength,
   type ImageUpload,
@@ -180,6 +181,7 @@ export async function preparePrototypeSession(
       hasImages: inputs.messageImages.length > 0,
       hasStartingPrototype: starting !== undefined,
       submitCommand: `node "${SUBMIT_SCRIPT}"`,
+      payloadFile: submitPayloadFile(id),
     })
     const imageCount = plural(inputs.messageImages.length, 'Image')
     const submitter = prototypeSubmitter({ sessionDir: workDir, images: inputs.images, store })

@@ -14,6 +14,7 @@ export const projectsApi = {
   renameProject: (projectId: string, name: string) => api.patch<Project>(endpoints.project(projectId), { name }),
   /** Refused once the Project has a Draft. */
   changeTracker: (projectId: string, tracker: Tracker) => api.patch<Project>(endpoints.project(projectId), { tracker }),
+  deleteProject: (projectId: string) => api.delete<{ ok: true }>(endpoints.project(projectId)),
   getDrafts: (projectId: string) => api.get<DraftSummary[]>(endpoints.drafts(projectId)),
   getGlossary: (projectId: string) => api.get<GlossaryDoc>(endpoints.glossary(projectId)),
   saveGlossary: (projectId: string, markdown: string, baseVersion: string) =>

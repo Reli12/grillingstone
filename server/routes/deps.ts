@@ -1,4 +1,6 @@
 // The dependencies every route module receives from createServices.
+import type { CodeFolderService } from '../codeFolders/codeFolderService.ts'
+import type { BacklogCopyService } from '../services/backlogCopyService.ts'
 import type { DraftService } from '../services/draftService.ts'
 import type { GlossaryService } from '../services/glossaryService.ts'
 import type { PrototypeService } from '../services/prototypeService.ts'
@@ -12,4 +14,6 @@ export interface AppDeps {
   templates: TemplateService
   glossary: GlossaryService
   prototypes: PrototypeService
+  backlogCopies: BacklogCopyService
+  codeFolders: CodeFolderService
 }

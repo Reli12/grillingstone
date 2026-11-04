@@ -9,6 +9,15 @@ export const rememberProject = (projectId: string) => {
   }
 }
 
+/** Forgets the remembered Project when it is this one, e.g. after it was deleted. */
+export const forgetProject = (projectId: string) => {
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === projectId) localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Blocked storage never remembered the Project, so there is nothing to forget.
+  }
+}
+
 export const lastProject = () => {
   try {
     return localStorage.getItem(STORAGE_KEY)

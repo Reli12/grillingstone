@@ -7,6 +7,7 @@ import { DeleteDraftDialog } from '@/components/features/draft/dialogs/deleteDra
 import { ReferencesDialog } from '@/components/features/draft/dialogs/referencesDialog/referencesDialog'
 import { StartSessionDialog } from '@/components/features/draft/dialogs/startSessionDialog/startSessionDialog'
 import { CopyForTracker } from '@/components/features/draft/publish/copyForTracker/copyForTracker'
+import { useBacklogStatus } from '@/hooks/draft/useBacklogStatus'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
 import type { DraftPageUi } from '@/hooks/draft/useDraftPageUi'
 import { routesPaths } from '@/routes/routes'
@@ -22,14 +23,18 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
   const navigate = useNavigate()
   const { start, remove } = mutations
   const { intent } = ui
-  const startSession = (note: string) => {
+  const backlog = useBacklogStatus(draft)
+  const startSession = (note: string, includeBacklogInFull: boolean, readCodeFolders: boolean) => {
     if (!intent) return
     const focus = intent.kind === 'focused' ? { focus: { sectionId: intent.sectionId, entryId: intent.entryId } } : {}
     const onSuccess = () => {
       ui.setIntent(null)
       ui.showChat()
     }
-    start.mutate({ kind: intent.kind, ...focus, humanNote: note }, { onSuccess })
+    const inFull = includeBacklogInFull ? { includeBacklogInFull } : {}
+    // Left out unless switched off, so a session that reads code sends the body it always did.
+    const code = readCodeFolders ? {} : { readCodeFolders }
+    start.mutate({ kind: intent.kind, ...focus, humanNote: note, ...inFull, ...code }, { onSuccess })
   }
   const onDelete = () => remove.mutate(draft.id, { onSuccess: () => void navigate(routesPaths.project(projectId)) })
   return (
@@ -41,6 +46,8 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
         onClose={() => ui.setIntent(null)}
         onStart={startSession}
         pending={start.isPending}
+        backlog={backlog}
+        projectId={projectId}
       />
       <CopyForTracker
         projectId={projectId}

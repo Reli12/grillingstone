@@ -3,6 +3,7 @@
 import path from 'node:path'
 
 import { extractBlocks } from '#core/session/blockExtractor.ts'
+import { SUBMIT_DIR } from '#core/session/cardProtocol.ts'
 import type { ChatMessage } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 
@@ -37,8 +38,11 @@ const MAX_COMMAND_PREVIEW = 80
 const FILE_WRITING_TOOLS = ['Edit', 'Write', 'MultiEdit']
 const GLOSSARY_FILE = 'CONTEXT.md'
 
-/** Tool-result text that means the Permission Guard (or Claude Code) refused the call rather than it failing. */
-const DENIED_RESULT = /hook error|denied|not allowed|not available/i
+/**
+ * Tool-result text that means the Permission Guard (or Claude Code) refused the call rather than it failing — or the
+ * code tools refused an Excluded File (ADR-0017).
+ */
+const DENIED_RESULT = /hook error|denied|not allowed|not available|Excluded File/i
 
 /** What the submit script prints when the backend refused the submission; the call itself "succeeded". */
 const SUBMISSION_REFUSED = 'REFUSED'
@@ -66,6 +70,9 @@ export function describeTool(
     case 'Write':
     case 'MultiEdit': {
       const file = relative(input.file_path)
+      // Writing the submission is plumbing; the submit command right after it is what the human sees.
+      // path.dirname reads either separator's result, so this holds on Windows too.
+      if (path.dirname(file) === SUBMIT_DIR) return null
       return file === GLOSSARY_FILE ? 'Updated the Glossary' : `Wrote ${file}`
     }
     case 'WebSearch':
@@ -82,6 +89,16 @@ export function describeTool(
       return `Loaded the ${text(input.skill, '')} skill`
     case 'TodoWrite':
       return null
+    case 'mcp__code__read_code_file':
+      return `Read ${text(input.folder, '?')}: ${text(input.path, '?')}`
+    case 'mcp__code__search_code': {
+      const where = typeof input.folder === 'string' ? input.folder : 'the Code Folders'
+      return `Searched ${where} for "${text(input.pattern, '')}"`
+    }
+    case 'mcp__code__list_code_files': {
+      const sub = typeof input.subfolder === 'string' && input.subfolder ? `: ${input.subfolder}` : ''
+      return `Listed ${text(input.folder, '?')}${sub}`
+    }
     default:
       return `Tried to use ${name}`
   }

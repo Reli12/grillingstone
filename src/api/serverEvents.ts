@@ -110,6 +110,9 @@ export function applyServerEvent(qc: QueryClient, event: ServerEvent) {
       void qc.invalidateQueries({ queryKey: queryKeys.drafts(event.projectId), exact: true })
       void qc.invalidateQueries({ queryKey: queryKeys.projects, exact: true })
       break
+    case 'backlogCopies':
+      void qc.invalidateQueries({ queryKey: queryKeys.backlogCopies(event.projectId) })
+      break
     case 'glossary':
       void qc.invalidateQueries({ queryKey: queryKeys.glossary(event.projectId) })
       break

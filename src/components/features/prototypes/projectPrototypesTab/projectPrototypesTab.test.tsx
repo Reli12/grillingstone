@@ -25,6 +25,7 @@ const summaryOf = (draft: Draft, version = draft.version): DraftSummary => ({
   version,
   templateName: 'PBI',
   pendingChanges: 0,
+  changedBacklogCopies: [],
   updatedAt: '2026-10-25T10:00:00Z',
 })
 const brandNew = summaryOf({ ...archive, id: 'd-new', title: 'Brand new Draft' }, 0)

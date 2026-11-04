@@ -2,12 +2,29 @@ import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { createLogger } from 'vite'
 import { defineConfig } from 'vitest/config'
+
+import packageJson from './package.json' with { type: 'json' }
 
 const serverPort = Number(process.env.GRILLINGSTONE_SERVER_PORT ?? 5311)
 
+// The backend restarts under `node --watch` whenever server/ or core/ changes, cutting every open
+// websocket. Vite logs each cut as a "ws proxy error: ECONNRESET" although the browser reconnects
+// on its own, so those resets are dropped. Every other proxy error is still logged.
+const logger = createLogger()
+const logError = logger.error.bind(logger)
+logger.error = (msg, options) => {
+  const code = (options?.error as NodeJS.ErrnoException | null | undefined)?.code
+  if (code === 'ECONNRESET' && msg.includes('ws proxy')) return
+  logError(msg, options)
+}
+
 export default defineConfig({
+  customLogger: logger,
   plugins: [react(), tailwindcss()],
+  // The running version, shown in the footer; release-please bumps it in package.json.
+  define: { __APP_VERSION__: JSON.stringify(packageJson.version) },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

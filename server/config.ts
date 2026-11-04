@@ -23,6 +23,8 @@ export const DATA_DIR = dataDir()
 export const DEFAULT_TEMPLATES_DIR = path.join(TOOL_DIR, 'defaults', 'templates')
 export const SUBMIT_SCRIPT = path.join(TOOL_DIR, 'scripts', 'writeDraft.mjs')
 export const HOOK_SCRIPT = path.join(TOOL_DIR, 'scripts', 'permissionHook.mjs')
+/** The per-session MCP server that gives a session read-only access to its Code Folders (ADR-0016). */
+export const CODE_TOOLS_SCRIPT = path.join(TOOL_DIR, 'scripts', 'codeTools.mjs')
 
 const DEFAULT_SERVER_PORT = 5311
 const DEFAULT_WEB_PORT = 5310
@@ -34,4 +36,6 @@ export const SERVER_URL = `http://127.0.0.1:${SERVER_PORT}`
 export const ALLOWED_ORIGINS = new Set([`http://127.0.0.1:${WEB_PORT}`, `http://localhost:${WEB_PORT}`])
 
 export const CLAUDE_BIN = process.env.GRILLINGSTONE_CLAUDE_BIN ?? 'claude'
+/** The git that reads Code Folders' branch state and ignore rules (ADR-0017). */
+export const GIT_BIN = process.env.GRILLINGSTONE_GIT_BIN ?? 'git'
 export const DEFAULT_AUTHOR = os.userInfo().username

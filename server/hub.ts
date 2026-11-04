@@ -16,6 +16,8 @@ export class Hub {
     server.on('upgrade', (req: IncomingMessage, socket, head) => {
       const origin = req.headers.origin
       if (!req.url?.startsWith('/api/ws') || (origin && !ALLOWED_ORIGINS.has(origin))) {
+        // Logged here because the dev proxy hides the resulting connection reset (see vite.config.ts).
+        console.warn(`[hub] refused websocket ${req.url ?? ''} from origin ${origin ?? '(none)'}`)
         socket.destroy()
         return
       }
