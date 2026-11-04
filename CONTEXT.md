@@ -65,8 +65,20 @@ An optional, human-chosen link from one Draft to another whose current content a
 _Avoid_: parent, child, link, dependency
 
 **Backlog Reference**:
-An optional link the human supplies from a Draft to a work item in Azure DevOps, whose current content a Grilling Session may read as context. It is read fresh at the start of every session and never stored. Like a Reference, it carries no obligation, and no hierarchy unless the human marks it as the Draft's Parent. Nothing is fetched that the human did not link. It may point into any Azure DevOps project of the connected organization, not only the Project's Backlog. It can be added or removed at any time and affects only later sessions.
+An optional link the human supplies from a Draft to a Backlog Copy (typically of the BA's Feature a PBI implements a slice of). Sessions read the Backlog Copy, never the live item: the first Grilling Session on the Draft is given it in full; later sessions, Focused Sessions included, are only told it exists and read it when it matters, unless the human asks for it in full when starting the session. Like a Reference, it carries no obligation, and no hierarchy unless the human marks it as the Draft's Parent. It can be added or removed at any time and affects only later sessions.
 _Avoid_: external reference, ADO link, linked item (that is the Linked Work Item)
+
+**Code Folder**:
+A folder of source code on the human's own machine that the human links to a Project under a short label (e.g. "app", "ui-lib"), so its Grilling Sessions can read the code the work item will change. Sessions may read it but never change it. It is whatever is in that folder at the time, not a branch or a commit, and it need not be a whole repository. The human names its default branch when linking it; every session is told which branch and commit each Code Folder is on and whether it has uncommitted changes, and treats code that is off the default branch or uncommitted as possibly not yet true. Its Excluded Files are never read. It is never a drive root, a system folder, the human's home folder or anything containing it, nor a folder that overlaps the tool's own data. The Project still is not a code repository; it only points to Code Folders.
+_Avoid_: repo, repository, codebase, workspace, source
+
+**Excluded File**:
+A file inside a Code Folder that no session may read, search or list. Always excluded: files that typically hold secrets (environment files other than committed examples, keys and certificates, package-registry credentials, environment-specific settings, anything named as a secret or credentials) and version-control internals. Also excluded: everything the folder's own ignore rules keep out of version control, and any further patterns the human adds for that Code Folder. The human can add exclusions but never lift the always-excluded ones.
+_Avoid_: hidden file, blocked file, secret file (it need not hold a secret)
+
+**Backlog Copy**:
+A Project's copy of one Azure DevOps work item's content, as the human pasted it, identified by that item's ID. It does not follow changes made in Azure DevOps; the human pastes it again. Re-pasting marks every Draft that references it as having a changed Backlog Copy, and the next session on each such Draft is given the new content in full together with what changed since the content it replaced. This is not Drift, which concerns only a Draft's own Linked Work Item. The item may live in any Azure DevOps project of the organization, not only the Project's Backlog.
+_Avoid_: snapshot (that is the Published Snapshot), cached item, imported item (that is Import), feature doc
 
 **Parent**:
 The one Backlog Reference the human marks as the work item this Draft belongs under in Azure DevOps (a Task under a PBI or Bug, a PBI or Bug under a Feature, a Feature under an Epic). Sessions are told about it. Publish places the Linked Work Item under it only if the item has no parent yet. It never replaces or removes a parent, which stays manual in Azure DevOps.
@@ -165,7 +177,7 @@ _Avoid_: prototype grilling, generation, render
 - A **Project** has many **Drafts** and exactly one **Glossary**.
 - A **Project** has exactly one **Tracker**; many **Projects** may use the same **Tracker**.
 - A **Project** has at most one **Backlog**; a **Backlog** may serve many **Projects**.
-- **Publish**, **Backlog**, **Backlog Reference**, **Parent**, **Linked Work Item**, **Import**, **Published Snapshot** and **Drift** exist only for a Project whose **Tracker** is Azure DevOps. A Jira Project's Drafts leave the tool only by being copied.
+- **Publish**, **Backlog**, **Backlog Copy**, **Backlog Reference**, **Parent**, **Linked Work Item**, **Import**, **Published Snapshot** and **Drift** exist only for a Project whose **Tracker** is Azure DevOps. A Jira Project's Drafts leave the tool only by being copied.
 - A **Draft** may hold any number of **References** to other **Drafts** in the same Project; none is required.
 - An Azure DevOps **Task** usually belongs to a **PBI** or a **Bug**, and a Jira **Sub-task** to a **Story**, **Task** or **Bug**, expressed as a **Reference** to that Draft. It is still optional, and it is not a parent link. In Azure DevOps the belonging is expressed only through the Task's **Parent**.
 - A **Bug** usually References the Draft whose expected behaviour it breaks. An expectation taken from that Draft is cited, while what was observed comes only from the human.
@@ -174,7 +186,11 @@ _Avoid_: prototype grilling, generation, render
 - A **Draft** belongs to exactly one **Project** and has exactly one **Work Item Type**, one of those the Project's **Tracker** defines.
 - A **Tracker** defines its own **Work Item Types**. An Azure DevOps Task and a Jira Sub-task both live inside another item; a Jira Task stands on its own beside a Story. Jira has no Feature and Azure DevOps has no Sub-task.
 - A **Draft** has at most one **Linked Work Item**, and that item has the same **Work Item Type** as the Draft.
-- A **Draft** has any number of **Backlog References**, at most one of which is its **Parent**. A Parent must already exist in Azure DevOps, so a Task's PBI is Published before the Task can point to it.
+- A **Project** has any number of **Code Folders**, each with a label unique in that Project; the same folder may be linked to several **Projects**.
+- Only a **Grilling Session** may read a Project's **Code Folders**, and only when the human allows it on starting that session (allowed by default when the Project has any). Prototype, Import and Template Sessions never read them.
+- What a session reads in a **Code Folder** is how things work today, never what should happen: the requirement, the **Backlog Copies** and the human decide that. Anything taken from code is cited by the Code Folder's label and the file's path; where code and requirement disagree, Claude asks, and what stays unresolved becomes an Open Question.
+- A **Project** has any number of **Backlog Copies**, at most one per Azure DevOps work item. A **Backlog Copy** may be referenced by many **Drafts** of that Project.
+- A **Draft** has any number of **Backlog References**, each to one **Backlog Copy**, at most one of which is its **Parent**. A Parent must already exist in Azure DevOps, so a Task's PBI is Published before the Task can point to it.
 - Each **Publish** replaces the Draft's **Published Snapshot**. Bringing **Drift** into the Draft produces a **Proposal**, never a direct edit.
 - The first **Grilling Session** on a **Draft** writes v1 directly; every later session produces a **Proposal**, and each accepted **Proposal** is one **Iteration**.
 - A **Proposal** is split into **Clean Changes** and **Conflicts**.
