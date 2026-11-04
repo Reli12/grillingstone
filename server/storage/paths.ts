@@ -28,6 +28,13 @@ export const imageFile = (projectId: string, sessionId: string, number: number, 
   if (!Number.isInteger(number) || number < 1) throw new NotFound(`Invalid Image number ${number}`)
   return path.join(sessionImagesDir(projectId, sessionId), `${number}.${ext}`)
 }
+/** Backlog Copies (ADR-0015): inside the Project, so a session reads a Copy's markdown without new permissions. */
+export const BACKLOG_COPIES_FOLDER = 'backlog-copies'
+export const backlogCopiesDir = (projectId: string) => path.join(projectDir(projectId), BACKLOG_COPIES_FOLDER)
+export const backlogCopyFile = (projectId: string, copyId: string, ext: 'json' | 'md') =>
+  path.join(backlogCopiesDir(projectId), `${safeId(copyId)}.${ext}`)
+/** Where a session finds a Copy's markdown, relative to its working folder (the Project folder). */
+export const backlogCopySessionPath = (copyId: string) => `${BACKLOG_COPIES_FOLDER}/${safeId(copyId)}.md`
 export const glossaryFile = (projectId: string) => path.join(projectDir(projectId), 'CONTEXT.md')
 
 /** Each Template Session runs in its own empty folder; its Transcript is kept beside it, out of its reach. */

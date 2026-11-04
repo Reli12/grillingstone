@@ -12,6 +12,7 @@ import { defaultPbiTemplate, meta, sectionByKey, v1Draft } from '#core/testing/f
 
 import { endpoints } from '@/api/endpoints/endpoints'
 import DraftPage from '@/pages/DraftPage/DraftPage'
+import { codeFolderBackend, codeFolderStateFixture } from '@test/mocks/codeFolderBackend'
 import { draftBackend, liveSession } from '@test/mocks/draftBackend'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
@@ -286,6 +287,7 @@ describe('DraftPage from v1', () => {
       version: 2,
       templateName: '',
       pendingChanges: 0,
+      changedBacklogCopies: [],
       updatedAt: '',
     }
     const api = draftBackend(draft, { otherDrafts: [other] })
@@ -308,6 +310,48 @@ describe('DraftPage from v1', () => {
     await user.click(copyTitle)
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
     expect(await navigator.clipboard.readText()).toBe(draft.title)
+  })
+
+  it('hides Discarded parts for the whole Draft, and shows them again for one Section', async () => {
+    let draft = v1Draft()
+    const oq = sectionByKey(draft, 'openQuestions')
+    draft = applyHumanOp(draft, { op: 'discardSection', sectionId: sectionByKey(draft, 'design').id })
+    draft = applyHumanOp(draft, { op: 'discardEntry', sectionId: oq.id, entryId: oq.entries[1].id })
+    draftBackend(draft)
+    const { user } = renderPage(draft)
+
+    const discardedSection = 'Design'
+    const discardedEntry = '2. Should archiving notify the site owner?'
+    expect(await screen.findByText(discardedSection)).toBeInTheDocument()
+    expect(screen.getByText(discardedEntry)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Hide 2 discarded' }))
+    expect(screen.queryByText(discardedSection)).not.toBeInTheDocument()
+    expect(screen.queryByText(discardedEntry)).not.toBeInTheDocument()
+    expect(screen.getByText('1. Do archived devices keep sending telemetry?')).toBeInTheDocument()
+
+    const questions = screen.getByRole('region', { name: 'Open Questions / Risks' })
+    await user.click(within(questions).getByRole('button', { name: 'Show 1 discarded' }))
+    expect(screen.getByText(discardedEntry)).toBeInTheDocument()
+    expect(screen.queryByText(discardedSection)).not.toBeInTheDocument()
+
+    // The Draft-wide setting clears the Section's own choice.
+    await user.click(screen.getByRole('button', { name: 'Show 2 discarded' }))
+    await user.click(screen.getByRole('button', { name: 'Hide 2 discarded' }))
+    expect(screen.queryByText(discardedEntry)).not.toBeInTheDocument()
+  })
+
+  it('copies a single Section from its heading', async () => {
+    const draft = v1Draft()
+    draftBackend(draft)
+    const { user } = renderPage(draft)
+
+    const ac = await screen.findByRole('region', { name: 'Acceptance Criteria' })
+    await user.click(within(ac).getByRole('button', { name: 'Copy' }))
+    expect(await screen.findByText('Copied “Acceptance Criteria” for Azure DevOps.')).toBeInTheDocument()
+    const copied = await navigator.clipboard.readText()
+    expect(copied).toMatch(/^AC01 - Archive single device/)
+    expect(copied).not.toContain('User Story')
   })
 
   it('copies a Jira Draft as Summary and Description, as rich text or wiki markup', async () => {
@@ -476,5 +520,48 @@ describe('DraftPage from v1', () => {
     )
     renderPage(draft)
     expect(await screen.findByText('No such Draft')).toBeInTheDocument()
+  })
+})
+
+describe('DraftPage — Code Folders in the message box', () => {
+  const offDefault = codeFolderStateFixture({ branch: 'spike', onDefaultBranch: false })
+
+  it('says in one line what code a new session reads, and starts one without code when switched off', async () => {
+    const draft = v1Draft()
+    codeFolderBackend(draft.projectId, [offDefault])
+    const api = draftBackend(draft, { transcripts: [] })
+    const { user } = renderPage(draft)
+    expect(await screen.findByText('Reads app@spike')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'change' }))
+    await user.click(screen.getByRole('button', { name: 'Don’t read' }))
+    await user.type(screen.getByRole('textbox', { name: 'Message Claude' }), 'Bulk archive{Enter}')
+    await vi.waitFor(() =>
+      expect(api.requests).toContainEqual(
+        expect.objectContaining({
+          path: endpoints.draftSessions(draft.projectId, draft.id),
+          body: { kind: 'iteration', humanNote: 'Bulk archive', readCodeFolders: false },
+        }),
+      ),
+    )
+  })
+
+  it('continues a session without code when switched off', async () => {
+    const draft = v1Draft()
+    codeFolderBackend(draft.projectId, [offDefault])
+    const ended = transcript(draft, grillingMessages, { id: 'sess-1', kind: 'iteration', claudeSessionId: 'claude-1' })
+    const api = draftBackend(draft, { transcripts: [ended] })
+    const { user } = renderPage(draft)
+    await user.click(await screen.findByRole('button', { name: 'Continue New Iteration' }))
+    await user.click(await screen.findByRole('button', { name: 'change' }))
+    await user.click(screen.getByRole('button', { name: 'Don’t read' }))
+    await user.type(screen.getByRole('textbox', { name: 'Message Claude' }), 'Back again{Enter}')
+    await vi.waitFor(() =>
+      expect(api.requests).toContainEqual(
+        expect.objectContaining({
+          path: endpoints.continueSession(draft.projectId, draft.id, 'sess-1'),
+          body: { humanNote: 'Back again', readCodeFolders: false },
+        }),
+      ),
+    )
   })
 })

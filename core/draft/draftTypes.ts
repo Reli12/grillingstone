@@ -31,6 +31,12 @@ export interface Section {
   humanMoved: boolean
 }
 
+/** A Draft's link to one Backlog Copy, with the Copy's revision its last session received. */
+export interface BacklogReference {
+  copyId: string
+  seenRevision: number
+}
+
 export interface IterationLogLine {
   version: number
   date: string
@@ -48,6 +54,8 @@ export interface Draft {
   version: number
   requirement: string
   references: string[]
+  /** Backlog Copies this Draft derives from (ADR-0015). Absent on Drafts saved before they existed: none. */
+  backlogReferences?: BacklogReference[]
   template: Template
   sections: Section[]
   iterationLog: IterationLogLine[]

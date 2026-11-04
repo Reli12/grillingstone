@@ -23,6 +23,7 @@ import {
 import { newId } from '#core/shared/ids.ts'
 import type { Reason } from '#core/shared/validation.ts'
 
+import { type CodeToolResult, runCodeTool } from '../codeFolders/codeTools.ts'
 import { CLAUDE_BIN } from '../config.ts'
 import { now } from '../services/clock.ts'
 import { getDraft } from '../storage/drafts.ts'
@@ -203,7 +204,13 @@ export class Supervisor {
   }
 
   /** A Continuation (ADR-0014): a new session that resumes an ended one's Claude Code conversation. */
-  async continue(projectId: string, draftId: string, sessionId: string, humanNote?: string): Promise<SessionSummary> {
+  async continue(
+    projectId: string,
+    draftId: string,
+    sessionId: string,
+    humanNote?: string,
+    readCodeFolders?: boolean,
+  ): Promise<SessionSummary> {
     const earlier = await getTranscript(projectId, sessionId)
     if (earlier.draftId !== draftId) throw new SessionError('This session belongs to another Draft.')
     if (this.liveForDraft(draftId)) throw new SessionError(ALREADY_RUNNING_ON_DRAFT)
@@ -219,6 +226,7 @@ export class Supervisor {
       focus: next.focus,
       humanNote,
       continues: summaryOf(earlier),
+      ...(readCodeFolders === undefined ? {} : { readCodeFolders }),
     })
   }
 
@@ -235,6 +243,7 @@ export class Supervisor {
     intro,
     resume,
     images = [],
+    onLaunched,
   }: PreparedSession<T>): Promise<T> {
     // Saved before Claude Code starts, so a refused or unsaveable Image starts no session; if anything before the
     // start fails, the Images already written are removed again.
@@ -263,6 +272,8 @@ export class Supervisor {
     if (transcript.humanNote || refs.length)
       await this.push(live, humanMessage('message', transcript.humanNote ?? '', refs))
     sendMessage(child, buildMessageContent(seed.firstMessage, numbered))
+    // A failure here must not take the running session down with it.
+    await onLaunched?.().catch((error: unknown) => console.error('[supervisor] after-launch step failed', error))
     // Claude Code may already have failed to start; that session has ended and stays ended.
     if (this.live.has(transcript.id)) await this.moveOn(live, { type: 'started' })
     return transcript
@@ -399,6 +410,21 @@ export class Supervisor {
     if (accepted.ok) live.state = accepted.state
     await this.push(live, systemMessage(result.message, 'success'))
     return result
+  }
+
+  // ── Code tools (from scripts/codeTools.mjs, ADR-0016) ─────────────────────
+
+  /** Runs a code tool over the Code Folders this session was started with; a session without any has none. */
+  async codeTool(
+    sessionId: string,
+    token: string,
+    tool: string,
+    input: Record<string, unknown>,
+  ): Promise<CodeToolResult> {
+    const live = this.live.get(sessionId)
+    if (!live || live.token !== token) return { isError: true, text: 'This session is not running.' }
+    if (!live.scope.codeFolders?.length) return { isError: true, text: 'This session reads no Code Folders.' }
+    return runCodeTool(live.scope.codeFolders, tool, input)
   }
 
   // ── Transcript bookkeeping ──────────────────────────────────────────────

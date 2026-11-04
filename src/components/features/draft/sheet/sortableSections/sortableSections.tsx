@@ -12,11 +12,17 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 
 import { SectionBlock } from '@/components/features/draft/sheet/sectionBlock/sectionBlock'
 import { DRAG_START_DISTANCE_PX } from '@/constants/DragConstants'
+import { useDiscardedVisibility } from '@/context/DiscardedVisibility/DiscardedVisibility'
 import { useDraftEditor } from '@/context/DraftEditor/DraftEditor'
 
 /** The Sections in the human's order; dragging one by its handle moves it. */
 export function SortableSections() {
-  const { draft, apply } = useDraftEditor()
+  const { draft, apply, pending } = useDraftEditor()
+  const { showAll } = useDiscardedVisibility()
+  // A hidden Discarded Section still shows while a change waits on it, so no decision is ever out of sight.
+  const shown = draft.sections.filter(
+    (section) => !section.discarded || showAll || pending.some((change) => change.sectionId === section.id),
+  )
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: DRAG_START_DISTANCE_PX } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -28,9 +34,9 @@ export function SortableSections() {
   }
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={draft.sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={shown.map((section) => section.id)} strategy={verticalListSortingStrategy}>
         <div className="mt-8 space-y-8">
-          {draft.sections.map((section) => (
+          {shown.map((section) => (
             <SectionBlock key={section.id} section={section} />
           ))}
         </div>

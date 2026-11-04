@@ -53,6 +53,8 @@ try {
     sessionId,
     realpath,
     mode,
+    // Set only when the session was started with "Read Code Folders" (ADR-0016).
+    codeFolders: process.env.GRILLINGSTONE_CODE_FOLDERS === '1',
   })
   const permission = decision.allow ? 'allow' : 'deny'
   const reason = decision.allow ? ALLOWED_REASON : decision.reason

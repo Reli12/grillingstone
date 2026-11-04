@@ -13,34 +13,17 @@ import { Thinking } from '@/components/atoms/thinking/thinking'
 import { Dialog } from '@/components/composite/dialog/dialog'
 import { FieldPreview } from '@/components/features/draft/publish/fieldPreview/fieldPreview'
 import { PasteFormatSwitch } from '@/components/features/draft/publish/pasteFormatSwitch/pasteFormatSwitch'
+import { copyRich } from '@/lib/clipboard'
 import type { PasteFormat } from '@/types/publish'
 
 /** How long a button says "Copied" before it reads "Copy …" again. */
 const COPIED_FEEDBACK_MS = 1800
 
-const LINE_BREAK_TAG = /<br>/g // every <br> the renderer writes
-const BLOCK_END_TAG = /<\/(p|h2|h3|li|tr)>/g // the closing tag of each block that ends a line of text
-const THREE_OR_MORE_NEWLINES = /\n{3,}/g // runs of blank lines left between blocks
-
-/** The plain-text version of a field's HTML, one line per block, for pastes that drop formatting. */
-const plain = (html: string) => {
-  const container = document.createElement('div')
-  container.innerHTML = html.replace(LINE_BREAK_TAG, '\n').replace(BLOCK_END_TAG, '$&\n')
-  const text = container.textContent ?? ''
-  return text.replace(THREE_OR_MORE_NEWLINES, '\n\n').trim()
-}
-
 /** Puts the field on the clipboard: wiki markup as plain text, or rich HTML with a plain-text fallback. */
 async function copy(field: CopyField, format: PasteFormat) {
   if (field.html === null) return navigator.clipboard.writeText(field.text)
   if (format === 'wiki' && field.wiki !== null) return navigator.clipboard.writeText(field.wiki)
-  if (!('ClipboardItem' in window)) return navigator.clipboard.writeText(plain(field.html))
-  await navigator.clipboard.write([
-    new ClipboardItem({
-      'text/html': new Blob([field.html], { type: 'text/html' }),
-      'text/plain': new Blob([plain(field.html)], { type: 'text/plain' }),
-    }),
-  ])
+  await copyRich(field.html)
 }
 
 interface CopyForTrackerProps {

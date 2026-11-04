@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyHumanOp } from '#core/draft/humanOps.ts'
-import { render } from '#core/publish/publishRenderer.ts'
+import { render, renderSection } from '#core/publish/publishRenderer.ts'
 import { ADO_FIELDS } from '#core/shared/adoFields.ts'
 import { customFieldTarget, JIRA_FIELDS, type SectionTarget } from '#core/shared/trackerFields.ts'
-import { sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
+import { acOf, sectionByKey, v1Draft } from '#core/testing/fixtures.ts'
 
 describe('Publish Renderer', () => {
   it('renders the Title on its own and puts Acceptance Criteria only in their field', () => {
@@ -152,6 +152,41 @@ describe('Publish Renderer', () => {
       expect(description).toMatch(/\*AC01 - Archive single device[^*]*\*\n\*Given\* /)
       expect(description.trimEnd()).toMatch(/h2\. PBI Iteration Log\n22\.09\.2026 - @dorijan v1$/)
       expect(description).not.toContain('<')
+    })
+
+    it('renders one Section as wiki markup, with its heading in the Description', () => {
+      const draft = jiraDraft()
+      const section = renderSection(draft, sectionByKey(draft, 'acceptanceCriteria').id, 'jira-wiki')
+      expect(section).toMatch(/^h2\. Acceptance Criteria\n\*AC01 - Archive single device/)
+      expect(section).not.toContain('User Story')
+    })
+  })
+
+  describe('one Section', () => {
+    it('is the exact slice of its field, heading included in the Description', () => {
+      const draft = v1Draft()
+      const section = renderSection(draft, sectionByKey(draft, 'userStory').id)
+      expect(section).toMatch(/^<h2>User Story<\/h2>\n/)
+      expect(render(draft).fields[ADO_FIELDS.description]).toContain(section)
+      expect(section).not.toContain('Technical Notes')
+    })
+
+    it('has no heading when it is the only Section in its field', () => {
+      const draft = v1Draft()
+      const section = renderSection(draft, acOf(draft).id)
+      expect(section).toMatch(/^<p><strong>AC01 - Archive single device/)
+      expect(section).toBe(render(draft).fields[ADO_FIELDS.acceptanceCriteria])
+    })
+
+    it('leaves out Discarded Entries, and is null once the Section itself is Discarded or unknown', () => {
+      let draft = v1Draft()
+      const oq = sectionByKey(draft, 'openQuestions')
+      draft = applyHumanOp(draft, { op: 'discardEntry', sectionId: oq.id, entryId: oq.entries[1].id })
+      expect(renderSection(draft, oq.id)).not.toContain('notify the site owner')
+      expect(renderSection(draft, oq.id)).toContain('keep sending telemetry')
+      draft = applyHumanOp(draft, { op: 'discardSection', sectionId: oq.id })
+      expect(renderSection(draft, oq.id)).toBeNull()
+      expect(renderSection(draft, 'no-such-section')).toBeNull()
     })
   })
 })

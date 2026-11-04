@@ -6,14 +6,20 @@ import { BookOpenText, FileText, Globe, Search, Send, ShieldAlert, Wrench } from
 import { cn } from '@/lib/cn'
 import type { ToolMessage } from '@/types/chat'
 
+/** The code tools a session reads Code Folders with (ADR-0016); their only refusal is an Excluded File. */
+const isCodeTool = (message: ToolMessage) => message.tool.startsWith('mcp__code__')
+
 function toolIcon(message: ToolMessage) {
   if (message.outcome === 'denied') return ShieldAlert
   if (message.summary.includes('Glossary')) return BookOpenText
   switch (message.tool) {
     case 'Read':
+    case 'mcp__code__read_code_file':
       return FileText
     case 'Grep':
     case 'Glob':
+    case 'mcp__code__search_code':
+    case 'mcp__code__list_code_files':
       return Search
     case 'WebSearch':
     case 'WebFetch':
@@ -32,7 +38,11 @@ export function ToolLine({ message }: Readonly<{ message: ToolMessage }>) {
     <p className={cn('flex items-center gap-2 pl-3 text-[13px]', failed ? 'text-redpencil' : 'text-ink-faint')}>
       {icon}
       <span className="truncate">{message.summary}</span>
-      {message.outcome === 'denied' && <span className="shrink-0">(blocked by the session allowlist)</span>}
+      {message.outcome === 'denied' && (
+        <span className="shrink-0">
+          {isCodeTool(message) ? '(Excluded File — not read)' : '(blocked by the session allowlist)'}
+        </span>
+      )}
       {message.outcome === 'error' && message.tool === 'Bash' && <span className="shrink-0">(refused)</span>}
     </p>
   )

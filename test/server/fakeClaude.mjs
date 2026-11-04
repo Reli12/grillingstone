@@ -4,7 +4,9 @@
 // (v1 Draft, Proposal or Template) and runs the real submit script. A message containing CRASH makes it die.
 // A turn with Images (a content array) is answered with one extra line, "Received image blocks: Image 1 (image/png, …)".
 // Like Claude Code it names its session in an init event; with --resume it keeps the name it is given.
-import { spawnSync } from 'node:child_process'
+// "READ CODE" makes it start the MCP server its --mcp-config names (the code tools, ADR-0016), speak MCP to it like
+// Claude Code would, and report each call's result on its own line — or "NO CODE TOOLS" without an MCP config.
+import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
@@ -50,6 +52,39 @@ function payload() {
   }
 }
 
+/** Starts the configured MCP server, makes the code tool calls a session might, and returns one line per result. */
+async function readCodeThroughMcp() {
+  const at = process.argv.indexOf('--mcp-config')
+  if (at < 0) return 'NO CODE TOOLS'
+  const [config] = Object.values(JSON.parse(process.argv[at + 1]).mcpServers)
+  const child = spawn(config.command, config.args, { env: process.env, stdio: ['pipe', 'pipe', 'inherit'] })
+  const pending = new Map()
+  readline.createInterface({ input: child.stdout }).on('line', (line) => {
+    const reply = JSON.parse(line)
+    pending.get(reply.id)?.(reply)
+  })
+  let id = 0
+  const request = (method, params) =>
+    new Promise((resolve) => {
+      pending.set(++id, resolve)
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
+    })
+  const call = async (name, args) => {
+    const { result } = await request('tools/call', { name, arguments: args })
+    return `${result.isError ? 'REFUSED' : 'OK'} ${result.content[0].text.replaceAll('\n', ' | ')}`
+  }
+  await request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'fake' } })
+  const folder = (await request('tools/list', {})).result.tools[0].description.match(/\(([^),]+)/)[1]
+  const lines = [
+    `LIST ${await call('list_code_files', { folder })}`,
+    `EXAMPLE ${await call('read_code_file', { folder, path: '.env.example' })}`,
+    `ENV ${await call('read_code_file', { folder, path: '.env' })}`,
+    `SEARCH ${await call('search_code', { pattern: 'TOKEN' })}`,
+  ]
+  child.kill()
+  return lines.join('\n')
+}
+
 const IMAGE_LABEL = /^Image (\d+):$/
 
 /** A turn's content is plain text, or (when it carries Images) an array of text and image blocks. */
@@ -77,6 +112,11 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     seed = text
     emit({ type: 'system', subtype: 'init', session_id: claudeSessionId })
     if (resumeAt >= 0) say('Picking up where we left off.')
+  }
+  if (text.includes('READ CODE')) {
+    say(await readCodeThroughMcp())
+    done()
+    continue
   }
   if (text.includes('CRASH')) {
     process.stderr.write('fake claude crashed\n')

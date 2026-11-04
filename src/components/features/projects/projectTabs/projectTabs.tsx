@@ -1,12 +1,17 @@
-// The Project page's tabs, each at its own URL: the Drafts, or the whole Glossary to maintain.
+// The Project page's tabs, each at its own URL: the Drafts, the Backlog Copies (Azure DevOps Projects only), the
+// whole Glossary to maintain, or the Code Folders its sessions may read.
 import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
 import { routesPaths } from '@/routes/routes'
 
+export type ProjectTab = 'drafts' | 'backlog' | 'glossary' | 'code'
+
 interface ProjectTabsProps {
   projectId: string
-  glossarySelected: boolean
+  selected: ProjectTab
+  /** Backlog Copies exist only in Azure DevOps Projects. */
+  showBacklog: boolean
 }
 
 const tabClass = (selected: boolean) =>
@@ -15,25 +20,22 @@ const tabClass = (selected: boolean) =>
     selected ? 'bg-fog-deep font-medium text-ink' : 'text-ink-soft hover:text-ink',
   )
 
-export function ProjectTabs({ projectId, glossarySelected }: Readonly<ProjectTabsProps>) {
+export function ProjectTabs({ projectId, selected, showBacklog }: Readonly<ProjectTabsProps>) {
+  const tabs: [ProjectTab, string, string][] = [
+    ['drafts', 'Drafts', routesPaths.project(projectId)],
+    ...(showBacklog
+      ? [['backlog', 'Backlog Copies', routesPaths.projectBacklog(projectId)] as [ProjectTab, string, string]]
+      : []),
+    ['glossary', 'Glossary', routesPaths.projectGlossary(projectId)],
+    ['code', 'Code Folders', routesPaths.projectCode(projectId)],
+  ]
   return (
     <nav role="tablist" aria-label="Project" className="flex gap-1">
-      <Link
-        role="tab"
-        aria-selected={!glossarySelected}
-        to={routesPaths.project(projectId)}
-        className={tabClass(!glossarySelected)}
-      >
-        Drafts
-      </Link>
-      <Link
-        role="tab"
-        aria-selected={glossarySelected}
-        to={routesPaths.projectGlossary(projectId)}
-        className={tabClass(glossarySelected)}
-      >
-        Glossary
-      </Link>
+      {tabs.map(([tab, label, to]) => (
+        <Link key={tab} role="tab" aria-selected={selected === tab} to={to} className={tabClass(selected === tab)}>
+          {label}
+        </Link>
+      ))}
     </nav>
   )
 }

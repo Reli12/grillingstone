@@ -1,9 +1,12 @@
 // With no session running, typing starts a new one: a fresh first session before v1, otherwise a New
+import { useState } from 'react'
+
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { ImageUpload } from '#core/session/images.ts'
 import { type SessionSummary, type Transcript } from '#core/session/sessionTypes.ts'
 
 import { NewSessionComposer } from '@/components/features/chat/newSessionComposer/newSessionComposer'
+import { SessionCodeChoice } from '@/components/features/codeFolders/sessionCodeChoice/sessionCodeChoice'
 import { SESSION_TITLES } from '@/constants/SessionConstants'
 import type { OnStarted } from '@/hooks/chat/useStartForm'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
@@ -61,6 +64,9 @@ export function IdleComposer({
 }: Readonly<IdleComposerProps>) {
   const { start, continueSession } = mutations
   const beforeV1 = draft.version === 0
+  const [readCode, setReadCode] = useState(true)
+  // Left out unless switched off, so a session that reads code sends the body it always did.
+  const code = readCode ? {} : { readCodeFolders: false }
   const startByTyping = (text: string, images: ImageUpload[], onStarted: OnStarted) => {
     if (!continueFrom) {
       // The images key is left out when there are none, so a text-only start is the request it always was.
@@ -70,14 +76,14 @@ export function IdleComposer({
         onStarted(session.id)
         onShowChat()
       }
-      start.mutate({ kind, humanNote: text, ...withImages }, { onSuccess })
+      start.mutate({ kind, humanNote: text, ...withImages, ...code }, { onSuccess })
       return
     }
     const onSuccess = () => {
       onContinueFromChange(null)
       onShowChat()
     }
-    continueSession.mutate({ sessionId: continueFrom.id, humanNote: text }, { onSuccess })
+    continueSession.mutate({ sessionId: continueFrom.id, humanNote: text, ...code }, { onSuccess })
   }
   const continuing = continueFrom
     ? { label: continuationLabel(continueFrom), onCancel: () => onContinueFromChange(null) }
@@ -94,6 +100,15 @@ export function IdleComposer({
       continuing={continuing}
       placeholder={placeholder}
       hint={hint}
+      above={
+        <SessionCodeChoice
+          projectId={draft.projectId}
+          read={readCode}
+          onChange={setReadCode}
+          compact
+          className="mb-2"
+        />
+      }
     />
   )
 }

@@ -1,7 +1,7 @@
 // Tests for the `claude -p` launch arguments and the stdout JSON-lines reader.
 import { describe, expect, it } from 'vitest'
 
-import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
+import { CODE_TOOLS_SERVER, SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
 import { claudeArgs, jsonLines } from './claudeProcess.ts'
 
@@ -36,5 +36,20 @@ describe('jsonLines', () => {
     expect(events).toEqual([{ a: 1 }, { b: 2 }])
     feed('}\n')
     expect(events).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }])
+  })
+})
+
+describe('claudeArgs — code tools (ADR-0016)', () => {
+  it('starts no MCP server for a session that reads no Code Folders', () => {
+    expect(claudeArgs('RULES', '', { persist: true })).not.toContain('--mcp-config')
+    expect(claudeArgs('RULES', '', { persist: true }, false)).not.toContain('--mcp-config')
+  })
+
+  it('starts the code tools server, and only it, for a session that reads Code Folders', () => {
+    const args = claudeArgs('RULES', '', { persist: true }, true)
+    expect(args).toContain('--strict-mcp-config')
+    const config = JSON.parse(args[args.indexOf('--mcp-config') + 1])
+    expect(Object.keys(config.mcpServers)).toEqual([CODE_TOOLS_SERVER])
+    expect(config.mcpServers[CODE_TOOLS_SERVER].args[0]).toMatch(/codeTools\.mjs$/)
   })
 })

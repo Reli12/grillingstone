@@ -1,5 +1,7 @@
 // The message box when no session is running: the first words of a new session, or of a Continuation.
 
+import type { ReactNode } from 'react'
+
 import type { ImageUpload } from '#core/session/images.ts'
 
 import { ContinueChoice } from '@/components/features/chat/continueChoice/continueChoice'
@@ -26,6 +28,8 @@ interface NewSessionComposerProps {
   continuing?: Continuing
   /** Offers to continue the latest ended session instead of starting a new one. */
   onContinueLatest?: () => void
+  /** Shown above the box when it is not blocked: what the session will read, e.g. its Code Folders. */
+  above?: ReactNode
 }
 
 /**
@@ -41,6 +45,7 @@ export function NewSessionComposer({
   sessionKey = 'new-session',
   continuing,
   onContinueLatest,
+  above,
 }: Readonly<NewSessionComposerProps>) {
   const blocked = !!blockedReason
   const disabled = blocked || starting
@@ -58,6 +63,7 @@ export function NewSessionComposer({
     <div className="shrink-0 border-t border-line bg-sheet">
       <div className="mx-auto max-w-[720px] px-4 py-3">
         <ContinueChoice continuing={continuing} onContinueLatest={onContinueLatest} blocked={blocked} />
+        {!blocked && above}
         <div
           className={cn(
             'rounded-lg border bg-sheet transition-colors',

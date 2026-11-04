@@ -143,3 +143,32 @@ describe('Permission Guard', () => {
     })
   })
 })
+
+describe('Permission Guard — code tools (ADR-0016)', () => {
+  const tools = ['mcp__code__list_code_files', 'mcp__code__search_code', 'mcp__code__read_code_file']
+  const withCode: GuardContext = { ...ctx, codeFolders: true }
+
+  it.each(tools)('allows %s when the session reads Code Folders', (tool) => {
+    expect(decide(tool, { folder: 'app', pattern: 'x', path: 'src/a.ts' }, withCode)).toEqual({ allow: true })
+  })
+
+  it.each(tools)('denies %s when the session was started without Code Folders', (tool) => {
+    const decision = decide(tool, { folder: 'app' }, ctx)
+    expect(decision.allow).toBe(false)
+    if (!decision.allow) expect(decision.reason).toContain('Code Folders')
+  })
+
+  it('still denies every other MCP tool, and look-alikes of the code tools', () => {
+    for (const tool of [
+      'mcp__code__write_code_file',
+      'mcp__other__read_code_file',
+      'mcp__code__read_code_file_x',
+      'read_code_file',
+    ])
+      expect(decide(tool, {}, withCode).allow).toBe(false)
+  })
+
+  it('never lets a Template Session use the code tools', () => {
+    expect(decide(tools[2], { folder: 'app', path: 'a.ts' }, { ...withCode, mode: 'template' }).allow).toBe(false)
+  })
+})

@@ -49,9 +49,10 @@ export function sessionRoutes(router: Router, { supervisor }: AppDeps) {
     const bytes = await readImage({ projectId, sessionId, number: ref.number, mediaType: ref.mediaType })
     return new RawReply(ref.mediaType, bytes)
   })
-  router.post('/api/projects/:projectId/drafts/:draftId/sessions/:sessionId/continue', ({ params, body }) =>
-    supervisor.continue(params.projectId, params.draftId, params.sessionId, parse(continueSessionBody, body).humanNote),
-  )
+  router.post('/api/projects/:projectId/drafts/:draftId/sessions/:sessionId/continue', ({ params, body }) => {
+    const { humanNote, readCodeFolders } = parse(continueSessionBody, body)
+    return supervisor.continue(params.projectId, params.draftId, params.sessionId, humanNote, readCodeFolders)
+  })
 
   // Either kind of session
   router.post(
@@ -74,6 +75,16 @@ export function sessionRoutes(router: Router, { supervisor }: AppDeps) {
   // Called by scripts/writeDraft.mjs from inside a session, authenticated by the session's token.
   router.post('/api/internal/sessions/:sessionId/submit', ({ params, body, req }) =>
     supervisor.submit(params.sessionId, String(req.headers[SESSION_TOKEN_HEADER] ?? ''), body),
+  )
+
+  // Called by scripts/codeTools.mjs from inside a session that reads Code Folders (ADR-0016), by the session's token.
+  router.post('/api/internal/sessions/:sessionId/code/:tool', ({ params, body, req }) =>
+    supervisor.codeTool(
+      params.sessionId,
+      String(req.headers[SESSION_TOKEN_HEADER] ?? ''),
+      params.tool,
+      body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
+    ),
   )
 
   // Template Sessions

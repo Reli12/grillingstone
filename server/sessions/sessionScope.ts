@@ -1,5 +1,6 @@
 // The shared shape of a session, whichever kind it is: the Scope that says where it runs and what its
 // submission means, and the PreparedSession the Supervisor launches.
+import type { CodeFolder } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Seed } from '#core/session/cardProtocol.ts'
 import type { ImageUpload } from '#core/session/images.ts'
 import type { ChatMessage, TemplateTranscript, Transcript } from '#core/session/sessionTypes.ts'
@@ -27,6 +28,8 @@ export interface Scope {
   onGlossaryEdit?: () => void
   /** Claude Code keeps the conversation so the session can be continued (ADR-0014). */
   persist: boolean
+  /** The Code Folders the session may read through the code tools; absent when it reads none (ADR-0016). */
+  codeFolders?: CodeFolder[]
 }
 
 /** A session ready to launch. */
@@ -40,6 +43,8 @@ export interface PreparedSession<T extends AnyTranscript> {
   resume?: string
   /** The Images the human sent with the first message; only Grilling Sessions take them. */
   images?: ImageUpload[]
+  /** Runs once the seed has been sent to Claude Code. */
+  onLaunched?: () => Promise<void>
 }
 
 /** The Transcript without its messages: what lists and live-session lookups send to the browser. */

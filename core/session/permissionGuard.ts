@@ -16,7 +16,16 @@ export interface GuardContext {
   realpath: (filePath: string) => string
   /** A Template Session writes only its payload file and loads no skills; its folder is its own working folder. */
   mode?: 'grilling' | 'template'
+  /** The session was started with "Read Code Folders": the code tools are allowed (ADR-0016). */
+  codeFolders?: boolean
 }
+
+/** The MCP server that provides the code tools, as named in the session's MCP configuration. */
+export const CODE_TOOLS_SERVER = 'code'
+/** The code tools by their own names, as the MCP server lists them. */
+export const CODE_TOOL_NAMES = ['list_code_files', 'search_code', 'read_code_file'] as const
+/** The only MCP tools a session may ever call: read-only, over its own Code Folders. */
+export const CODE_TOOLS: string[] = CODE_TOOL_NAMES.map((tool) => `mcp__${CODE_TOOLS_SERVER}__${tool}`)
 
 export type Decision = { allow: true } | { allow: false; reason: string }
 
@@ -124,6 +133,10 @@ export function decide(tool: string, input: Record<string, unknown>, ctx: GuardC
         ? ALLOW
         : deny(`Only these skills are available: ${ALLOWED_SKILLS.join(', ')}.`)
     default:
+      if (CODE_TOOLS.includes(tool)) {
+        if (ctx.mode === 'template') return deny('A Template Session reads no Code Folders.')
+        return ctx.codeFolders ? ALLOW : deny('This session was started without reading Code Folders.')
+      }
       return deny(`${tool} is not available in a Grilling Session.`)
   }
 }

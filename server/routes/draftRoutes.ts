@@ -5,25 +5,33 @@ import { parseMessageImages } from '#core/session/images.ts'
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { HttpError } from '../http/errors.ts'
 import type { Router } from '../http/router.ts'
-import { decideBody, humanOpBody, newDraftBody, referencesBody } from '../http/schemas.ts'
+import { backlogReferencesBody, decideBody, humanOpBody, newDraftBody, referencesBody } from '../http/schemas.ts'
+import { listBacklogCopies } from '../storage/backlogCopies.ts'
 import { getDraft, listDrafts, summarize } from '../storage/drafts.ts'
 import type { AppDeps } from './deps.ts'
 
 const DRAFT = '/api/projects/:projectId/drafts/:draftId'
 
 export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
-  router.get('/api/projects/:projectId/drafts', async ({ params }) =>
-    (await listDrafts(params.projectId)).map(summarize),
-  )
+  router.get('/api/projects/:projectId/drafts', async ({ params }) => {
+    const [drafts, copies] = await Promise.all([listDrafts(params.projectId), listBacklogCopies(params.projectId)])
+    return drafts.map((draft) => summarize(draft, copies))
+  })
   router.post(
     '/api/projects/:projectId/drafts',
     async ({ params, body }) => {
-      const { images, ...fields } = parse(newDraftBody, body)
+      const { images, readCodeFolders, ...fields } = parse(newDraftBody, body)
       // Checked before the Draft exists, so refused Images leave no Draft behind; the session checks them again.
       const checked = parseMessageImages(images)
       if (!checked.ok) throw new HttpError(409, checked.reasons.map((reason) => reason.message).join(' '))
       const draft = await drafts.create(params.projectId, fields)
-      const session = await supervisor.start({ projectId: params.projectId, draftId: draft.id, kind: 'first', images })
+      const session = await supervisor.start({
+        projectId: params.projectId,
+        draftId: draft.id,
+        kind: 'first',
+        images,
+        ...(readCodeFolders === undefined ? {} : { readCodeFolders }),
+      })
       return { draft, session }
     },
     { maxBody: IMAGE_MAX_BODY },
@@ -40,6 +48,9 @@ export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
   })
   router.patch(`${DRAFT}/references`, ({ params, body }) =>
     drafts.setReferences(params.projectId, params.draftId, parse(referencesBody, body).references),
+  )
+  router.patch(`${DRAFT}/backlog-references`, ({ params, body }) =>
+    drafts.setBacklogReferences(params.projectId, params.draftId, parse(backlogReferencesBody, body).backlogReferences),
   )
   router.post(`${DRAFT}/ops`, ({ params, body }) =>
     drafts.edit(params.projectId, params.draftId, parse(humanOpBody, body)),

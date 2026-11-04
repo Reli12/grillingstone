@@ -11,6 +11,8 @@ import { endpoints } from '@/api/endpoints/endpoints'
 import { type Preparation, prepareImage } from '@/lib/imagePreparation'
 import { forgetImageSessions } from '@/lib/imageSessionMemory'
 import NewDraftPage from '@/pages/NewDraftPage/NewDraftPage'
+import { backlogBackend, backlogCopyFixture } from '@test/mocks/backlogBackend'
+import { codeFolderBackend, codeFolderStateFixture } from '@test/mocks/codeFolderBackend'
 import { server } from '@test/mocks/server'
 import { render } from '@test/utils/testUtils'
 
@@ -30,6 +32,7 @@ const written: DraftSummary = {
   version: 1,
   templateName: '',
   pendingChanges: 0,
+  changedBacklogCopies: [],
   updatedAt: '',
 }
 
@@ -60,6 +63,7 @@ describe('NewDraftPage', () => {
         return HttpResponse.json({ draft: { id: 'new-draft' }, session: {} })
       }),
     )
+    backlogBackend('customer-portal', [{ copy: backlogCopyFixture(), drafts: [] }])
   })
 
   it('starts a PBI in the default Template', async () => {
@@ -182,5 +186,105 @@ describe('NewDraftPage', () => {
     const thumbnails = await screen.findByRole('list', { name: 'Images to send' })
     await user.click(within(thumbnails).getByRole('button', { name: 'Remove picked.png' }))
     expect(screen.queryByRole('list', { name: 'Images to send' })).not.toBeInTheDocument()
+  })
+
+  describe('Backlog References', () => {
+    it('starts from an existing Backlog Copy with the requirement left empty', async () => {
+      const { user } = renderPage()
+      const start = await screen.findByRole('button', { name: 'Start grilling' })
+      expect(start).toBeDisabled()
+      await user.click(screen.getByRole('button', { name: /Add Backlog Reference/ }))
+      await user.click(await screen.findByRole('checkbox', { name: /#1234.*Device archiving/ }))
+      expect(screen.getByText(/Which part of the Feature does this PBI cover/)).toBeInTheDocument()
+      expect(screen.getByText('#1234 Device archiving')).toBeInTheDocument()
+      await user.click(start)
+      expect(await screen.findByTestId('navigated')).toBeInTheDocument()
+      expect(sent).toEqual({
+        workItemType: 'PBI',
+        templateId: defaultPbiTemplate.id,
+        requirement: '',
+        references: [],
+        backlogReferences: ['ado-1234'],
+      })
+    })
+
+    it('pastes a new Backlog Copy in a dialog and creates it with the Draft', async () => {
+      const { user } = renderPage()
+      await user.click(await screen.findByRole('button', { name: /Add Backlog Reference/ }))
+      await user.click(screen.getByRole('button', { name: /Paste a new one/ }))
+      const dialog = await screen.findByRole('dialog', { name: 'Paste a Backlog Copy' })
+      await user.type(within(dialog).getByLabelText(/Work item ID or link/), '1301')
+      await user.type(within(dialog).getByLabelText('Title'), 'Bulk import')
+      await user.type(within(dialog).getByLabelText('Description'), 'BR1 — CSV upload.')
+      await user.type(within(dialog).getByLabelText(/Acceptance Criteria/), 'AC1 — imported.')
+      await user.click(within(dialog).getByRole('button', { name: 'Add and reference' }))
+      expect(await screen.findByText('1301 Bulk import (new)')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+      expect(await screen.findByTestId('navigated')).toBeInTheDocument()
+      expect(sent).toMatchObject({
+        requirement: '',
+        newBacklogCopies: [
+          {
+            workItem: '1301',
+            workItemType: 'Feature',
+            title: 'Bulk import',
+            content: 'BR1 — CSV upload.',
+            acceptanceCriteria: 'AC1 — imported.',
+          },
+        ],
+      })
+    })
+
+    it('offers to reference the existing Copy when the pasted work item is already one', async () => {
+      const { user } = renderPage()
+      await user.click(await screen.findByRole('button', { name: /Add Backlog Reference/ }))
+      await user.click(screen.getByRole('button', { name: /Paste a new one/ }))
+      const dialog = await screen.findByRole('dialog', { name: 'Paste a Backlog Copy' })
+      await user.type(within(dialog).getByLabelText(/Work item ID or link/), '#1234')
+      await user.type(within(dialog).getByLabelText('Title'), 'Again')
+      await user.type(within(dialog).getByLabelText('Description'), 'x')
+      await user.click(within(dialog).getByRole('button', { name: 'Add and reference' }))
+      await user.click(await within(dialog).findByRole('button', { name: 'Reference #1234 instead' }))
+      expect(await screen.findByText('#1234 Device archiving')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('NewDraftPage — Code Folders', () => {
+  beforeEach(() => {
+    sent = undefined
+    server.use(
+      http.get(`*${endpoints.project('customer-portal')}`, () =>
+        HttpResponse.json({ id: 'customer-portal', name: 'Customer Portal', createdAt: '', tracker: 'azure-devops' }),
+      ),
+      http.get(`*${endpoints.drafts('customer-portal')}`, () => HttpResponse.json([])),
+      http.post(`*${endpoints.drafts('customer-portal')}`, async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json({ draft: { id: 'new-draft' }, session: {} })
+      }),
+    )
+    backlogBackend('customer-portal')
+  })
+
+  it('shows what code the first session reads, and starts it without code when switched off', async () => {
+    codeFolderBackend('customer-portal', [codeFolderStateFixture({ uncommitted: 2 })])
+    const { user } = renderPage()
+    const block = await screen.findByRole('group', { name: 'Code this session reads' })
+    expect(within(block).getByText('2 uncommitted')).toBeInTheDocument()
+    await user.click(within(block).getByRole('button', { name: 'Don’t read' }))
+    await user.type(screen.getByRole('textbox', { name: 'Requirement' }), 'Archive devices')
+    await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+    await screen.findByTestId('navigated')
+    expect(sent).toMatchObject({ requirement: 'Archive devices', readCodeFolders: false })
+  })
+
+  it('sends no choice when the session reads code, as before', async () => {
+    codeFolderBackend('customer-portal', [codeFolderStateFixture()])
+    const { user } = renderPage()
+    await screen.findByRole('group', { name: 'Code this session reads' })
+    await user.type(screen.getByRole('textbox', { name: 'Requirement' }), 'Archive devices')
+    await user.click(screen.getByRole('button', { name: 'Start grilling' }))
+    await screen.findByTestId('navigated')
+    expect(sent).not.toHaveProperty('readCodeFolders')
   })
 })
