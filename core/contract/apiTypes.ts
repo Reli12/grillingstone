@@ -1,4 +1,6 @@
 // Shapes exchanged over the HTTP API that are not domain types themselves.
+import type { BacklogCopy } from '#core/backlog/backlogCopy.ts'
+import type { CodeFolder } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Tracker } from '#core/shared/tracker.ts'
 import type { Reason } from '#core/shared/validation.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -12,7 +14,15 @@ export interface DraftSummary {
   version: number
   templateName: string
   pendingChanges: number
+  /** Work item IDs of referenced Backlog Copies re-pasted since the Draft's last session. */
+  changedBacklogCopies: number[]
   updatedAt: string
+}
+
+/** A Backlog Copy with the Drafts that reference it, as the Backlog Copies tab lists it. */
+export interface BacklogCopySummary {
+  copy: BacklogCopy
+  drafts: { id: string; title: string; requirement: string; workItemType: WorkItemType; changed: boolean }[]
 }
 
 export interface ProjectSummary extends Project {
@@ -50,4 +60,6 @@ export interface Project {
   createdAt: string
   /** Fixed once the Project has its first Draft. */
   tracker: Tracker
+  /** Folders of source code its Grilling Sessions may read; absent on Projects saved before Code Folders. */
+  codeFolders?: CodeFolder[]
 }

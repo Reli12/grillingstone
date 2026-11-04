@@ -1,5 +1,6 @@
 // Draft API: reading and changing a Draft, its Proposal and references, and driving its Grilling
 // Sessions (start, continue, answer, write now, stop).
+import type { PastedCopy } from '#core/backlog/backlogCopy.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { CopyPayload } from '#core/publish/copyFields.ts'
@@ -21,16 +22,26 @@ export interface NewDraftRequest {
   templateId: string
   requirement: string
   references: string[]
+  /** Existing Backlog Copies to reference. */
+  backlogReferences?: string[]
+  /** Backlog Copies pasted in the form, created with the Draft. */
+  newBacklogCopies?: PastedCopy[]
   /** Shown with the requirement to the first session; left out of the body when empty. */
   images?: ImageUpload[]
+  /** "Code this session reads", for the first session; sent only when false — absent means read. */
+  readCodeFolders?: boolean
 }
 
 export interface StartSessionRequest {
   kind: SessionKind
   focus?: { sectionId: string; entryId?: string }
   humanNote?: string
+  /** "Include Backlog References in full"; changed Copies come in full anyway. */
+  includeBacklogInFull?: boolean
   /** Sent with the first message; left out of the body when empty. */
   images?: ImageUpload[]
+  /** "Code this session reads"; sent only when false — absent means read. */
+  readCodeFolders?: boolean
 }
 
 export interface SayRequest {
@@ -51,6 +62,8 @@ export const draftsApi = {
     api.post<Draft>(endpoints.draftOps(projectId, draftId), op),
   setReferences: (projectId: string, draftId: string, references: string[]) =>
     api.patch<Draft>(endpoints.draftReferences(projectId, draftId), { references }),
+  setBacklogReferences: (projectId: string, draftId: string, backlogReferences: string[]) =>
+    api.patch<Draft>(endpoints.draftBacklogReferences(projectId, draftId), { backlogReferences }),
   decide: (projectId: string, draftId: string, changeId: string, accept: boolean) =>
     api.post<Draft>(endpoints.decide(projectId, draftId), { changeId, accept }),
   acceptAllClean: (projectId: string, draftId: string) => api.post<Draft>(endpoints.acceptClean(projectId, draftId)),
@@ -59,8 +72,11 @@ export const draftsApi = {
     api.get<Transcript[]>(endpoints.draftSessions(projectId, draftId)),
   startSession: (projectId: string, draftId: string, body: StartSessionRequest) =>
     api.post<SessionSummary>(endpoints.draftSessions(projectId, draftId), body),
-  continueSession: (projectId: string, draftId: string, sessionId: string, humanNote: string) =>
-    api.post<SessionSummary>(endpoints.continueSession(projectId, draftId, sessionId), { humanNote }),
+  continueSession: (projectId: string, draftId: string, sessionId: string, humanNote: string, readCodeFolders = true) =>
+    api.post<SessionSummary>(endpoints.continueSession(projectId, draftId, sessionId), {
+      humanNote,
+      ...(readCodeFolders ? {} : { readCodeFolders }),
+    }),
   say: (sessionId: string, { text, kind, images = [] }: SayRequest) =>
     // The images key is left out when there are none, so a text-only message is the body it always was.
     api.post<{ ok: true }>(endpoints.sessionMessages(sessionId), { text, kind, ...(images.length ? { images } : {}) }),

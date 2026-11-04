@@ -1,8 +1,10 @@
 // Builds the backend's object graph once: each service announces its changes through the same Hub, and the
 // Supervisor gets the services a session's submission writes through.
+import { CodeFolderService } from '../codeFolders/codeFolderService.ts'
 import type { Hub } from '../hub.ts'
 import type { AppDeps } from '../routes/deps.ts'
 import { Supervisor } from '../sessions/supervisor.ts'
+import { BacklogCopyService } from './backlogCopyService.ts'
 import { DraftService } from './draftService.ts'
 import { GlossaryService } from './glossaryService.ts'
 import { TemplateService } from './templateService.ts'
@@ -12,6 +14,8 @@ export function createServices(hub: Hub): AppDeps {
   const drafts = new DraftService(hub)
   const templates = new TemplateService(hub)
   const glossary = new GlossaryService(hub)
-  const supervisor = new Supervisor({ hub, drafts, templates, glossary })
-  return { supervisor, drafts, templates, glossary }
+  const backlogCopies = new BacklogCopyService(hub, drafts)
+  const codeFolders = new CodeFolderService()
+  const supervisor = new Supervisor({ hub, drafts, templates, glossary, codeFolders })
+  return { supervisor, drafts, templates, glossary, backlogCopies, codeFolders }
 }

@@ -6,6 +6,8 @@ import { ALLOWED_ORIGINS } from './config.ts'
 import { readBody } from './http/body.ts'
 import { HttpError, knownError } from './http/errors.ts'
 import { RawReply, Router } from './http/router.ts'
+import { backlogCopyRoutes } from './routes/backlogCopyRoutes.ts'
+import { codeFolderRoutes } from './routes/codeFolderRoutes.ts'
 import type { AppDeps } from './routes/deps.ts'
 import { draftRoutes } from './routes/draftRoutes.ts'
 import { projectRoutes } from './routes/projectRoutes.ts'
@@ -18,6 +20,8 @@ export function buildRouter(deps: AppDeps) {
   settingsRoutes(router)
   projectRoutes(router, deps)
   draftRoutes(router, deps)
+  backlogCopyRoutes(router, deps)
+  codeFolderRoutes(router, deps)
   sessionRoutes(router, deps)
   templateRoutes(router, deps)
   return router

@@ -14,6 +14,17 @@ export const endpoints = {
   draft: draftPath,
   draftOps: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/ops`,
   draftReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/references`,
+  draftBacklogReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/backlog-references`,
+  backlogCopies: (projectId: string) => `${projectPath(projectId)}/backlog-copies`,
+  backlogCopy: (projectId: string, copyId: string) =>
+    `${projectPath(projectId)}/backlog-copies/${encodeURIComponent(copyId)}`,
+  codeFolders: (projectId: string) => `${projectPath(projectId)}/code-folders`,
+  codeFolder: (projectId: string, folderId: string) =>
+    `${projectPath(projectId)}/code-folders/${encodeURIComponent(folderId)}`,
+  codeFolderCheck: (projectId: string) => `${projectPath(projectId)}/code-folders/check`,
+  codeFolderState: (projectId: string) => `${projectPath(projectId)}/code-folders/state`,
+  codeFolderExclusions: (projectId: string, folderId: string) =>
+    `${projectPath(projectId)}/code-folders/${encodeURIComponent(folderId)}/exclusions`,
   decide: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/decide`,
   acceptClean: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/proposal/accept-clean`,
   copyFields: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/copy`,

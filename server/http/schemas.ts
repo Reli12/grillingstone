@@ -34,19 +34,55 @@ export const projectUpdateBody = z.object({
 
 export const glossaryBody = z.object({ markdown: z.string(), baseVersion: z.string() })
 
+export const codeFolderCheckBody = z.object({ path: z.string().trim().min(1, 'Enter a folder path.') })
+
+export const newCodeFolderBody = z.object({
+  path: z.string().trim().min(1, 'Enter a folder path.'),
+  label: z.string(),
+  defaultBranch: z.string().default(''),
+  extraExclusions: z.array(z.string()).default([]),
+})
+
+export const codeFolderUpdateBody = z.object({
+  label: z.string().optional(),
+  defaultBranch: z.string().optional(),
+  extraExclusions: z.array(z.string()).optional(),
+})
+
 /** Only the shape: which media types and sizes are allowed is the Image rules' call, made again by the session. */
 const imageUploads = z.array(z.object({ mediaType: z.string(), data: z.string() })).default([])
+
+/** A Backlog Copy as the human pastes it; what the values mean is core/backlog's call. */
+export const pastedCopyBody = z.object({
+  workItem: z.string(),
+  workItemType: z.string().default('Feature'),
+  title: z.string(),
+  content: z.string(),
+  acceptanceCriteria: z.string().optional(),
+})
+
+export const repasteBody = z.object({
+  content: z.string(),
+  acceptanceCriteria: z.string().optional(),
+  title: z.string().optional(),
+  workItemType: z.string().optional(),
+})
 
 export const newDraftBody = z.object({
   workItemType,
   templateId: z.string(),
   requirement: z.string(),
   references: ids,
+  backlogReferences: ids,
+  newBacklogCopies: z.array(pastedCopyBody).default([]),
   /** Images shown with the requirement; the first session receives them. */
   images: imageUploads,
+  /** "Read Code Folders" for the first session; absent means yes when the Project has any (ADR-0016). */
+  readCodeFolders: z.boolean().optional(),
 })
 
 export const referencesBody = z.object({ references: ids })
+export const backlogReferencesBody = z.object({ backlogReferences: ids })
 
 const sectionId = z.string()
 const entryId = z.string()
@@ -75,10 +111,17 @@ export const startSessionBody = z.object({
   kind: z.enum(['first', 'focused', 'iteration', 'upgrade'], { error: 'Unknown session kind.' }),
   focus: z.object({ sectionId: z.string(), entryId: z.string().optional() }).optional(),
   humanNote: z.string().optional(),
+  /** "Include Backlog References in full" (ADR-0015). */
+  includeBacklogInFull: z.boolean().optional(),
+  /** "Read Code Folders"; absent means yes when the Project has any (ADR-0016). */
+  readCodeFolders: z.boolean().optional(),
   images: imageUploads,
 })
 
-export const continueSessionBody = z.object({ humanNote: z.string().optional() })
+export const continueSessionBody = z.object({
+  humanNote: z.string().optional(),
+  readCodeFolders: z.boolean().optional(),
+})
 
 export const sayBody = z.object({
   text: z.string(),
