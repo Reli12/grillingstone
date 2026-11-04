@@ -99,18 +99,39 @@ function iterationLog(draft: Draft, emit: Emitter): string {
 /** Description fields carry many Sections, so each keeps its heading there. */
 const DESCRIPTION_FIELDS: string[] = [ADO_FIELDS.description, JIRA_FIELDS.description]
 
+/** The non-Discarded Sections, grouped by target field in the human's order. */
+function sectionsByField(draft: Draft): Map<string, Section[]> {
+  const byField = new Map<string, Section[]>()
+  for (const section of draft.sections) {
+    if (section.discarded) continue
+    byField.set(section.target, [...(byField.get(section.target) ?? []), section])
+  }
+  return byField
+}
+
+/** A field holding a single Section (e.g. Acceptance Criteria) is already named by the field itself. */
+const fieldShowsHeadings = (field: string, sections: Section[]) =>
+  DESCRIPTION_FIELDS.includes(field) || sections.length > 1
+
+/** One Section exactly as it appears inside its field, heading included when the field shows headings. */
+function renderedSection(section: Section, withHeading: boolean, emit: Emitter): string {
+  return (withHeading ? emit.heading(section.heading) : '') + sectionBody(section, emit)
+}
+
+/** One Section on its own, as it reads inside its field's full value; null when it is Discarded or unknown. */
+export function renderSection(draft: Draft, sectionId: string, format: RenderFormat = 'html'): string | null {
+  const section = draft.sections.find((candidate) => candidate.id === sectionId)
+  if (!section || section.discarded) return null
+  const siblings = sectionsByField(draft).get(section.target) ?? [section]
+  return renderedSection(section, fieldShowsHeadings(section.target, siblings), EMITTERS[format])
+}
+
 export function render(draft: Draft, format: RenderFormat = 'html'): Rendered {
   const emit = EMITTERS[format]
-  const visible = draft.sections.filter((section) => !section.discarded)
-  const byField = new Map<string, Section[]>()
-  for (const section of visible) byField.set(section.target, [...(byField.get(section.target) ?? []), section])
-
   const fields: Record<string, string> = {}
-  for (const [field, sections] of byField) {
-    // A field holding a single Section (e.g. Acceptance Criteria) is already named by the field itself.
-    const withHeadings = DESCRIPTION_FIELDS.includes(field) || sections.length > 1
-    const heading = (section: Section) => (withHeadings ? emit.heading(section.heading) : '')
-    fields[field] = sections.map((section) => heading(section) + sectionBody(section, emit)).join(emit.blockGap)
+  for (const [field, sections] of sectionsByField(draft)) {
+    const withHeadings = fieldShowsHeadings(field, sections)
+    fields[field] = sections.map((section) => renderedSection(section, withHeadings, emit)).join(emit.blockGap)
   }
 
   if (draft.iterationLog.length) {

@@ -1,4 +1,5 @@
-// Above the sheet: where this Draft sits, and References, Delete and Copy for the Draft's Tracker.
+// Above the sheet: where this Draft sits, show/hide Discarded parts, and References, Delete and Copy for the
+// Draft's Tracker.
 import { Link } from 'react-router'
 
 import { ClipboardCopy, Link2, Trash2 } from 'lucide-react'
@@ -8,7 +9,17 @@ import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { templateTracker } from '#core/template/templateTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
+import { DiscardedToggle } from '@/components/features/draft/sheet/discardedToggle/discardedToggle'
+import { useDiscardedVisibility } from '@/context/DiscardedVisibility/DiscardedVisibility'
 import { routesPaths } from '@/routes/routes'
+
+/** Discarded Sections, plus Discarded Entries in the Sections that are still there. */
+function discardedCount(draft: Draft) {
+  return draft.sections.reduce(
+    (count, section) => count + (section.discarded ? 1 : section.entries.filter((entry) => entry.discarded).length),
+    0,
+  )
+}
 
 interface DraftToolbarProps {
   projectId: string
@@ -31,6 +42,7 @@ export function DraftToolbar({
   onCopy,
 }: Readonly<DraftToolbarProps>) {
   const referenceCount = draft.references.length
+  const { showAll, setShowAll } = useDiscardedVisibility()
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
       <p className="text-[13px] text-ink-faint">
@@ -41,6 +53,7 @@ export function DraftToolbar({
         <span className="font-medium text-ink">Draft v{draft.version}</span>
       </p>
       <span className="ml-auto" />
+      <DiscardedToggle shown={showAll} count={discardedCount(draft)} onChange={setShowAll} scope="in this Draft" />
       <Button size="sm" variant="quiet" onClick={onReferences}>
         <Link2 size={14} /> References{referenceCount ? ` (${referenceCount})` : ''}
       </Button>
