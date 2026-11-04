@@ -4,16 +4,16 @@ import { type ChildProcess, spawn } from 'node:child_process'
 
 import type { Seed } from '#core/session/cardProtocol.ts'
 import type { ContentBlock } from '#core/session/images.ts'
-import { SESSION_TOOLS } from '#core/session/permissionGuard.ts'
+import { CODE_TOOLS_SERVER, SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { CLAUDE_BIN, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
+import { CLAUDE_BIN, CODE_TOOLS_SCRIPT, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
 import type { Scope } from './sessionScope.ts'
 
 export interface ClaudeLaunch {
   sessionId: string
   /** Authenticates the submit script's call back to the backend. */
   token: string
-  scope: Pick<Scope, 'cwd' | 'guardMode'>
+  scope: Pick<Scope, 'cwd' | 'guardMode' | 'codeFolders'>
   seed: Seed
   /** '' for Claude Code's default. */
   model: string
@@ -26,7 +26,19 @@ export interface Conversation {
   resume?: string
 }
 
-export function claudeArgs(systemPrompt: string, model: string, { persist, resume }: Conversation): string[] {
+/**
+ * The session's only MCP server: the code tools, when it reads Code Folders. It inherits the session's environment,
+ * which carries its id and token, so neither is on a command line.
+ */
+const codeToolsConfig = () =>
+  JSON.stringify({ mcpServers: { [CODE_TOOLS_SERVER]: { command: process.execPath, args: [CODE_TOOLS_SCRIPT] } } })
+
+export function claudeArgs(
+  systemPrompt: string,
+  model: string,
+  { persist, resume }: Conversation,
+  readsCode = false,
+): string[] {
   const settings = JSON.stringify({
     hooks: {
       PreToolUse: [{ matcher: '*', hooks: [{ type: 'command', command: `"${process.execPath}" "${HOOK_SCRIPT}"` }] }],
@@ -42,6 +54,7 @@ export function claudeArgs(systemPrompt: string, model: string, { persist, resum
     '--tools', SESSION_TOOLS.join(','),
     '--permission-prompts', 'none',
     '--strict-mcp-config',
+    ...(readsCode ? ['--mcp-config', codeToolsConfig()] : []),
     ...(persist ? [] : ['--no-session-persistence']),
     ...(resume ? ['--resume', resume] : []),
     '--settings', settings,
@@ -50,7 +63,8 @@ export function claudeArgs(systemPrompt: string, model: string, { persist, resum
 }
 
 export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: ClaudeLaunch): ChildProcess {
-  return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation), {
+  const labels = scope.codeFolders?.map((folder) => folder.label) ?? []
+  return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation, labels.length > 0), {
     cwd: scope.cwd,
     env: {
       ...process.env,
@@ -60,6 +74,9 @@ export function spawnClaude({ sessionId, token, scope, seed, model, conversation
       GRILLINGSTONE_SERVER_URL: SERVER_URL,
       GRILLINGSTONE_SESSION_ID: sessionId,
       GRILLINGSTONE_SESSION_TOKEN: token,
+      // Lets the Permission Guard allow the code tools, and the code tools name the session's Code Folders.
+      GRILLINGSTONE_CODE_FOLDERS: labels.length ? '1' : '',
+      GRILLINGSTONE_CODE_FOLDER_LABELS: labels.join(','),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })

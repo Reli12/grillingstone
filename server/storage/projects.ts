@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+import type { CodeFolder } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Project, ProjectSummary } from '#core/contract/apiTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import { type Tracker, TRACKER_LABELS, trackerOrDefault } from '#core/shared/tracker.ts'
@@ -30,8 +31,12 @@ const slug = (name: string) =>
     .replace(EDGE_DASH, '')
     .slice(0, MAX_SLUG_LENGTH) || FALLBACK_SLUG
 
-/** A stored Project; one saved before Trackers existed is Azure DevOps. */
-const withTracker = (project: Project): Project => ({ ...project, tracker: trackerOrDefault(project.tracker) })
+/** A stored Project; one saved before Trackers existed is Azure DevOps, one saved before Code Folders has none. */
+const withTracker = (project: Project): Project => ({
+  ...project,
+  tracker: trackerOrDefault(project.tracker),
+  codeFolders: project.codeFolders ?? [],
+})
 
 /** How many Drafts a Project folder holds; a Project without a drafts folder simply has none. */
 async function countDrafts(folderName: string) {
@@ -69,7 +74,13 @@ export async function getProject(projectId: string): Promise<Project> {
 export async function createProject(name: string, tracker: Tracker, now: string): Promise<Project> {
   // newId('') is "-" followed by random characters; skip the dash and keep five of them.
   const suffix = newId('').slice(1, 6)
-  const project: Project = { id: `${slug(name)}-${suffix}`, name: name.trim(), createdAt: now, tracker }
+  const project: Project = {
+    id: `${slug(name)}-${suffix}`,
+    name: name.trim(),
+    createdAt: now,
+    tracker,
+    codeFolders: [],
+  }
   await fs.mkdir(draftsDir(project.id), { recursive: true })
   await fs.mkdir(transcriptsDir(project.id), { recursive: true })
   await writeJson(projectFile(project.id), project)
@@ -92,6 +103,13 @@ export async function updateProject(projectId: string, change: { name?: string; 
     ...(change.name !== undefined ? { name: change.name.trim() } : {}),
     ...(change.tracker !== undefined ? { tracker: change.tracker } : {}),
   }
+  await writeJson(projectFile(projectId), project)
+  return project
+}
+
+/** Replaces the Project's Code Folders; the rules about them are the Code Folder service's. */
+export async function saveCodeFolders(projectId: string, codeFolders: CodeFolder[]): Promise<Project> {
+  const project: Project = { ...(await getProject(projectId)), codeFolders }
   await writeJson(projectFile(projectId), project)
   return project
 }

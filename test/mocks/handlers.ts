@@ -24,4 +24,6 @@ export const handlers = [
   http.put(url(endpoints.settings), async ({ request }) => HttpResponse.json(await request.json())),
   http.get(url(endpoints.projects), () => HttpResponse.json(projectsFixture)),
   http.get(url(endpoints.templates), () => HttpResponse.json([defaultPbiTemplate])),
+  // No Code Folders unless a test links some (codeFolderBackend).
+  http.get(url(endpoints.codeFolderState(':projectId')), () => HttpResponse.json([])),
 ]
