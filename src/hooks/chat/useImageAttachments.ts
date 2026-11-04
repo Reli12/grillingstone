@@ -2,7 +2,13 @@
 // hint and the warning near 20 MB. Used by both message boxes.
 import { type ClipboardEvent, type DragEvent, useRef, useState } from 'react'
 
-import { checkImageCount, type ImageUpload, SESSION_IMAGE_WARNING_BYTES } from '#core/session/images.ts'
+import {
+  base64ByteLength,
+  checkImageCount,
+  type ImageUpload,
+  isImageMediaType,
+  SESSION_IMAGE_WARNING_BYTES,
+} from '#core/session/images.ts'
 
 import { prepareImage } from '@/lib/imagePreparation'
 import { markHinted, recordSentImageBytes, sessionImageBytes, transferHint, wasHinted } from '@/lib/imageSessionMemory'
@@ -20,12 +26,21 @@ const pastedImages = (files: FileList) => Array.from(files).filter((file) => fil
 
 const totalBytes = (items: PendingImage[]) => items.reduce((sum, { image }) => sum + image.size, 0)
 
-export function useImageAttachments(sessionKey: string) {
-  const [pending, setPending] = useState<PendingImage[]>([])
+/** Images that were attached before (a session's start form, tried again), back in the box without a file name. */
+const restoredImages = (images: ImageUpload[]): PendingImage[] =>
+  images.flatMap(({ mediaType, data }, i) =>
+    isImageMediaType(mediaType)
+      ? [{ id: `restored-${i + 1}`, fileName: '', image: { mediaType, data, size: base64ByteLength(data) } }]
+      : [],
+  )
+
+/** `restored` fills the box at first, for a form that reopens with the Images it was given before. */
+export function useImageAttachments(sessionKey: string, restored: ImageUpload[] = []) {
+  const [pending, setPending] = useState<PendingImage[]>(() => restoredImages(restored))
   const [refusals, setRefusals] = useState<ImageRefusal[]>([])
   const [hintOpen, setHintOpen] = useState(false)
   // Files are prepared one after another; this keeps the list right between awaits.
-  const latest = useRef<PendingImage[]>([])
+  const latest = useRef<PendingImage[]>(pending)
   const counter = useRef(0)
   const nextId = (prefix: string) => `${prefix}-${++counter.current}`
 
@@ -84,7 +99,8 @@ export function useImageAttachments(sessionKey: string) {
 
   const warn = sessionImageBytes(sessionKey) + totalBytes(pending) >= SESSION_IMAGE_WARNING_BYTES
 
-  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  // The handlers fit any element that takes text or Images: the message box, or the Prototype start form.
+  const onPaste = (event: ClipboardEvent<HTMLElement>) => {
     const files = pastedImages(event.clipboardData.files)
     if (!files.length) return
     event.preventDefault()
@@ -92,17 +108,18 @@ export function useImageAttachments(sessionKey: string) {
   }
   // Whatever files are dropped are taken in, so one that is not an Image is refused with its reason instead of
   // the browser opening it in place of the app.
-  const onDrop = (event: DragEvent<HTMLTextAreaElement>) => {
+  const onDrop = (event: DragEvent<HTMLElement>) => {
     const files = Array.from(event.dataTransfer.files)
     if (!files.length) return
     event.preventDefault()
     void add(files)
   }
   // Without this the browser doesn't treat the box as a place to drop.
-  const onDragOver = (event: DragEvent<HTMLTextAreaElement>) => event.preventDefault()
+  const onDragOver = (event: DragEvent<HTMLElement>) => event.preventDefault()
 
   return {
     pending,
+    pendingBytes: totalBytes(pending),
     refusals,
     showHint: hintOpen && pending.length > 0,
     showWarning: warn,

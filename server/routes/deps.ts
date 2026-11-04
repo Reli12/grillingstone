@@ -3,6 +3,7 @@ import type { CodeFolderService } from '../codeFolders/codeFolderService.ts'
 import type { BacklogCopyService } from '../services/backlogCopyService.ts'
 import type { DraftService } from '../services/draftService.ts'
 import type { GlossaryService } from '../services/glossaryService.ts'
+import type { PrototypeService } from '../services/prototypeService.ts'
 import type { TemplateService } from '../services/templateService.ts'
 import type { Supervisor } from '../sessions/supervisor.ts'
 
@@ -12,6 +13,7 @@ export interface AppDeps {
   drafts: DraftService
   templates: TemplateService
   glossary: GlossaryService
+  prototypes: PrototypeService
   backlogCopies: BacklogCopyService
   codeFolders: CodeFolderService
 }

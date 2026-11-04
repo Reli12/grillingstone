@@ -62,9 +62,18 @@ export function claudeArgs(
   ]
 }
 
+/**
+ * A session killed while a message is being written ends that write in EPIPE, which Node raises as an 'error' event
+ * on the child's stdin. Nobody can act on it: the child is gone and its 'exit' is handled where it is watched.
+ */
+export function ignoreBrokenPipe(child: ChildProcess) {
+  child.stdin?.on('error', () => undefined)
+  return child
+}
+
 export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: ClaudeLaunch): ChildProcess {
   const labels = scope.codeFolders?.map((folder) => folder.label) ?? []
-  return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation, labels.length > 0), {
+  const child = spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation, labels.length > 0), {
     cwd: scope.cwd,
     env: {
       ...process.env,
@@ -80,6 +89,7 @@ export function spawnClaude({ sessionId, token, scope, seed, model, conversation
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
+  return ignoreBrokenPipe(child)
 }
 
 /** Sends one human turn over stream-json: plain text, or a content array when the turn carries Images. */

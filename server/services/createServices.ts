@@ -7,6 +7,7 @@ import { Supervisor } from '../sessions/supervisor.ts'
 import { BacklogCopyService } from './backlogCopyService.ts'
 import { DraftService } from './draftService.ts'
 import { GlossaryService } from './glossaryService.ts'
+import { PrototypeService } from './prototypeService.ts'
 import { TemplateService } from './templateService.ts'
 
 /** Wires the services and the Supervisor around one Hub. */
@@ -17,5 +18,6 @@ export function createServices(hub: Hub): AppDeps {
   const backlogCopies = new BacklogCopyService(hub, drafts)
   const codeFolders = new CodeFolderService()
   const supervisor = new Supervisor({ hub, drafts, templates, glossary, codeFolders })
-  return { supervisor, drafts, templates, glossary, backlogCopies, codeFolders }
+  const prototypes = new PrototypeService(hub)
+  return { supervisor, drafts, templates, glossary, prototypes, backlogCopies, codeFolders }
 }

@@ -5,12 +5,25 @@ import type { Reason } from '#core/shared/validation.ts'
 export const IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
 export type ImageMediaType = (typeof IMAGE_MEDIA_TYPES)[number]
 
+const EXTENSIONS = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+} as const satisfies Record<ImageMediaType, string>
+
+/** The file extension an Image of this media type is saved with. */
+export const imageExtension = (mediaType: ImageMediaType) => EXTENSIONS[mediaType]
+
 export const MAX_IMAGES_PER_MESSAGE = 5
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 /** Images are shrunk to at most this many pixels on the long edge before they are sent. */
 export const MAX_IMAGE_EDGE_PX = 2000
 /** About where a session's Images get close to Claude's request size limit; the message box warns from here. */
 export const SESSION_IMAGE_WARNING_BYTES = 20 * 1024 * 1024
+/** Why a Prototype can't start: its Images, ticked and added, add up to more than the limit above. */
+export const PROTOTYPE_IMAGES_TOO_LARGE =
+  'The Images add up to more than 20 MB. Untick some, or remove an Image you added.'
 
 /** An Image as the browser sends it: its media type and base64 data. */
 export interface ImageUpload {

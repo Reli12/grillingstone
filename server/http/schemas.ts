@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { THEMES } from '#core/contract/apiTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
+import { tickedImageSchema } from '#core/prototype/prototypeRecords.ts'
 import { TRACKERS } from '#core/shared/tracker.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -116,6 +117,15 @@ export const startSessionBody = z.object({
   /** "Read Code Folders"; absent means yes when the Project has any (ADR-0016). */
   readCodeFolders: z.boolean().optional(),
   images: imageUploads,
+})
+
+/** Only the shape; every refusal about the Images and the Draft is the session's call, so its reason is the one shown. */
+export const startPrototypeBody = z.object({
+  /** Images of the Draft's Grilling Sessions, ticked on the start form. */
+  tickedImages: z.array(tickedImageSchema).default([]),
+  /** Images added on the start form, under the same rules as in a Grilling Session. */
+  extraImages: imageUploads,
+  startingPrototypeId: z.string().optional(),
 })
 
 export const continueSessionBody = z.object({

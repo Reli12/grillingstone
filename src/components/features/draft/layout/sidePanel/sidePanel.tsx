@@ -1,27 +1,53 @@
-// The left column from v1 on: the sessions or the Glossary.
+// The left column from v1 on: the sessions, the Glossary or the Draft's Prototypes.
 import { type ReactNode } from 'react'
 
 import { SideTab } from '@/components/atoms/sideTab/sideTab'
 import { WideToggle } from '@/components/features/draft/layout/wideToggle/wideToggle'
 import { GlossaryPreview } from '@/components/features/glossary/glossaryPreview/glossaryPreview'
+import { PrototypesTab } from '@/components/features/prototypes/prototypesTab/prototypesTab'
 import { cn } from '@/lib/cn'
 import type { Side } from '@/types/draftPage'
 
-interface SidePanelProps {
+interface SideBodyProps {
   projectId: string
+  draftId: string
   side: Side
+  chat: ReactNode
+}
+
+interface SidePanelProps extends SideBodyProps {
   visible: boolean
   running: boolean
   /** Whether the panel is widened beside the Draft (desktop only). */
   wide: boolean
-  chat: ReactNode
   onSideChange: (side: Side) => void
   onWideChange: (wide: boolean) => void
 }
 
-/** The left column from v1 on: the sessions or the Glossary. */
+/** What the panel shows under its tabs. */
+function SideBody({ projectId, draftId, side, chat }: Readonly<SideBodyProps>) {
+  switch (side) {
+    case 'chat':
+      return <>{chat}</>
+    case 'glossary':
+      return (
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <GlossaryPreview projectId={projectId} />
+        </div>
+      )
+    case 'prototypes':
+      return <PrototypesTab key={draftId} projectId={projectId} draftId={draftId} />
+    default: {
+      const _exhaustive: never = side
+      return <>{_exhaustive}</>
+    }
+  }
+}
+
+/** The left column from v1 on: the sessions, the Glossary or the Draft's Prototypes. */
 export function SidePanel({
   projectId,
+  draftId,
   side,
   visible,
   running,
@@ -40,6 +66,9 @@ export function SidePanel({
           <SideTab selected={side === 'glossary'} onSelect={() => onSideChange('glossary')}>
             Glossary
           </SideTab>
+          <SideTab selected={side === 'prototypes'} onSelect={() => onSideChange('prototypes')}>
+            Prototypes
+          </SideTab>
         </div>
         {running && (
           <span className="ml-auto flex items-center gap-1.5 pr-1 text-[13px] text-claude">
@@ -48,13 +77,7 @@ export function SidePanel({
         )}
         <WideToggle wide={wide} onWideChange={onWideChange} className={cn(!running && 'ml-auto')} />
       </div>
-      {side === 'chat' ? (
-        chat
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <GlossaryPreview projectId={projectId} />
-        </div>
-      )}
+      <SideBody projectId={projectId} draftId={draftId} side={side} chat={chat} />
     </aside>
   )
 }

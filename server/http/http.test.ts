@@ -52,6 +52,8 @@ describe('body size limits', () => {
     expect(limitOf('POST', '/api/sessions/s1/messages')).toBe(IMAGE_MAX_BODY)
     expect(limitOf('POST', '/api/projects/p/drafts/d/sessions')).toBe(IMAGE_MAX_BODY)
     expect(limitOf('POST', '/api/projects/p/drafts')).toBe(IMAGE_MAX_BODY)
+    expect(limitOf('POST', '/api/projects/p/drafts/d/prototype-sessions')).toBe(IMAGE_MAX_BODY)
+    expect(limitOf('POST', '/api/projects/p/prototype-sessions/s1/stop')).toBeUndefined()
     expect(limitOf('POST', '/api/sessions/s1/write')).toBeUndefined()
     expect(limitOf('POST', '/api/projects/p/drafts/d/sessions/s1/continue')).toBeUndefined()
     expect(limitOf('POST', '/api/projects')).toBeUndefined()

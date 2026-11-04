@@ -10,13 +10,14 @@ const NORMAL_COLUMNS = 'lg:grid-cols-[minmax(360px,440px)_1fr]'
 const WIDE_COLUMNS = 'lg:grid-cols-[minmax(360px,3fr)_2fr]'
 
 export function DraftWorkspaceLayout(props: Readonly<Omit<DraftWorkspaceLayoutProps, 'dialogs'>>) {
-  const { projectId, live, ui, chat } = props
+  const { projectId, draft, live, ui, chat } = props
   const running = !!live
   return (
     <div className={cn('flex h-full flex-col lg:grid', ui.wide ? WIDE_COLUMNS : NORMAL_COLUMNS)}>
       <MobileTabs view={ui.mobileView} running={running} onChange={ui.setMobileView} />
       <SidePanel
         projectId={projectId}
+        draftId={draft.id}
         side={ui.side}
         visible={ui.mobileView === 'chat'}
         running={running}

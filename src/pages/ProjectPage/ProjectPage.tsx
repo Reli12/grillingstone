@@ -1,5 +1,5 @@
 // A Project's page: its Drafts with the Glossary preview beside them, its Backlog Copies (Azure DevOps Projects
-// only), or the whole Glossary to maintain — tabs, each at its own URL.
+// only), the whole Glossary to maintain, its Code Folders, or the Prototypes of every Draft — tabs, each at its own URL.
 import { Link, useMatch, useParams } from 'react-router'
 
 import { Plus } from 'lucide-react'
@@ -7,22 +7,22 @@ import { Plus } from 'lucide-react'
 import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'
 import { Button } from '@/components/atoms/button/button'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
-import { BacklogCopiesPanel } from '@/components/features/backlogCopies/backlogCopiesPanel/backlogCopiesPanel'
-import { CodeFoldersPanel } from '@/components/features/codeFolders/codeFoldersPanel/codeFoldersPanel'
-import { GlossaryPanel } from '@/components/features/glossary/glossaryPanel/glossaryPanel'
-import { ProjectDrafts } from '@/components/features/projects/projectDrafts/projectDrafts'
-import { type ProjectTab, ProjectTabs } from '@/components/features/projects/projectTabs/projectTabs'
+import { ProjectTabContent } from '@/components/features/projects/projectTabContent/projectTabContent'
+import { ProjectTabs } from '@/components/features/projects/projectTabs/projectTabs'
 import { ProjectTitle } from '@/components/features/projects/projectTitle/projectTitle'
 import { ProjectTracker } from '@/components/features/projects/projectTracker/projectTracker'
 import { routesPaths } from '@/routes/routes'
+import type { ProjectTab } from '@/types/projectPage'
 
 /** Which tab the URL selects. */
 function useSelectedTab(): ProjectTab {
   const glossary = useMatch(routesPaths.projectGlossary(':projectId')) !== null
   const backlog = useMatch(routesPaths.projectBacklog(':projectId')) !== null
   const code = useMatch(routesPaths.projectCode(':projectId')) !== null
+  const prototypes = useMatch(routesPaths.projectPrototypes(':projectId')) !== null
   if (glossary) return 'glossary'
   if (code) return 'code'
+  if (prototypes) return 'prototypes'
   return backlog ? 'backlog' : 'drafts'
 }
 
@@ -55,10 +55,7 @@ export default function ProjectPage() {
         <div className="mt-6 mb-4">
           <ProjectTabs projectId={projectId} selected={selected} showBacklog={showBacklog} />
         </div>
-        {selected === 'glossary' && <GlossaryPanel projectId={projectId} />}
-        {selected === 'backlog' && <BacklogCopiesPanel projectId={projectId} />}
-        {selected === 'code' && <CodeFoldersPanel projectId={projectId} />}
-        {selected === 'drafts' && <ProjectDrafts projectId={projectId} projectName={project.name} drafts={drafts} />}
+        <ProjectTabContent tab={selected} projectId={projectId} projectName={project.name} drafts={drafts} />
       </div>
     </div>
   )
