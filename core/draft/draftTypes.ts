@@ -52,6 +52,8 @@ export interface Draft {
   sections: Section[]
   iterationLog: IterationLogLine[]
   proposal: Proposal | null
+  /** History only: the Prototype this Draft was created from (it may be deleted since). No session reads it. */
+  createdFromPrototypeId?: string
   createdAt: string
   updatedAt: string
 }

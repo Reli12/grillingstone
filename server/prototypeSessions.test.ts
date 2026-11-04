@@ -50,7 +50,10 @@ describe('a Prototype Session that succeeds', () => {
 
     expect(started).toMatchObject({ kind: 'prototype', draftId: grilled.draftId, draftVersion: 1 })
     const prototype = await kit.newestPrototype(grilled)
-    expect(prototype).toMatchObject({ draftId: grilled.draftId, draftVersion: 1 })
+    expect(prototype).toMatchObject({
+      draft: { draftId: grilled.draftId, draftVersion: 1 },
+      writtenBy: { kind: 'prototype', sessionId: started.id },
+    })
     expect(prototype.assumptions).toHaveLength(1)
     expect(await readPrototypeHtml(grilled.projectId, prototype.id)).toContain('Assumptions (1)')
     expect(await readPrototypeSource(grilled.projectId, prototype.id)).not.toContain('Assumptions (1)')

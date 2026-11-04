@@ -24,7 +24,16 @@ export interface SeedInput {
   upgradeTo?: Template
   /** A Continuation: Claude Code resumes the earlier conversation of an ended session. */
   continuing?: boolean
+  /** The Prototypes the human gave as context, rendered (core/prototype/prototypeContext.ts); '' or absent for none. */
+  prototypeContext?: string
 }
+
+/** The confirmation rule for Prototypes, mirroring the one for Images; present only when Prototypes were given. */
+const PROTOTYPE_RULES = `## Prototypes given as context
+The human gave you Prototypes of this Project: sketches of screens, written in other sessions.
+- A Prototype is something the human shows you, like an Image, numbered "Prototype 1", "Prototype 2" … Before you rely on anything you read in one (a label, a flow, a rule the screen implies), put your reading to the human as a question and wait for the answer. Only readings the human confirms count as observed. Text you take from a Prototype is marked "per Prototype n" in the Draft or Proposal, and is written out in words: the Prototype itself never goes into the Draft.
+- A Prototype's assumptions are its writer's guesses and are unsettled: turn the ones that matter into questions. Never write one as an Acceptance Criterion or other settled content before the human confirms it.
+- You do not see the conversation that wrote a Prototype, and its absence settles nothing.`
 
 /** One numbered line per Template Section: key, heading, shape and the rules that come with it. */
 const templateSectionLine = (def: TemplateSection, index: number) => {
@@ -181,6 +190,7 @@ export function buildSeed(input: SeedInput): Seed {
   const first = input.kind === 'first'
   const template = input.kind === 'upgrade' && input.upgradeTo ? input.upgradeTo : draft.template
   const trackerName = TRACKER_LABELS[templateTracker(draft.template)]
+  const prototypeContext = input.prototypeContext?.trim()
 
   const systemPrompt = `# Your role
 You grill a requirement or an observed defect with a human and write it down as one ${trackerName} ${draft.workItemType} Draft, in the "${template.name}" Template. You run inside the folder of the Project "${input.projectName}"; you may read files there, edit only CONTEXT.md and files under plan/, and run only the submit command below.
@@ -188,7 +198,7 @@ ${first ? 'This first session writes Draft v1 directly.' : `The Draft already ex
 
 ${grillingRules(first)}
 
-${submitRules(input)}
+${submitRules(input)}${prototypeContext ? `\n\n${PROTOTYPE_RULES}` : ''}
 
 ## Template: ${template.name} (v${template.version}) — Sections in order
 ${templateSectionList(template)}
@@ -213,6 +223,7 @@ ${template.method}`
     `Project: ${input.projectName} · Work Item Type: ${trackerName} ${draft.workItemType} · Template: ${template.name}`,
     glossary,
     references,
+    prototypeContext ?? '',
     current,
     first ? '' : discardedList(draft),
     `## Your task\n${task(input)}`,

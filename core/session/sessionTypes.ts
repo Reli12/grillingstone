@@ -47,7 +47,8 @@ export type ChatMessage =
 /** What every session has, whatever it writes. */
 export interface SessionBase {
   id: string
-  kind: SessionKind | 'template'
+  /** `prototypeGrilling`: a Prototype Grilling Session shown in the same chat cards; it has no summary of this shape. */
+  kind: SessionKind | 'template' | 'prototypeGrilling'
   status: SessionStatus
   focus?: { sectionId: string; entryId?: string; heading: string }
   humanNote?: string
@@ -69,6 +70,8 @@ export interface SessionSummary extends SessionBase {
   continues?: string
   /** The number of the last Image of this Transcript, so a Continuation numbers after it. */
   lastImageNumber?: number
+  /** The Prototypes of the Project the human gave as context; a Continuation is given the same ones again. */
+  prototypeIds?: string[]
 }
 
 export interface Transcript extends SessionSummary {
@@ -124,6 +127,30 @@ export interface PrototypeSessionSummary {
   step?: PrototypeStep
 }
 
+/**
+ * A Prototype Grilling Session (ADR-0024): a conversation in a Project that writes one Prototype per round, from a
+ * Draft or from none. Its messages travel separately; this is the summary lists and live events carry.
+ */
+export interface PrototypeGrillingSessionSummary {
+  id: string
+  kind: 'prototypeGrilling'
+  projectId: string
+  /** The Draft it started from and that Draft's version then; absent when it started from none. */
+  draft?: { draftId: string; draftVersion: number }
+  status: SessionStatus
+  startedAt: string
+  endedAt?: string
+  error?: string
+  /** The earlier Prototype it started from. */
+  startingPrototypeId?: string
+  /** The ended session this one continues. */
+  continues?: string
+  /** The Prototypes it wrote, oldest round first. */
+  prototypeIds: string[]
+  /** Claude's latest step while the session is live. */
+  step?: PrototypeStep
+}
+
 /** Server → browser over the websocket. */
 export type ServerEvent =
   | { type: 'draft'; projectId: string; draft: Draft }
@@ -136,5 +163,9 @@ export type ServerEvent =
   | { type: 'templateMessage'; sessionId: string; message: ChatMessage }
   /** A Prototype Session started, changed status or ended. */
   | { type: 'prototypeSession'; projectId: string; session: PrototypeSessionSummary }
+  /** A Prototype Grilling Session started, changed status, changed step or ended. */
+  | { type: 'prototypeGrillingSession'; projectId: string; session: PrototypeGrillingSessionSummary }
+  /** A message of a Prototype Grilling Session's conversation, new or grown. */
+  | { type: 'prototypeGrillingMessage'; projectId: string; sessionId: string; message: ChatMessage }
   /** A Project's Prototypes or Prototype rows changed; the lists refetch. */
   | { type: 'prototypes'; projectId: string }

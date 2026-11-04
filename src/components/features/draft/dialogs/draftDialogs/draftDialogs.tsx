@@ -22,14 +22,15 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
   const navigate = useNavigate()
   const { start, remove } = mutations
   const { intent } = ui
-  const startSession = (note: string) => {
+  const startSession = (note: string, prototypeIds: string[]) => {
     if (!intent) return
+    const withPrototypes = prototypeIds.length ? { prototypeIds } : {}
     const focus = intent.kind === 'focused' ? { focus: { sectionId: intent.sectionId, entryId: intent.entryId } } : {}
     const onSuccess = () => {
       ui.setIntent(null)
       ui.showChat()
     }
-    start.mutate({ kind: intent.kind, ...focus, humanNote: note }, { onSuccess })
+    start.mutate({ kind: intent.kind, ...focus, humanNote: note, ...withPrototypes }, { onSuccess })
   }
   const onDelete = () => remove.mutate(draft.id, { onSuccess: () => void navigate(routesPaths.project(projectId)) })
   return (
@@ -41,6 +42,7 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
         onClose={() => ui.setIntent(null)}
         onStart={startSession}
         pending={start.isPending}
+        projectId={projectId}
       />
       <CopyForTracker
         projectId={projectId}

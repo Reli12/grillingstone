@@ -1,5 +1,6 @@
-// Which Prototype start form is open, for which Draft and with what in it: a blank one for New Prototype, or one
-// refilled from a Failed or Stopped session for Try again. Shared by the Draft's tab and the Project's tab.
+// Which New Prototype form is open, for which Draft (if any) and with what in it: a blank one, one with a Draft
+// chosen, or one refilled from a Failed or Stopped session for Try again. Shared by the Draft's tab and the
+// Project's tab.
 import { useRef, useState } from 'react'
 
 import type { PrototypeSessionSummary } from '#core/session/sessionTypes.ts'
@@ -10,7 +11,8 @@ import type { PrototypeSessionInputs } from '@/api/prototypesApi'
 /** An open start form. A new `key` mounts a fresh form, so one never carries its state into the next. */
 export interface OpenStartForm {
   key: number
-  draftId: string
+  /** The Draft chosen when the form opens; none when it is not given. */
+  draftId?: string
   initial?: PrototypeSessionInputs
 }
 
@@ -19,14 +21,14 @@ export function usePrototypeStartFlow(projectId: string) {
   const forms = useRef(0)
   const loadInputs = useLoadSessionInputs(projectId)
 
-  const show = (draftId: string, initial?: PrototypeSessionInputs) => {
+  const show = (draftId?: string, initial?: PrototypeSessionInputs) => {
     forms.current += 1
-    setOpen({ key: forms.current, draftId, ...(initial ? { initial } : {}) })
+    setOpen({ key: forms.current, ...(draftId ? { draftId } : {}), ...(initial ? { initial } : {}) })
   }
 
   return {
     open,
-    openNew: (draftId: string) => show(draftId),
+    openNew: (draftId?: string) => show(draftId),
     /** Reopens the form with the session's Images and starting Prototype, once the backend has given them; a
      *  failure is toasted by the app's mutation cache, and no form opens. */
     tryAgain: (session: PrototypeSessionSummary) =>

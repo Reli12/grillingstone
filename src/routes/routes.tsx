@@ -14,6 +14,7 @@ const NewTemplatePage = lazy(() => import('@/pages/NewTemplatePage/NewTemplatePa
 const TemplateSessionPage = lazy(() => import('@/pages/TemplateSessionPage/TemplateSessionPage'))
 const TemplateEditorPage = lazy(() => import('@/pages/TemplateEditorPage/TemplateEditorPage'))
 const PrototypeViewerPage = lazy(() => import('@/pages/PrototypeViewerPage/PrototypeViewerPage'))
+const GrillingSessionPage = lazy(() => import('@/pages/PrototypeGrillingSessionPage/PrototypeGrillingSessionPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage/GuidePage'))
 const LegalPage = lazy(() => import('@/pages/LegalPage/LegalPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage/SettingsPage'))
@@ -26,6 +27,7 @@ export const routesPaths = {
   newDraft: (projectId: string) => `/p/${projectId}/new`,
   draft: (projectId: string, draftId: string) => `/p/${projectId}/d/${draftId}`,
   prototype: (projectId: string, prototypeId: string) => `/p/${projectId}/prototypes/${prototypeId}`,
+  prototypeGrillingSession: (projectId: string, sessionId: string) => `/p/${projectId}/grilling/${sessionId}`,
   templates: '/templates',
   newTemplate: '/templates/new',
   templateSession: (sessionId: string) => `/templates/session/${sessionId}`,
@@ -50,6 +52,10 @@ const routes: RouteObject[] = [
       { path: routesPaths.newDraft(':projectId'), element: page(<NewDraftPage />) },
       { path: routesPaths.draft(':projectId', ':draftId'), element: page(<DraftPage />) },
       { path: routesPaths.prototype(':projectId', ':prototypeId'), element: page(<PrototypeViewerPage />) },
+      {
+        path: routesPaths.prototypeGrillingSession(':projectId', ':sessionId'),
+        element: page(<GrillingSessionPage />),
+      },
       { path: routesPaths.templates, element: page(<TemplatesPage />) },
       { path: routesPaths.newTemplate, element: page(<NewTemplatePage />) },
       { path: routesPaths.templateSession(':sessionId'), element: page(<TemplateSessionPage />) },

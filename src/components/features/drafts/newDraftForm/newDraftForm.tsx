@@ -12,6 +12,7 @@ import { DraftTypePicker } from '@/components/features/drafts/draftTypePicker/dr
 import { ReferencePicker } from '@/components/features/drafts/referencePicker/referencePicker'
 import { StartButton } from '@/components/features/drafts/startButton/startButton'
 import { TemplatePicker } from '@/components/features/drafts/templatePicker/templatePicker'
+import { PrototypeContextPicker } from '@/components/features/prototypes/prototypeContextPicker/prototypeContextPicker'
 import { useNewDraftForm } from '@/hooks/drafts/useNewDraftForm'
 import { routesPaths } from '@/routes/routes'
 
@@ -57,6 +58,11 @@ export function NewDraftForm({ project, templates, drafts }: Readonly<NewDraftFo
         {referable.length > 0 && (
           <ReferencePicker referable={referable} references={form.references} onToggle={form.toggleReference} />
         )}
+        <PrototypeContextPicker
+          projectId={project.id}
+          prototypeIds={form.prototypeIds}
+          onToggle={form.togglePrototype}
+        />
       </section>
 
       <aside className="space-y-7 md:pt-12">

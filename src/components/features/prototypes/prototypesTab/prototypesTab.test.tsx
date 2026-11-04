@@ -124,7 +124,7 @@ describe('PrototypesTab row actions', () => {
     expect(buttons(runningItem)).toEqual(['Stop'])
     expect(buttons(failedItem)).toEqual(['Details', 'Try again', 'Dismiss'])
     expect(buttons(stoppedItem)).toEqual(['Try again', 'Dismiss'])
-    expect(buttons(finishedItem)).toEqual(['Delete'])
+    expect(buttons(finishedItem)).toEqual(['Create Draft…', 'Delete'])
     expect(within(finishedItem).getByRole('link', { name: 'Download' })).toBeInTheDocument()
     expect(within(failedItem).queryByRole('link', { name: 'Download' })).not.toBeInTheDocument()
   })
@@ -178,8 +178,8 @@ describe('PrototypesTab row actions', () => {
     expect(screen.getByRole('img', { name: 'Image 1' })).toHaveAttribute('src', 'data:image/png;base64,AAAA')
     expect(screen.getByRole('combobox', { name: /earlier Prototype/ })).toHaveValue('proto-1')
 
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
     await vi.waitFor(() =>
       expect(api.requests).toContainEqual(
         expect.objectContaining({
@@ -200,8 +200,8 @@ describe('PrototypesTab row actions', () => {
     const { user } = renderTab()
 
     await user.click(await screen.findByRole('button', { name: 'Try again' }))
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() =>
       expect(api.requests).toContainEqual(expect.objectContaining({ method: 'POST', body: { tickedImages: [] } })),
@@ -272,9 +272,9 @@ describe('PrototypesTab New Prototype', () => {
     const { user } = renderTab()
 
     await user.click(await screen.findByRole('button', { name: 'New Prototype' }))
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
     api.rows = [running]
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     expect(await screen.findByText(/Being written/)).toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'New Prototype' })).not.toBeInTheDocument()

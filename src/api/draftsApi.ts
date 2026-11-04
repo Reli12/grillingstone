@@ -23,12 +23,18 @@ export interface NewDraftRequest {
   references: string[]
   /** Shown with the requirement to the first session; left out of the body when empty. */
   images?: ImageUpload[]
+  /** Prototypes of the Project the first session may read; left out of the body when empty. */
+  prototypeIds?: string[]
+  /** Create Draft…: the Prototype the Draft is created from, which its first session is given. */
+  createdFromPrototypeId?: string
 }
 
 export interface StartSessionRequest {
   kind: SessionKind
   focus?: { sectionId: string; entryId?: string }
   humanNote?: string
+  /** Prototypes of the Project Claude may read as context; left out of the body when empty. */
+  prototypeIds?: string[]
   /** Sent with the first message; left out of the body when empty. */
   images?: ImageUpload[]
 }
@@ -41,11 +47,13 @@ export interface SayRequest {
 
 export const draftsApi = {
   getDraft: (projectId: string, draftId: string) => api.get<DraftWithSession>(endpoints.draft(projectId, draftId)),
-  createDraft: (projectId: string, { images = [], ...body }: NewDraftRequest) =>
-    api.post<{ draft: Draft; session: SessionSummary }>(endpoints.drafts(projectId), {
-      ...body,
-      ...(images.length ? { images } : {}),
-    }),
+  createDraft: (projectId: string, { images = [], createdFromPrototypeId, ...body }: NewDraftRequest) =>
+    api.post<{ draft: Draft; session: SessionSummary }>(
+      createdFromPrototypeId
+        ? endpoints.draftFromPrototype(projectId, createdFromPrototypeId)
+        : endpoints.drafts(projectId),
+      { ...body, ...(images.length ? { images } : {}) },
+    ),
   deleteDraft: (projectId: string, draftId: string) => api.delete<{ ok: true }>(endpoints.draft(projectId, draftId)),
   applyOp: (projectId: string, draftId: string, op: HumanOp) =>
     api.post<Draft>(endpoints.draftOps(projectId, draftId), op),

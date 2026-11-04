@@ -1,30 +1,64 @@
 // Draft routes: list, create (which starts the first Grilling Session), read, delete, human edits and Proposal triage.
 import { copyFields } from '#core/publish/copyFields.ts'
-import { parseMessageImages } from '#core/session/images.ts'
+import { type ImageUpload, parseMessageImages } from '#core/session/images.ts'
 
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { HttpError } from '../http/errors.ts'
 import type { Router } from '../http/router.ts'
 import { decideBody, humanOpBody, newDraftBody, referencesBody } from '../http/schemas.ts'
+import type { NewDraftInput } from '../services/draftService.ts'
 import { getDraft, listDrafts, summarize } from '../storage/drafts.ts'
+import { NotFound } from '../storage/errors.ts'
+import { getPrototype } from '../storage/prototypes.ts'
 import type { AppDeps } from './deps.ts'
+
+const NOT_A_PROTOTYPE = 'A Prototype you gave is not one of this Project’s Prototypes.'
 
 const DRAFT = '/api/projects/:projectId/drafts/:draftId'
 
 export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
+  async function createAndStart(
+    projectId: string,
+    { fields, images, prototypeIds }: { fields: NewDraftInput; images: ImageUpload[]; prototypeIds: string[] },
+  ) {
+    // Checked before the Draft exists, so refused Images leave no Draft behind; the session checks them again.
+    const checked = parseMessageImages(images)
+    if (!checked.ok) throw new HttpError(409, checked.reasons.map((reason) => reason.message).join(' '))
+    // The same for the Prototypes given as context: a refused one leaves no Draft behind.
+    for (const prototypeId of prototypeIds) {
+      await getPrototype(projectId, prototypeId).catch((error: unknown) => {
+        if (error instanceof NotFound) throw new HttpError(409, NOT_A_PROTOTYPE)
+        throw error
+      })
+    }
+    const draft = await drafts.create(projectId, fields)
+    const session = await supervisor.start({ projectId, draftId: draft.id, kind: 'first', images, prototypeIds })
+    return { draft, session }
+  }
+
   router.get('/api/projects/:projectId/drafts', async ({ params }) =>
     (await listDrafts(params.projectId)).map(summarize),
   )
   router.post(
     '/api/projects/:projectId/drafts',
+    ({ params, body }) => {
+      const { images, prototypeIds, ...fields } = parse(newDraftBody, body)
+      return createAndStart(params.projectId, { fields, images, prototypeIds })
+    },
+    { maxBody: IMAGE_MAX_BODY },
+  )
+  // Create Draft… on a Prototype: the Draft remembers it, and its first session is given it as context.
+  router.post(
+    '/api/projects/:projectId/prototypes/:prototypeId/drafts',
     async ({ params, body }) => {
-      const { images, ...fields } = parse(newDraftBody, body)
-      // Checked before the Draft exists, so refused Images leave no Draft behind; the session checks them again.
-      const checked = parseMessageImages(images)
-      if (!checked.ok) throw new HttpError(409, checked.reasons.map((reason) => reason.message).join(' '))
-      const draft = await drafts.create(params.projectId, fields)
-      const session = await supervisor.start({ projectId: params.projectId, draftId: draft.id, kind: 'first', images })
-      return { draft, session }
+      const { projectId, prototypeId } = params
+      await getPrototype(projectId, prototypeId)
+      const { images, prototypeIds: _ignored, ...fields } = parse(newDraftBody, body)
+      return createAndStart(projectId, {
+        fields: { ...fields, createdFromPrototypeId: prototypeId },
+        images,
+        prototypeIds: [prototypeId],
+      })
     },
     { maxBody: IMAGE_MAX_BODY },
   )

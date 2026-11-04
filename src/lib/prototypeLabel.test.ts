@@ -3,7 +3,18 @@ import { describe, expect, it } from 'vitest'
 
 import type { ChatMessage } from '#core/session/sessionTypes.ts'
 
-import { elapsedLabel, lastMessageLines, prototypeLabel, shortReason, startedFromLabel } from '@/lib/prototypeLabel'
+import {
+  createdFromLabel,
+  elapsedLabel,
+  lastMessageLines,
+  prototypeLabel,
+  roundLabel,
+  shortReason,
+  startedFromLabel,
+  startingDraftLabel,
+  startingPrototypeLabel,
+  writerLabel,
+} from '@/lib/prototypeLabel'
 
 describe('elapsedLabel', () => {
   it.each([
@@ -22,14 +33,49 @@ describe('elapsedLabel', () => {
 
 describe('prototypeLabel', () => {
   it('names the Draft version and the time it was written', () => {
-    expect(prototypeLabel({ draftVersion: 2, writtenAt: '2026-10-25T10:04:00Z' })).toMatch(/^v2 · .*2026/)
+    expect(prototypeLabel({ draft: { draftVersion: 2 }, writtenAt: '2026-10-25T10:04:00Z' })).toMatch(/^v2 · .*2026/)
+  })
+
+  it('says "no Draft" for a Prototype that has none', () => {
+    expect(prototypeLabel({ writtenAt: '2026-10-25T10:04:00Z' })).toMatch(/^no Draft · .*2026/)
+  })
+})
+
+describe('writerLabel and roundLabel', () => {
+  const grilling = { kind: 'prototypeGrilling' as const, sessionId: 's1', round: 2 }
+
+  it('says which kind of session wrote a Prototype', () => {
+    expect(writerLabel({ kind: 'prototype' })).toBe('Written by a Prototype Session')
+    expect(writerLabel(grilling)).toBe('Written by a Prototype Grilling Session, round 2')
+  })
+
+  it('labels a version of a session by its round and, when it has one, its Draft version', () => {
+    expect(roundLabel({ writtenBy: grilling, draft: { draftVersion: 3 } })).toBe('Round 2 · Draft v3')
+    expect(roundLabel({ writtenBy: grilling })).toBe('Round 2')
+  })
+})
+
+describe('starting labels of a session', () => {
+  const at = '2026-10-25T10:04:00Z'
+
+  it('names the starting Draft, or says there is none or that it is deleted', () => {
+    expect(startingDraftLabel({ draftVersion: 2 }, 'Checkout flow')).toBe('Starting Draft: Checkout flow, v2')
+    expect(startingDraftLabel({ draftVersion: 2 }, undefined)).toBe('Starting Draft: a deleted Draft, v2')
+    expect(startingDraftLabel(undefined, undefined)).toBe('Starting Draft: none')
+  })
+
+  it('names the starting Prototype, or says there is none or that it is deleted', () => {
+    const earlier = { id: 'p1', draft: { draftVersion: 1 }, writtenAt: at }
+    expect(startingPrototypeLabel('p1', [earlier])).toMatch(/^Starting Prototype: v1 · .*2026/)
+    expect(startingPrototypeLabel('p9', [earlier])).toBe('Starting Prototype: a deleted Prototype')
+    expect(startingPrototypeLabel(undefined, [earlier])).toBe('Starting Prototype: none')
   })
 })
 
 describe('startedFromLabel', () => {
   const at = '2026-10-25T10:04:00Z'
-  const earlier = { id: 'p1', draftVersion: 1, writtenAt: at }
-  const later = { id: 'p2', draftVersion: 2, writtenAt: at, startingPrototypeId: 'p1' }
+  const earlier = { id: 'p1', draft: { draftVersion: 1 }, writtenAt: at }
+  const later = { id: 'p2', draft: { draftVersion: 2 }, writtenAt: at, startingPrototypeId: 'p1' }
 
   it('names the Prototype it started from by Draft version and time', () => {
     expect(startedFromLabel(later, [earlier, later])).toMatch(/^started from v1 · .*2026/)
@@ -41,6 +87,23 @@ describe('startedFromLabel', () => {
 
   it('has nothing to say for a Prototype that started from scratch', () => {
     expect(startedFromLabel(earlier, [earlier, later])).toBeUndefined()
+  })
+})
+
+describe('createdFromLabel', () => {
+  const at = '2026-10-25T10:04:00Z'
+  const source = { id: 'p1', draft: { draftVersion: 1 }, writtenAt: at }
+
+  it('names the Prototype a Draft was created from', () => {
+    expect(createdFromLabel('p1', [source])).toMatch(/^Created from Prototype v1 · .*2026/)
+  })
+
+  it('says so when that Prototype has been deleted', () => {
+    expect(createdFromLabel('p9', [source])).toBe('Created from a deleted Prototype')
+  })
+
+  it('has nothing to say for a Draft that was not created from a Prototype', () => {
+    expect(createdFromLabel(undefined, [source])).toBeUndefined()
   })
 })
 

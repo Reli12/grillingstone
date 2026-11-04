@@ -7,6 +7,8 @@ import { Conflict } from '../storage/errors.ts'
 import * as prototypes from '../storage/prototypes.ts'
 
 const NOT_DISMISSIBLE = 'Only a Failed or Stopped Prototype Session can be dismissed.'
+const GRILLING_HAS_DRAFT = 'A session that started from a Draft is deleted with that Draft.'
+const GRILLING_RUNNING = 'End the session first.'
 
 export class PrototypeService {
   private hub: Hub
@@ -27,6 +29,22 @@ export class PrototypeService {
     const ended = !LIVE_STATUSES.includes(session.status) && session.status !== 'finished'
     if (!ended) throw new Conflict(NOT_DISMISSIBLE)
     await prototypes.deletePrototypeSession(projectId, sessionId)
+    this.hub.broadcast({ type: 'prototypes', projectId })
+  }
+
+  /**
+   * Deletes an ended Prototype Grilling Session that started from no Draft: its record and Transcript, its Images and
+   * every Prototype it wrote. One with a Draft goes only with the Draft; a live one is stopped or ended first.
+   */
+  async deleteGrillingSession(projectId: string, sessionId: string) {
+    const session = await prototypes.getPrototypeGrillingSession(projectId, sessionId)
+    if (session.draft) throw new Conflict(GRILLING_HAS_DRAFT)
+    if (LIVE_STATUSES.includes(session.status)) throw new Conflict(GRILLING_RUNNING)
+    const written = (await prototypes.listPrototypes(projectId)).filter(
+      (prototype) => prototype.writtenBy.kind === 'prototypeGrilling' && prototype.writtenBy.sessionId === sessionId,
+    )
+    for (const prototype of written) await prototypes.deletePrototype(projectId, prototype.id)
+    await prototypes.deletePrototypeGrillingSession(projectId, sessionId)
     this.hub.broadcast({ type: 'prototypes', projectId })
   }
 }

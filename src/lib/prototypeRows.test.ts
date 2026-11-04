@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { PrototypeRow } from '#core/prototype/prototypeRecords.ts'
 import { v1Draft } from '#core/testing/fixtures.ts'
 
-import { finishedPrototypes, isWritingFor, rowDraftId, rowId } from '@/lib/prototypeRows'
+import { finishedPrototypes, isWritingFor, rowDraftId, rowId, sessionPrototypes } from '@/lib/prototypeRows'
 import { finishedRow, sessionOf } from '@test/mocks/prototypeBackend'
 
 const draft = v1Draft()
@@ -28,5 +28,13 @@ describe('prototype rows', () => {
 
   it('keeps only the finished Prototypes', () => {
     expect(finishedPrototypes([running, finished, stopped]).map((prototype) => prototype.id)).toEqual(['proto-1'])
+  })
+
+  it('lists a session’s Prototypes in the order of its rounds, leaving out one deleted since', () => {
+    const rows = [finishedRow(draft, { id: 'proto-3' }), finishedRow(draft, { id: 'proto-1' }), running]
+    expect(sessionPrototypes(rows, ['proto-1', 'proto-2', 'proto-3']).map((prototype) => prototype.id)).toEqual([
+      'proto-1',
+      'proto-3',
+    ])
   })
 })

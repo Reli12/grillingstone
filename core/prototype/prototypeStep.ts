@@ -46,6 +46,12 @@ function isWriteOfPrototype(message: ChatMessage): boolean {
   return message.role === 'tool' && message.summary === WROTE_PROTOTYPE
 }
 
+/** The step of Claude's current turn in a conversation: only what happened since the human last spoke counts. */
+export function prototypeTurnStepOf(messages: ChatMessage[]): PrototypeStep | undefined {
+  const lastHuman = messages.map((message) => message.role).lastIndexOf('human')
+  return prototypeStepOf(messages.slice(lastHuman + 1))
+}
+
 /**
  * The latest step the messages show; undefined until Claude has done something worth naming. Once Claude has written
  * the page, reading (the page back, or anything else) is not a step back to "reading".

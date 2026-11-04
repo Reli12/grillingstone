@@ -165,12 +165,55 @@ async function prototypeTurn(images) {
   done()
 }
 
+// A Prototype Grilling Session is the prototype guard mode too; its system prompt says which one this is. It is a
+// conversation: one question card until "Write it now.", then a Prototype per round. The marker fake:refuse-unfixed in a
+// message makes that round's page refused without a fix; fake:ask makes it ask a question instead of writing.
+const GRILLING_PROMPT_MARKER = 'You run a Prototype Grilling Session'
+const REFUSE_UNFIXED_MARKER = 'fake:refuse-unfixed'
+const ASK_MARKER = 'fake:ask'
+const isPrototypeGrilling = process.argv.some((arg) => arg.includes(GRILLING_PROMPT_MARKER))
+let round = 0
+
+const askQuestion = () =>
+  say(
+    'One question.\n```pbi-question\n{"question": "What should the screen show?", "recommended": "A list", "options": ["A grid"]}\n```',
+  )
+
+/** One turn of a Prototype Grilling Session: a question, or a round that writes (then edits) prototype.html and submits. */
+function prototypeGrillingTurn(text, images) {
+  if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
+  const filePath = path.join(process.cwd(), 'prototype.html')
+  const confirmed = text === 'Write it now.'
+  if ((round === 0 && !confirmed) || text.includes(ASK_MARKER)) {
+    toolCall('read-1', 'Read', { file_path: path.join(process.cwd(), 'CONTEXT.md') }, { content: 'ok' })
+    askQuestion()
+    done()
+    return
+  }
+  round += 1
+  const badLink = '<a href="https://example.com/elsewhere">elsewhere</a>'
+  const extra = text.includes(REFUSE_UNFIXED_MARKER) ? badLink : ''
+  const page = prototypePage(false, `<p id="round">Round ${round}</p>${extra}`)
+  const exists = fs.existsSync(filePath)
+  fs.writeFileSync(filePath, page)
+  const edit = { file_path: filePath, old_string: 'a', new_string: 'a' }
+  if (exists) toolCall(`edit-r${round}`, 'Edit', edit, { content: 'ok' })
+  else toolCall(`write-r${round}`, 'Write', { file_path: filePath, content: '…' }, { content: 'ok' })
+  const run = submit(`submit-r${round}`, { prototype: 'prototype.html', assumptions: PROTOTYPE_ASSUMPTIONS })
+  say(run.status === 0 ? 'Written.' : 'Refused.')
+  done()
+}
+
 for await (const line of readline.createInterface({ input: process.stdin })) {
   const { text, images } = readContent(JSON.parse(line).message.content)
   if (!seed) {
     seed = text
     emit({ type: 'system', subtype: 'init', session_id: claudeSessionId })
     if (resumeAt >= 0) say('Picking up where we left off.')
+  }
+  if (isPrototypeGrilling && process.env.GRILLINGSTONE_GUARD_MODE === 'prototype') {
+    prototypeGrillingTurn(text, images)
+    continue
   }
   if (process.env.GRILLINGSTONE_GUARD_MODE === 'prototype') {
     await prototypeTurn(images)

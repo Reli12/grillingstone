@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/atoms/button/button'
 import { TextArea } from '@/components/atoms/textArea/textArea'
 import { Dialog } from '@/components/composite/dialog/dialog'
+import { PrototypeContextPicker } from '@/components/features/prototypes/prototypeContextPicker/prototypeContextPicker'
 
 /** Sessions started from a dialog; plain New Iterations start by typing in the chat. */
 export type StartIntent =
@@ -17,13 +18,23 @@ const UPGRADE_EXPLANATION =
 interface StartSessionDialogProps {
   intent: StartIntent | null
   onClose: () => void
-  onStart: (note: string) => void
+  onStart: (note: string, prototypeIds: string[]) => void
   pending: boolean
+  projectId: string
 }
 
 /** Confirms a Focused Session or Template upgrade, with an optional note for Claude. */
-export function StartSessionDialog({ intent, onClose, onStart, pending }: Readonly<StartSessionDialogProps>) {
+export function StartSessionDialog({
+  intent,
+  onClose,
+  onStart,
+  pending,
+  projectId,
+}: Readonly<StartSessionDialogProps>) {
   const [note, setNote] = useState('')
+  const [prototypeIds, setPrototypeIds] = useState<string[]>([])
+  const toggle = (id: string) =>
+    setPrototypeIds((ids) => (ids.includes(id) ? ids.filter((existing) => existing !== id) : [...ids, id]))
   const focused = intent?.kind === 'focused'
   const title = focused ? `Grill “${intent.heading}”` : 'Upgrade to the latest Template'
   const explanation = focused ? FOCUSED_EXPLANATION : UPGRADE_EXPLANATION
@@ -37,7 +48,7 @@ export function StartSessionDialog({ intent, onClose, onStart, pending }: Readon
           <Button variant="quiet" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="claude" disabled={pending} onClick={() => onStart(note)}>
+          <Button variant="claude" disabled={pending} onClick={() => onStart(note, prototypeIds)}>
             Start grilling
           </Button>
         </>
@@ -45,14 +56,17 @@ export function StartSessionDialog({ intent, onClose, onStart, pending }: Readon
     >
       <p className="mb-3 text-sm text-ink-soft">{explanation}</p>
       {intent && (
-        <TextArea
-          autoFocus
-          minRows={3}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="What changed, or what should Claude look at? (optional)"
-          aria-label="Note for Claude"
-        />
+        <>
+          <TextArea
+            autoFocus
+            minRows={3}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="What changed, or what should Claude look at? (optional)"
+            aria-label="Note for Claude"
+          />
+          <PrototypeContextPicker projectId={projectId} prototypeIds={prototypeIds} onToggle={toggle} />
+        </>
       )}
     </Dialog>
   )

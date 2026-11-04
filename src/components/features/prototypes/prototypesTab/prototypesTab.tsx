@@ -1,5 +1,5 @@
-// The Draft side panel's Prototypes tab: 'New Prototype' with its start form, then a row for every Prototype and
-// every session that is running, Failed or Stopped, newest first.
+// The Draft side panel's Prototypes tab: 'New Prototype' with its start form (this Draft chosen), then a row for
+// every Prototype and every session that is running, Failed or Stopped, newest first.
 import { usePrototypeRows } from '@/api/hooks/prototypes/prototypeHooks'
 import { Button } from '@/components/atoms/button/button'
 import { PrototypeList } from '@/components/features/prototypes/prototypeList/prototypeList'
@@ -13,7 +13,7 @@ interface PrototypesTabProps {
 }
 
 const EMPTY_EXPLANATION =
-  'A Prototype is an interactive illustration of what this Draft describes, written by Claude in one go from the Draft as it stands. Use New Prototype to have one written; you can keep grilling meanwhile.'
+  'A Prototype is an interactive illustration of what this Draft describes, written by Claude. Use New Prototype to talk through a screen with Claude, or to have one written in one go from the Draft as it stands; you can keep grilling meanwhile.'
 
 /** The Draft side panel's Prototypes tab. Keyed by Draft, so the start form never carries over to another Draft. */
 export function PrototypesTab({ projectId, draftId }: Readonly<PrototypesTabProps>) {

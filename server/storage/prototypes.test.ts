@@ -37,8 +37,8 @@ const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfD
 const prototypeOf = (projectId: string, draftId: string, id: string, writtenAt: string): Prototype => ({
   id,
   projectId,
-  draftId,
-  draftVersion: 1,
+  draft: { draftId, draftVersion: 1 },
+  writtenBy: { kind: 'prototype' },
   writtenAt,
   images: [{ number: 1, mediaType: 'image/png', source: 'Added on the start form' }],
   assumptions: [{ choice: 'Ten rows per page', why: 'The Draft gives no page size.' }],

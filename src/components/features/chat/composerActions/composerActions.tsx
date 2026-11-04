@@ -18,6 +18,12 @@ interface ComposerActionsProps {
   picker?: ReactNode
 }
 
+/** A Prototype Grilling Session keeps what it has written when it is stopped; the others write nothing. */
+const stopTitle = ({ kind }: SessionBase) =>
+  kind === 'prototypeGrilling'
+    ? 'Stop this session — the Prototypes written so far are kept'
+    : 'Stop this session — nothing is written'
+
 export function ComposerActions({
   session,
   canSend,
@@ -29,7 +35,7 @@ export function ComposerActions({
   const yourTurn = session.status === 'waiting'
   return (
     <div className="flex items-center gap-2 px-2 pb-2">
-      <Button size="sm" variant="quiet" onClick={onStop} title="Stop this session — nothing is written">
+      <Button size="sm" variant="quiet" onClick={onStop} title={stopTitle(session)}>
         <Square size={12} /> Stop
       </Button>
       <span className="ml-auto" />

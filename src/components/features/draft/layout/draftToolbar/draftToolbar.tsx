@@ -8,6 +8,7 @@ import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { templateTracker } from '#core/template/templateTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
+import { CreatedFromPrototype } from '@/components/features/prototypes/createdFromPrototype/createdFromPrototype'
 import { routesPaths } from '@/routes/routes'
 
 interface DraftToolbarProps {
@@ -40,6 +41,9 @@ export function DraftToolbar({
         , {draft.workItemType} in the {draft.template.name} v{draft.template.version},{' '}
         <span className="font-medium text-ink">Draft v{draft.version}</span>
       </p>
+      {!!draft.createdFromPrototypeId && (
+        <CreatedFromPrototype projectId={projectId} prototypeId={draft.createdFromPrototypeId} />
+      )}
       <span className="ml-auto" />
       <Button size="sm" variant="quiet" onClick={onReferences}>
         <Link2 size={14} /> References{referenceCount ? ` (${referenceCount})` : ''}

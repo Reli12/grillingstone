@@ -1,7 +1,7 @@
 // Tests for the Prototype start form: Images ticked by default and their running total against 20 MB, extra Images
-// added like in the message box, the starting-Prototype picker with nothing preselected, and what Submit sends.
+// added like in the message box, the starting-Prototype picker with nothing preselected, and what Write now sends.
 // Image preparation is stubbed: jsdom has no canvas.
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PrototypeRow } from '#core/prototype/prototypeRecords.ts'
@@ -58,7 +58,7 @@ describe('PrototypeStartForm Images', () => {
 
     await user.click((await screen.findAllByRole('checkbox'))[0])
     expect(screen.getByText('Images: 2.0 MB of 20 MB')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() =>
       expect(api.requests).toContainEqual(
@@ -84,20 +84,20 @@ describe('PrototypeStartForm Images', () => {
     prototypeBackend(draft)
     renderForm()
 
-    // Submit waits for the Images to load, so an enabled Submit means there really are none.
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
+    // Write now waits for the Images to load, so an enabled Write now means there really are none.
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByText(/Images from this Draft/)).not.toBeInTheDocument()
   })
 
-  it('disables Submit over 20 MB with the reason above it, and enables it again once enough is unticked', async () => {
+  it('disables Write now over 20 MB with the reason above it, and enables it again once enough is unticked', async () => {
     const images = [draftImageOf(1, { bytes: 12 * MEGABYTE }), draftImageOf(2, { bytes: 9 * MEGABYTE })]
     prototypeBackend(draft, { images })
     const { user } = renderForm()
 
     const reason = await screen.findByRole('alert')
     expect(reason).toHaveTextContent('more than 20 MB')
-    const submit = screen.getByRole('button', { name: 'Submit' })
+    const submit = screen.getByRole('button', { name: 'Write now' })
     expect(submit).toBeDisabled()
     expect(reason.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
@@ -115,7 +115,7 @@ describe('PrototypeStartForm Images', () => {
     await user.upload(screen.getByLabelText('Image files'), picture('extra.png'))
     expect(await screen.findByRole('img', { name: 'extra.png' })).toBeInTheDocument()
     expect(screen.getByText('Images: 3.0 MB of 20 MB')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() =>
       expect(api.requests).toContainEqual(
@@ -137,7 +137,7 @@ describe('PrototypeStartForm Images', () => {
     await screen.findAllByRole('checkbox')
     await user.upload(screen.getByLabelText('Image files'), picture())
     expect(await screen.findByRole('alert')).toHaveTextContent('more than 20 MB')
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Write now' })).toBeDisabled()
   })
 })
 
@@ -161,8 +161,8 @@ describe('PrototypeStartForm starting Prototype', () => {
   it('offers no picker when the Draft has no Prototype yet', async () => {
     prototypeBackend(draft)
     renderForm()
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    expect(screen.queryByRole('combobox', { name: /earlier Prototype/ })).not.toBeInTheDocument()
   })
 
   it('leaves out sessions that are not Prototypes: only finished rows can be started from', async () => {
@@ -171,7 +171,8 @@ describe('PrototypeStartForm starting Prototype', () => {
     prototypeBackend(draft, { rows: [running, stopped, earlier[1]] })
     renderForm()
     // "No starting Prototype", and the one finished Prototype.
-    expect(await screen.findAllByRole('option')).toHaveLength(2)
+    const picker = await screen.findByRole('combobox', { name: /earlier Prototype/ })
+    expect(within(picker).getAllByRole('option')).toHaveLength(2)
   })
 
   it('sends the chosen Prototype as the starting point and reports the start', async () => {
@@ -179,9 +180,9 @@ describe('PrototypeStartForm starting Prototype', () => {
     const { user, onStarted } = renderForm()
 
     await screen.findByRole('option', { name: /^v1 · / })
-    await user.selectOptions(screen.getByRole('combobox'), 'proto-1')
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: /earlier Prototype/ }), 'proto-1')
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() => expect(onStarted).toHaveBeenCalled())
     expect(api.requests).toContainEqual(
@@ -197,8 +198,8 @@ describe('PrototypeStartForm', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Cancel' }))
     expect(onCancel).toHaveBeenCalled()
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Write now' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Write now' }))
 
     await vi.waitFor(() => expect(onStarted).toHaveBeenCalled())
     expect(api.requests).toContainEqual(expect.objectContaining({ body: { tickedImages: [] } }))

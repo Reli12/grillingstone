@@ -12,6 +12,7 @@ import {
 } from '#core/session/sessionTypes.ts'
 
 import type { DraftWithSession } from '@/api/draftsApi'
+import type { PrototypeGrillingTranscript } from '@/api/prototypesApi'
 import { queryKeys } from '@/api/reactQueryKeys'
 
 type EventOf<Type extends ServerEvent['type']> = Extract<ServerEvent, { type: Type }>
@@ -100,6 +101,32 @@ function applyMessage(qc: QueryClient, event: EventOf<'message'>) {
   })
 }
 
+/** The session page follows the session's status and step; the rows of the lists are out of date too. */
+function applyPrototypeGrillingSession(qc: QueryClient, event: EventOf<'prototypeGrillingSession'>) {
+  const { projectId, session } = event
+  updateOrReload<PrototypeGrillingTranscript>(
+    qc,
+    queryKeys.prototypeGrillingSession(projectId, session.id),
+    // The summary is everything but the conversation and its inputs; a field it leaves out (the step, the end) is gone.
+    ({ messages, inputs, writeConfirmed, claudeSessionId }) => ({
+      ...session,
+      messages,
+      inputs,
+      writeConfirmed,
+      ...(claudeSessionId ? { claudeSessionId } : {}),
+    }),
+  )
+  void qc.invalidateQueries({ queryKey: queryKeys.prototypes(projectId) })
+}
+
+function applyPrototypeGrillingMessage(qc: QueryClient, event: EventOf<'prototypeGrillingMessage'>) {
+  updateOrReload<PrototypeGrillingTranscript>(
+    qc,
+    queryKeys.prototypeGrillingSession(event.projectId, event.sessionId),
+    (old) => ({ ...old, messages: upsertMessage(old.messages, event.message) }),
+  )
+}
+
 /** Folds one server event into the React Query cache: set what the event carries, invalidate the rest. */
 export function applyServerEvent(qc: QueryClient, event: ServerEvent) {
   switch (event.type) {
@@ -133,5 +160,15 @@ export function applyServerEvent(qc: QueryClient, event: ServerEvent) {
     case 'prototypes':
       void qc.invalidateQueries({ queryKey: queryKeys.prototypes(event.projectId) })
       break
+    case 'prototypeGrillingSession':
+      applyPrototypeGrillingSession(qc, event)
+      break
+    case 'prototypeGrillingMessage':
+      applyPrototypeGrillingMessage(qc, event)
+      break
+    default: {
+      const _exhaustive: never = event
+      void _exhaustive
+    }
   }
 }

@@ -6,16 +6,20 @@ import { type DraftImage, prototypeRows } from '#core/prototype/prototypeRecords
 
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { RawReply, type Router } from '../http/router.ts'
-import { startPrototypeBody } from '../http/schemas.ts'
+import { sayBody, startPrototypeBody, startPrototypeGrillingBody } from '../http/schemas.ts'
 import { humanImageRefs } from '../sessions/sessionImages.ts'
 import { getDraft } from '../storage/drafts.ts'
+import { NotFound } from '../storage/errors.ts'
 import { imageBytes } from '../storage/images.ts'
 import {
   getPrototype,
+  getPrototypeGrillingSession,
   getPrototypeSession,
+  listPrototypeGrillingSessions,
   listPrototypes,
   listPrototypeSessions,
   readExtraImages,
+  readGrillingImage,
   readPrototypeHtml,
 } from '../storage/prototypes.ts'
 import { listTranscripts } from '../storage/transcripts.ts'
@@ -67,20 +71,70 @@ export function prototypeRoutes(router: Router, { supervisor, prototypes }: AppD
     supervisor.stopPrototype(params.projectId, params.sessionId)
     return { ok: true }
   })
+
+  // Prototype Grilling Sessions (ADR-0024). The Ready Check's "write it now" is the existing /api/sessions/:id/write.
+  router.post(
+    `${PROJECT}/prototype-grilling-sessions`,
+    ({ params, body }) =>
+      supervisor.startPrototypeGrilling({ projectId: params.projectId, ...parse(startPrototypeGrillingBody, body) }),
+    { maxBody: IMAGE_MAX_BODY },
+  )
+  router.get(`${PROJECT}/prototype-grilling-sessions/:sessionId`, ({ params }) =>
+    getPrototypeGrillingSession(params.projectId, params.sessionId),
+  )
+  // An Image of the session's own folder (added on the start form or in the conversation), for the session page.
+  router.get(`${PROJECT}/prototype-grilling-sessions/:sessionId/images/:number`, async ({ params }) => {
+    const { projectId, sessionId } = params
+    const number = Number(params.number)
+    const session = await getPrototypeGrillingSession(projectId, sessionId)
+    const sent = session.messages.flatMap((message) => (message.role === 'human' ? (message.images ?? []) : []))
+    const ref = [...sent, ...session.inputs.extraImages].find((image) => image.number === number)
+    if (!ref) throw new NotFound(`No Image ${number} in session ${sessionId}`)
+    return new RawReply(ref.mediaType, await readGrillingImage(projectId, sessionId, ref))
+  })
+  router.post(
+    `${PROJECT}/prototype-grilling-sessions/:sessionId/messages`,
+    async ({ params, body }) => {
+      const { text, kind, images } = parse(sayBody, body)
+      await supervisor.sayInPrototypeGrilling(params.projectId, params.sessionId, { text, kind, images })
+      return { ok: true }
+    },
+    { maxBody: IMAGE_MAX_BODY },
+  )
+  router.post(`${PROJECT}/prototype-grilling-sessions/:sessionId/stop`, ({ params }) => {
+    supervisor.stopPrototype(params.projectId, params.sessionId)
+    return { ok: true }
+  })
+  // A Continuation (ADR-0014): a new session that resumes the ended one. Returns the new session.
+  router.post(`${PROJECT}/prototype-grilling-sessions/:sessionId/continue`, ({ params }) =>
+    supervisor.continuePrototypeGrilling(params.projectId, params.sessionId),
+  )
+  // Deletes an ended Draft-less session with its Prototypes and Transcript.
+  router.delete(`${PROJECT}/prototype-grilling-sessions/:sessionId`, async ({ params }) => {
+    await prototypes.deleteGrillingSession(params.projectId, params.sessionId)
+    return { ok: true }
+  })
+  router.post(`${PROJECT}/prototype-grilling-sessions/:sessionId/end`, ({ params }) => {
+    supervisor.endPrototypeGrilling(params.projectId, params.sessionId)
+    return { ok: true }
+  })
+
   router.get(`${PROJECT}/drafts/:draftId/prototypes`, async ({ params }) => {
     const { projectId, draftId } = params
-    const [written, sessions] = await Promise.all([
+    const [written, sessions, grilling] = await Promise.all([
       listPrototypes(projectId, draftId),
       listPrototypeSessions(projectId, draftId),
+      listPrototypeGrillingSessions(projectId, draftId),
     ])
-    return prototypeRows(written, sessions)
+    return prototypeRows(written, sessions, grilling)
   })
   router.get(`${PROJECT}/prototypes`, async ({ params }) => {
-    const [written, sessions] = await Promise.all([
+    const [written, sessions, grilling] = await Promise.all([
       listPrototypes(params.projectId),
       listPrototypeSessions(params.projectId),
+      listPrototypeGrillingSessions(params.projectId),
     ])
-    return prototypeRows(written, sessions)
+    return prototypeRows(written, sessions, grilling)
   })
   router.get(`${PROJECT}/drafts/:draftId/prototype-images`, async ({ params }) => {
     const { projectId, draftId } = params
@@ -103,7 +157,9 @@ export function prototypeRoutes(router: Router, { supervisor, prototypes }: AppD
   })
   router.get(`${PROJECT}/prototypes/:prototypeId`, async ({ params }) => {
     const prototype = await getPrototype(params.projectId, params.prototypeId)
-    const draft = await getDraft(params.projectId, prototype.draftId)
+    // A Prototype of no Draft has no title to show.
+    if (!prototype.draft) return { prototype }
+    const draft = await getDraft(params.projectId, prototype.draft.draftId)
     return { prototype, draftTitle: draft.title }
   })
   router.get(`${PROJECT}/prototypes/:prototypeId/view`, async ({ params, req }) => {
@@ -115,10 +171,11 @@ export function prototypeRoutes(router: Router, { supervisor, prototypes }: AppD
       'cache-control': 'no-store',
     }
     if (wantsDownload(req.url)) {
-      const draft = await getDraft(params.projectId, prototype.draftId)
-      const { draftVersion, writtenAt } = prototype
-      const name = prototypeFileName({ draftTitle: draft.title, draftVersion, writtenAt })
-      headers['content-disposition'] = attachment(name)
+      const { draft: link, writtenAt } = prototype
+      const named = link
+        ? { draftTitle: (await getDraft(params.projectId, link.draftId)).title, draftVersion: link.draftVersion }
+        : {}
+      headers['content-disposition'] = attachment(prototypeFileName({ ...named, writtenAt }))
     }
     return new RawReply('text/html; charset=utf-8', Buffer.from(html, 'utf8'), headers)
   })

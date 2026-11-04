@@ -1,20 +1,24 @@
 // Prototype storage (ADR-0023), in the Project's folder:
 //   prototypes/<id>.html         the stored, self-contained page (what is viewed and downloaded)
 //   prototypes/<id>.source.html  Claude's file as submitted
-//   prototypes/<id>.json         the record: Draft id and version, time written, starting Prototype, Images, assumptions
+//   prototypes/<id>.json         the record: optional Draft link (id and version), who wrote it, time written, starting
+//                                Prototype, Images, assumptions; a record from before the widening still reads
 //   prototypes/<id>.images/N.ext the Images the page shows (bytes), for a Prototype started from this one
 //   prototype-sessions/<id>.json one session's record, and prototype-sessions/<id>/N.ext its extra Images
+//   prototype-grilling-sessions/<id>.json a Prototype Grilling Session's record, and .../<id>/N.ext its own Images
 // A Prototype appears with all three files or not at all, and every id is checked to be a safe path segment.
 import fs from 'node:fs/promises'
 
 import {
   type Prototype,
+  type PrototypeGrillingSession,
+  prototypeGrillingSessionSchema,
   type PrototypeInputsRecord,
   prototypeSchema,
   type PrototypeSession,
   prototypeSessionSchema,
 } from '#core/prototype/prototypeRecords.ts'
-import { imageExtension, type ValidImage } from '#core/session/images.ts'
+import { imageExtension, type ImageMediaType, type ValidImage } from '#core/session/images.ts'
 
 import { NotFound } from './errors.ts'
 import { isMissingFile, listJson, readJson, readText, writeFileAtomic, writeJson } from './fsUtil.ts'
@@ -22,6 +26,10 @@ import {
   prototypeExtraImageFile,
   prototypeExtraImagesDir,
   prototypeFile,
+  prototypeGrillingImageFile,
+  prototypeGrillingImagesDir,
+  prototypeGrillingSessionFile,
+  prototypeGrillingSessionsDir,
   prototypeImageFile,
   prototypeImagesDir,
   prototypesDir,
@@ -110,7 +118,7 @@ export async function listPrototypes(projectId: string, draftId?: string): Promi
   const stored = await listJson<unknown>(prototypesDir(projectId))
   return stored
     .map((record) => prototypeSchema.parse(record))
-    .filter((prototype) => !draftId || prototype.draftId === draftId)
+    .filter((prototype) => !draftId || prototype.draft?.draftId === draftId)
     .sort((first, second) => second.writtenAt.localeCompare(first.writtenAt))
 }
 
@@ -184,11 +192,75 @@ export async function readExtraImages(
   )
 }
 
+// ── Prototype Grilling Sessions ─────────────────────────────────────────────
+
+export const savePrototypeGrillingSession = (session: PrototypeGrillingSession) =>
+  writeJson(prototypeGrillingSessionFile(session.projectId, session.id), session)
+
+export async function getPrototypeGrillingSession(
+  projectId: string,
+  sessionId: string,
+): Promise<PrototypeGrillingSession> {
+  const stored = await readJson<unknown>(prototypeGrillingSessionFile(projectId, sessionId))
+  if (stored === null) throw new NotFound(`No Prototype Grilling Session ${sessionId}`)
+  return prototypeGrillingSessionSchema.parse(stored)
+}
+
+/** A Project's Prototype Grilling Session records, oldest first; only those started from one Draft when `draftId` is given. */
+export async function listPrototypeGrillingSessions(
+  projectId: string,
+  draftId?: string,
+): Promise<PrototypeGrillingSession[]> {
+  await getProject(projectId)
+  const stored = await listJson<unknown>(prototypeGrillingSessionsDir(projectId))
+  return stored
+    .map((record) => prototypeGrillingSessionSchema.parse(record))
+    .filter((session) => !draftId || session.draft?.draftId === draftId)
+    .sort((first, second) => first.startedAt.localeCompare(second.startedAt))
+}
+
+/** Removes a session's record and its Image files. A session already gone is fine. */
+export async function deletePrototypeGrillingSession(projectId: string, sessionId: string) {
+  await fs.rm(prototypeGrillingSessionFile(projectId, sessionId), { force: true })
+  await fs.rm(prototypeGrillingImagesDir(projectId, sessionId), { recursive: true, force: true })
+}
+
+/** Keeps the session's own Images beside its record, each under its number in the session. */
+export async function saveGrillingImages(
+  projectId: string,
+  sessionId: string,
+  images: Array<ValidImage & { number: number }>,
+) {
+  for (const { number, mediaType, data } of images) {
+    const file = prototypeGrillingImageFile(projectId, sessionId, number, imageExtension(mediaType))
+    await writeFileAtomic(file, Buffer.from(data, 'base64'))
+  }
+}
+
+/** An Image of the session's own folder, by the number it has in the session. */
+export async function readGrillingImage(
+  projectId: string,
+  sessionId: string,
+  { number, mediaType }: { number: number; mediaType: ImageMediaType },
+): Promise<Buffer> {
+  try {
+    return await fs.readFile(prototypeGrillingImageFile(projectId, sessionId, number, imageExtension(mediaType)))
+  } catch (error) {
+    if (isMissingFile(error)) throw new NotFound(`No Image ${number}`)
+    throw error
+  }
+}
+
 // ── Draft deletion ──────────────────────────────────────────────────────────
 
-/** Deletes everything Prototype-related of a Draft: its Prototypes, session records and extra Image copies. */
+/**
+ * Deletes everything Prototype-related of a Draft: its Prototypes, session records of both kinds and their Image
+ * copies. A Prototype Grilling Session that started from no Draft is not the Draft's and stays.
+ */
 export async function deletePrototypesOf(projectId: string, draftId: string) {
   for (const prototype of await listPrototypes(projectId, draftId)) await deletePrototype(projectId, prototype.id)
   for (const session of await listPrototypeSessions(projectId, draftId))
     await deletePrototypeSession(projectId, session.id)
+  for (const session of await listPrototypeGrillingSessions(projectId, draftId))
+    await deletePrototypeGrillingSession(projectId, session.id)
 }

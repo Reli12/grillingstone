@@ -37,7 +37,7 @@ test('a Prototype is written while grilling goes on, opens sandboxed in a new ta
   // Start one from the Draft's Prototypes tab. The fake:hold marker makes fakeClaude.mjs hold its turn open.
   await page.getByRole('tab', { name: 'Prototypes' }).click()
   await page.getByRole('button', { name: 'New Prototype' }).click()
-  await page.getByRole('form', { name: 'New Prototype' }).getByRole('button', { name: 'Submit' }).click()
+  await page.getByRole('form', { name: 'New Prototype' }).getByRole('button', { name: 'Write now' }).click()
   await expect(page.getByText('Being written for Draft v1')).toBeVisible()
 
   // Grilling continues meanwhile: a Grilling Session on the same Draft runs beside the Prototype Session.
