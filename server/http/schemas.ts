@@ -3,6 +3,7 @@
 import { z } from 'zod'
 
 import { THEMES } from '#core/contract/apiTypes.ts'
+import { DRAFT_LANES } from '#core/draft/draftLane.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import { TRACKERS } from '#core/shared/tracker.ts'
 import { WORK_ITEM_TYPES } from '#core/shared/workItemType.ts'
@@ -105,9 +106,43 @@ export const humanOpBody: z.ZodType<HumanOp> = z.discriminatedUnion('op', [
   z.object({ op: z.literal('restoreEntry'), sectionId, entryId }),
 ])
 
+export const parentBody = z.object({ copyId: z.string().nullable() })
+
+export const connectionBody = z.object({
+  orgUrl: z.string().trim().min(1, 'Enter the organization URL.'),
+  token: z.string().trim().min(1, 'Paste a Personal Access Token.'),
+})
+export const backlogBody = z.object({
+  name: z.string().trim().min(1, 'Enter the Azure DevOps project’s name or a link.'),
+})
+export const defaultTagsBody = z.object({ tags: z.array(z.string()) })
+export const workItemBody = z.object({ workItem: z.string().trim().min(1, 'Enter the work item ID or link.') })
+export const importWorkItemBody = workItemBody.extend({ templateId: z.string().min(1, 'Choose a Template.') })
+export const importCopyBody = z.object({ templateId: z.string().min(1, 'Choose a Template.') })
+/**
+ * Absent tags: the Project's Default Tags. Absent parent: the Draft's Parent; else a work item ID or link. Absent
+ * existing: a Draft not linked yet creates a new item; else the ID or link of the existing item it updates.
+ */
+export const publishPlanBody = z.object({
+  tags: z.array(z.string()).optional(),
+  parent: z.string().optional(),
+  existing: z.string().optional(),
+})
+/** The revision the confirmed plan was made from; null for a create. Parent and existing as the plan was made with. */
+export const publishBody = z.object({
+  tags: z.array(z.string()).default([]),
+  expectedRev: z.number().int().nullable(),
+  parent: z.string().optional(),
+  existing: z.string().optional(),
+})
+
 export const decideBody = z.object({ changeId: z.string(), accept: z.boolean() })
 
+export const laneBody = z.object({ lane: z.enum(DRAFT_LANES) })
+export const archivedBody = z.object({ archived: z.boolean() })
+
 export const startSessionBody = z.object({
+  // An Import Session is started only by an Import, never from here.
   kind: z.enum(['first', 'focused', 'iteration', 'upgrade'], { error: 'Unknown session kind.' }),
   focus: z.object({ sectionId: z.string(), entryId: z.string().optional() }).optional(),
   humanNote: z.string().optional(),

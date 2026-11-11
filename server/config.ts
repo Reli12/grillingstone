@@ -20,6 +20,15 @@ function dataDir(): string {
 }
 
 export const DATA_DIR = dataDir()
+/**
+ * The Connection's secrets (the Azure DevOps token, or its encrypted form) live here: inside the data folder but
+ * outside every Project folder, so no session's working folder contains them, and never part of an export.
+ */
+export const SECRETS_DIR = path.join(DATA_DIR, 'secrets')
+/** A token given through the environment wins over a saved one and makes the Connection read-only (Docker, Linux). */
+export const ADO_PAT_ENV = 'GRILLINGSTONE_ADO_PAT'
+/** The organization the environment's token belongs to, e.g. https://dev.azure.com/your-org. */
+export const ADO_ORG_ENV = 'GRILLINGSTONE_ADO_ORG'
 export const DEFAULT_TEMPLATES_DIR = path.join(TOOL_DIR, 'defaults', 'templates')
 export const SUBMIT_SCRIPT = path.join(TOOL_DIR, 'scripts', 'writeDraft.mjs')
 export const HOOK_SCRIPT = path.join(TOOL_DIR, 'scripts', 'permissionHook.mjs')

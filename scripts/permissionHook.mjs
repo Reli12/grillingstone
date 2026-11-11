@@ -55,6 +55,8 @@ try {
     mode,
     // Set only when the session was started with "Read Code Folders" (ADR-0016).
     codeFolders: process.env.GRILLINGSTONE_CODE_FOLDERS === '1',
+    // The Connection's secrets: denied by name, beside being outside every Project folder.
+    deniedDirs: process.env.GRILLINGSTONE_SECRETS_DIR ? [process.env.GRILLINGSTONE_SECRETS_DIR] : [],
   })
   const permission = decision.allow ? 'allow' : 'deny'
   const reason = decision.allow ? ALLOWED_REASON : decision.reason

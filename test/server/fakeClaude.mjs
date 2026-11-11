@@ -122,7 +122,8 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     process.stderr.write('fake claude crashed\n')
     process.exit(3)
   }
-  if (text !== 'Write it now.') {
+  // An Import Session is confirmed from the start: it writes on its first turn.
+  if (text !== 'Write it now.' && !text.includes('Import it now')) {
     // Lets tests see what reached the child process: one line naming each image block it received.
     if (images.length) say(`Received image blocks: ${images.join('; ')}.`)
     emit({

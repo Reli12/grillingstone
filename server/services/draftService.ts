@@ -1,9 +1,10 @@
 // Everything that changes a Draft goes through here, so every change is saved under the Draft's lock and
 // announced to the browser the same way — whether it came from the UI or from a session's submission.
 import { type BacklogCopy, createBacklogCopy, type PastedCopy } from '#core/backlog/backlogCopy.ts'
-import { withBacklogReferences } from '#core/backlog/backlogReference.ts'
+import { parentReference, withBacklogReferences, withParent } from '#core/backlog/backlogReference.ts'
 import type { Project } from '#core/contract/apiTypes.ts'
 import { newDraft } from '#core/draft/draft.ts'
+import { type DraftLane, moveToLane, setArchived, withNewWorkLane } from '#core/draft/draftLane.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import { applyHumanEdit } from '#core/proposal/humanEdit.ts'
@@ -82,7 +83,8 @@ export class DraftService {
         references,
         now: now(),
       })
-      return drafts.createDraft(withBacklogReferences(fresh, backlogIds, backlogCopies))
+      // A new Draft starts in Grilling; from then on its Lane is the human's (ADR-0019).
+      return drafts.createDraft(withBacklogReferences({ ...fresh, lane: 'grilling' }, backlogIds, backlogCopies))
     })
     this.hub.broadcast({ type: 'drafts', projectId })
     return draft
@@ -114,6 +116,24 @@ export class DraftService {
     })
   }
 
+  /** Saves a Draft built elsewhere (an Import) and announces it. */
+  async createDraft(draft: Draft): Promise<Draft> {
+    const saved = await drafts.createDraft(draft)
+    this.hub.broadcast({ type: 'drafts', projectId: draft.projectId })
+    return saved
+  }
+
+  /** Marks one of the Draft's Backlog References as its Parent, or clears the Parent with null. */
+  async setParent(projectId: string, draftId: string, copyId: string | null) {
+    requireAzureDevOps(await getProject(projectId))
+    return this.update(projectId, draftId, (draft) => {
+      const next = withParent(draft, copyId)
+      if (copyId !== null && next === draft && parentReference(draft)?.copyId !== copyId)
+        throw new DraftInputError('Only a Backlog Copy this Draft references can be its Parent.')
+      return next
+    })
+  }
+
   /** Sets which Backlog Copies the Draft references; unknown ones are dropped, new ones start unchanged. */
   async setBacklogReferences(projectId: string, draftId: string, copyIds: string[]) {
     requireAzureDevOps(await getProject(projectId))
@@ -141,14 +161,35 @@ export class DraftService {
     return this.update(projectId, draftId, (draft) => acceptAllClean(draft, meta))
   }
 
-  /** Saves `fn`'s result under the Draft's lock and announces it; returning null (or the same Draft) changes nothing. */
-  async update(projectId: string, draftId: string, fn: (draft: Draft) => Draft | null): Promise<Draft> {
+  /** Moves the Draft to a Lane on the Project board; where a Draft sits does not count as an update to it. */
+  moveToLane = (projectId: string, draftId: string, lane: DraftLane) =>
+    this.update(projectId, draftId, (draft) => moveToLane(draft, lane), { touch: false })
+
+  /** Archives or restores the Draft; a restored Draft goes back to the Lane it had. */
+  setArchived = (projectId: string, draftId: string, archived: boolean) =>
+    this.update(projectId, draftId, (draft) => setArchived(draft, archived), { touch: false })
+
+  /**
+   * Saves `fn`'s result under the Draft's lock and announces it; returning null (or the same Draft) changes nothing.
+   * New work for the human moves the Draft to Needs you, whichever change brought it (ADR-0019).
+   */
+  async update(
+    projectId: string,
+    draftId: string,
+    fn: (draft: Draft) => Draft | null,
+    options: { touch?: boolean } = {},
+  ): Promise<Draft> {
     let changed = false
-    const draft = await drafts.updateDraft(projectId, draftId, (current) => {
-      const next = fn(current)
-      changed = next !== null && next !== current
-      return next
-    })
+    const draft = await drafts.updateDraft(
+      projectId,
+      draftId,
+      (current) => {
+        const next = fn(current)
+        changed = next !== null && next !== current
+        return changed && next ? withNewWorkLane(current, next) : next
+      },
+      options,
+    )
     if (changed) {
       this.hub.broadcast({ type: 'draft', projectId, draft })
       this.hub.broadcast({ type: 'drafts', projectId })

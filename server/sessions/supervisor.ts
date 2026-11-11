@@ -263,6 +263,8 @@ export class Supervisor {
     const conversation = { persist: scope.persist, ...(resume ? { resume } : {}) }
     const child = spawnClaude({ sessionId: transcript.id, token, scope, seed, model, conversation })
     const live = newLive(transcript, scope, child, token)
+    // A session confirmed from the start (an Import) may submit without a Ready Check.
+    if (transcript.writeConfirmed) live.state = { ...live.state, writeConfirmed: true }
     this.live.set(transcript.id, live)
     this.unsaved.add(live.ended)
     void live.ended.then(() => this.unsaved.delete(live.ended))

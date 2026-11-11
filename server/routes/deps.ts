@@ -1,4 +1,8 @@
 // The dependencies every route module receives from createServices.
+import type { BacklogService } from '../ado/backlogService.ts'
+import type { ConnectionService } from '../ado/connectionService.ts'
+import type { ImportService } from '../ado/importService.ts'
+import type { PublishService } from '../ado/publishService.ts'
 import type { CodeFolderService } from '../codeFolders/codeFolderService.ts'
 import type { BacklogCopyService } from '../services/backlogCopyService.ts'
 import type { DraftService } from '../services/draftService.ts'
@@ -14,4 +18,8 @@ export interface AppDeps {
   glossary: GlossaryService
   backlogCopies: BacklogCopyService
   codeFolders: CodeFolderService
+  connection: ConnectionService
+  backlog: BacklogService
+  publish: PublishService
+  imports: ImportService
 }
