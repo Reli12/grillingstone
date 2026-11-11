@@ -15,6 +15,8 @@ export const endpoints = {
   draftOps: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/ops`,
   draftReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/references`,
   draftBacklogReferences: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/backlog-references`,
+  draftLane: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/lane`,
+  draftArchived: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/archived`,
   backlogCopies: (projectId: string) => `${projectPath(projectId)}/backlog-copies`,
   backlogCopy: (projectId: string, copyId: string) =>
     `${projectPath(projectId)}/backlog-copies/${encodeURIComponent(copyId)}`,
@@ -45,4 +47,21 @@ export const endpoints = {
   liveTemplateSession: '/api/template-sessions/live',
   templateSession: (sessionId: string) => `/api/template-sessions/${encodeURIComponent(sessionId)}`,
   socket: '/api/ws',
+  connection: '/api/connection',
+  projectBacklog: (projectId: string) => `${projectPath(projectId)}/backlog`,
+  projectDefaultTags: (projectId: string) => `${projectPath(projectId)}/default-tags`,
+  projectRevisions: (projectId: string) => `${projectPath(projectId)}/revisions`,
+  workItemLookup: (projectId: string) => `${projectPath(projectId)}/work-items/lookup`,
+  importDraft: (projectId: string) => `${projectPath(projectId)}/drafts/import`,
+  publishPlan: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/publish/plan`,
+  publish: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/publish`,
+  draftLink: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/link`,
+  driftCheck: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/drift-check`,
+  draftParent: (projectId: string, draftId: string) => `${draftPath(projectId, draftId)}/parent`,
+  refreshCopy: (projectId: string, copyId: string) =>
+    `${projectPath(projectId)}/backlog-copies/${encodeURIComponent(copyId)}/refresh`,
+  refreshAllCopies: (projectId: string) => `${projectPath(projectId)}/backlog-copies/refresh-all`,
+  fetchCopy: (projectId: string) => `${projectPath(projectId)}/backlog-copies/fetch`,
+  importCopy: (projectId: string, copyId: string) =>
+    `${projectPath(projectId)}/backlog-copies/${encodeURIComponent(copyId)}/import`,
 }

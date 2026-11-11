@@ -1,4 +1,4 @@
-// Step 5: Focused Sessions, New Iterations, Continue, and how Proposals are triaged.
+// Step 7: Focused Sessions, New Iterations, Continue, and how Proposals are triaged.
 import type { Change } from '#core/proposal/proposalTypes.ts'
 
 import { ExampleFrame } from '@/components/composite/exampleFrame/exampleFrame'
@@ -29,10 +29,10 @@ const conflictExample: Change = {
   status: 'pending',
 }
 
-/** Step 5: Focused Sessions, New Iterations, Continue, and how Proposals are triaged. */
+/** Step 7: Focused Sessions, New Iterations, Continue, and how Proposals are triaged. */
 export function StepRefine() {
   return (
-    <NumberedStep n={5} id="refine" title={STEPS[4].title}>
+    <NumberedStep n={7} id="refine" title={STEPS[6].title}>
       <p>
         To rework one part, hover it and press <strong>Grill this</strong> — a <strong>Focused Session</strong> on just
         that Section or Entry. To re-grill the whole Draft (say, the BA revised the Feature), type in the message box on

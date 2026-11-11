@@ -1,4 +1,5 @@
-// Every dialog the Draft page can open: start a session, copy for the Tracker, References, delete.
+// Every dialog the Draft page can open: start a session, copy for the Tracker, References, delete, and for Azure
+// DevOps, Publish and Link.
 import { useNavigate } from 'react-router'
 
 import type { Draft } from '#core/draft/draftTypes.ts'
@@ -7,6 +8,7 @@ import { DeleteDraftDialog } from '@/components/features/draft/dialogs/deleteDra
 import { ReferencesDialog } from '@/components/features/draft/dialogs/referencesDialog/referencesDialog'
 import { StartSessionDialog } from '@/components/features/draft/dialogs/startSessionDialog/startSessionDialog'
 import { CopyForTracker } from '@/components/features/draft/publish/copyForTracker/copyForTracker'
+import { PublishDialog } from '@/components/features/draft/publish/publishDialog/publishDialog'
 import { useBacklogStatus } from '@/hooks/draft/useBacklogStatus'
 import type { DraftMutations } from '@/hooks/draft/useDraftMutations'
 import type { DraftPageUi } from '@/hooks/draft/useDraftPageUi'
@@ -57,6 +59,12 @@ export function DraftDialogs({ projectId, draft, mutations, ui }: Readonly<Draft
       />
       <ReferencesDialog open={ui.refsOpen} onClose={() => ui.setRefsOpen(false)} draft={draft} />
       <DeleteDraftDialog open={ui.deleteOpen} onClose={() => ui.setDeleteOpen(false)} onDelete={onDelete} />
+      <PublishDialog
+        projectId={projectId}
+        draftId={draft.id}
+        open={ui.publishOpen}
+        onClose={() => ui.setPublishOpen(false)}
+      />
     </>
   )
 }

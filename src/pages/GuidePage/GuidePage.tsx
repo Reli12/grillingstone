@@ -3,6 +3,8 @@
 
 import { GoodToKnow } from '@/components/features/guide/goodToKnow/goodToKnow'
 import { Intro } from '@/components/features/guide/intro/intro'
+import { StepBacklogCopies } from '@/components/features/guide/stepBacklogCopies/stepBacklogCopies'
+import { StepConnect } from '@/components/features/guide/stepConnect/stepConnect'
 import { StepDraft } from '@/components/features/guide/stepDraft/stepDraft'
 import { StepGrill } from '@/components/features/guide/stepGrill/stepGrill'
 import { StepNav } from '@/components/features/guide/stepNav/stepNav'
@@ -23,6 +25,8 @@ export default function GuidePage() {
           <WhyGrillingStone />
           <div className="space-y-12">
             <StepProject />
+            <StepConnect />
+            <StepBacklogCopies />
             <StepStart />
             <StepGrill />
             <StepDraft />

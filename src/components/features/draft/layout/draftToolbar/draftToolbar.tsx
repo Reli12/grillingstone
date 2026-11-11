@@ -1,5 +1,5 @@
 // Above the sheet: where this Draft sits, show/hide Discarded parts, and References, Delete and Copy for the
-// Draft's Tracker.
+// Draft's Tracker — and for Azure DevOps, its Linked Work Item and Publish.
 import { Link } from 'react-router'
 
 import { ClipboardCopy, Link2, Trash2 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { templateTracker } from '#core/template/templateTypes.ts'
 
 import { Button } from '@/components/atoms/button/button'
+import { AzureActions } from '@/components/features/draft/publish/azureActions/azureActions'
 import { DiscardedToggle } from '@/components/features/draft/sheet/discardedToggle/discardedToggle'
 import { useDiscardedVisibility } from '@/context/DiscardedVisibility/DiscardedVisibility'
 import { routesPaths } from '@/routes/routes'
@@ -29,6 +30,7 @@ interface DraftToolbarProps {
   onReferences: () => void
   onDelete: () => void
   onCopy: () => void
+  onPublish: () => void
 }
 
 /** Above the sheet: where this Draft sits, and References, Delete and Copy for the Draft's Tracker. */
@@ -40,6 +42,7 @@ export function DraftToolbar({
   onReferences,
   onDelete,
   onCopy,
+  onPublish,
 }: Readonly<DraftToolbarProps>) {
   const referenceCount = draft.references.length
   const { showAll, setShowAll } = useDiscardedVisibility()
@@ -60,6 +63,9 @@ export function DraftToolbar({
       <Button size="sm" variant="quiet" onClick={onDelete} disabled={running} aria-label="Delete Draft">
         <Trash2 size={14} />
       </Button>
+      {templateTracker(draft.template) === 'azure-devops' && (
+        <AzureActions projectId={projectId} draft={draft} onPublish={onPublish} />
+      )}
       <Button size="sm" variant="ink" onClick={onCopy}>
         <ClipboardCopy size={14} /> Copy for {TRACKER_LABELS[templateTracker(draft.template)]}
       </Button>

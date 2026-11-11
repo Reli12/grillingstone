@@ -23,6 +23,11 @@ export function GoodToKnow() {
           <InlineCode>~/.claude/projects</InlineCode>) so it can be continued.
         </li>
         <li>
+          Backlog Copies are saved in the same <InlineCode>data/</InlineCode> folder, so they stay readable without a
+          Connection. The Azure DevOps token is kept apart from them and never reaches Claude or any session; the tool
+          only writes to Azure DevOps when you confirm a Publish.
+        </li>
+        <li>
           The license, the terms that apply to your Claude account and trademarks are on the{' '}
           <Link to={routesPaths.legal} className="text-claude underline">
             Legal

@@ -1,14 +1,14 @@
-// Step 3: The grilling conversation, the Ready Check and v1.
+// Step 5: The grilling conversation, the Ready Check and v1.
 import { ExampleFrame } from '@/components/composite/exampleFrame/exampleFrame'
 import { NumberedStep } from '@/components/composite/numberedStep/numberedStep'
 import { QuestionCard } from '@/components/features/chat/questionCard/questionCard'
 import { STEPS } from '@/constants/GuideConstants'
 import { exampleOnly } from '@/lib/exampleOnly'
 
-/** Step 3: The grilling conversation, the Ready Check and v1. */
+/** Step 5: The grilling conversation, the Ready Check and v1. */
 export function StepGrill() {
   return (
-    <NumberedStep n={3} id="grill" title={STEPS[2].title}>
+    <NumberedStep n={5} id="grill" title={STEPS[4].title}>
       <p>
         Until the first Draft exists the screen is one conversation. Claude asks <strong>one question at a time</strong>
         , and every question carries its recommended answer. Take the recommendation, pick an option, or answer in your
@@ -39,7 +39,7 @@ export function StepGrill() {
       </p>
       <p>
         <strong>Stop</strong> ends a session without writing anything. You can pick it up again later (see Continue in
-        step 5).
+        step 7).
       </p>
     </NumberedStep>
   )

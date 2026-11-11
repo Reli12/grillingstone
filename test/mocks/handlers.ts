@@ -26,4 +26,11 @@ export const handlers = [
   http.get(url(endpoints.templates), () => HttpResponse.json([defaultPbiTemplate])),
   // No Code Folders unless a test links some (codeFolderBackend).
   http.get(url(endpoints.codeFolderState(':projectId')), () => HttpResponse.json([])),
+  // No Azure DevOps Connection unless a test sets one up.
+  http.get(url(endpoints.connection), () =>
+    HttpResponse.json({ state: 'none', fromEnvironment: false, storage: 'Saved in a test.' }),
+  ),
+  http.get(url(endpoints.projectRevisions(':projectId')), () =>
+    HttpResponse.json({ mayHaveDrift: [], changedCopies: {} }),
+  ),
 ]

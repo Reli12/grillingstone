@@ -33,6 +33,8 @@ const written: DraftSummary = {
   templateName: '',
   pendingChanges: 0,
   changedBacklogCopies: [],
+  lane: 'review' as const,
+  archived: false,
   updatedAt: '',
 }
 
