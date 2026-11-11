@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/Reli12/grillingstone/compare/v1.0.0...v1.1.0) (2026-11-11)
+
+
+### Features
+
+* add Azure DevOps Publish and Import, and a board of Draft Lanes ([7808afb](https://github.com/Reli12/grillingstone/commit/7808afb041b44fcaab85ba5b75a1658f0e931ae1))
+* add Azure DevOps Publish and Import, and a board of Draft Lanes ([92a5812](https://github.com/Reli12/grillingstone/commit/92a5812199fb526cb2cfc3436feac9b1d585a971))
+
 ## [1.0.0](https://github.com/Reli12/grillingstone/compare/v0.1.0...v1.0.0) (2026-11-04)
 
 
