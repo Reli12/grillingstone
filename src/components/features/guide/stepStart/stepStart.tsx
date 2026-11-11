@@ -1,11 +1,11 @@
-// Step 2: Starting a Draft: type, Template, requirement and References.
+// Step 4: Starting a Draft: type, Template, requirement and References.
 import { NumberedStep } from '@/components/composite/numberedStep/numberedStep'
 import { STEPS } from '@/constants/GuideConstants'
 
-/** Step 2: Starting a Draft: type, Template, requirement and References. */
+/** Step 4: Starting a Draft: type, Template, requirement and References. */
 export function StepStart() {
   return (
-    <NumberedStep n={2} id="start" title={STEPS[1].title}>
+    <NumberedStep n={4} id="start" title={STEPS[3].title}>
       <p>
         Press <strong>New Draft</strong>, pick the <strong>Work Item Type</strong> (Epic, Feature, PBI, Task or Bug in
         Azure DevOps; Epic, Story, Task, Sub-task or Bug in Jira) and a <strong>Template</strong> — the Default one is
@@ -21,6 +21,17 @@ export function StepStart() {
       <p>
         Optionally tick <strong>References</strong>: other Drafts in the Project Claude may read as context, such as the
         Feature a PBI implements. They add context, not hierarchy.
+      </p>
+      <p>
+        In an Azure DevOps Project, also pick <strong>Backlog References</strong>: the Backlog Copies this Draft derives
+        from. The first session reads them in full; later sessions are told they exist and read them when it matters.
+        You can add or remove them later from the Draft’s References, and mark one as the Draft’s{' '}
+        <strong>Parent</strong> — the work item it belongs under when it is Published.
+      </p>
+      <p>
+        Already have the work item in Azure DevOps? With a Connection and a Backlog, use{' '}
+        <strong>Import a work item</strong> above the form: the Draft takes the item’s type, is born linked to it, and
+        its first version is written from the item’s own words, without grilling or adding anything.
       </p>
     </NumberedStep>
   )

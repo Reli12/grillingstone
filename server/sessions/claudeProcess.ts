@@ -6,7 +6,16 @@ import type { Seed } from '#core/session/cardProtocol.ts'
 import type { ContentBlock } from '#core/session/images.ts'
 import { CODE_TOOLS_SERVER, SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { CLAUDE_BIN, CODE_TOOLS_SCRIPT, HOOK_SCRIPT, SERVER_URL, SUBMIT_SCRIPT } from '../config.ts'
+import {
+  ADO_ORG_ENV,
+  ADO_PAT_ENV,
+  CLAUDE_BIN,
+  CODE_TOOLS_SCRIPT,
+  HOOK_SCRIPT,
+  SECRETS_DIR,
+  SERVER_URL,
+  SUBMIT_SCRIPT,
+} from '../config.ts'
 import type { Scope } from './sessionScope.ts'
 
 export interface ClaudeLaunch {
@@ -62,13 +71,21 @@ export function claudeArgs(
   ]
 }
 
+/** The backend's environment without the Connection's token: Claude never sees it, whatever it runs. */
+export function sessionEnvironment(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const { [ADO_PAT_ENV]: _token, [ADO_ORG_ENV]: _org, ...rest } = env
+  return rest
+}
+
 export function spawnClaude({ sessionId, token, scope, seed, model, conversation }: ClaudeLaunch): ChildProcess {
   const labels = scope.codeFolders?.map((folder) => folder.label) ?? []
   return spawn(CLAUDE_BIN, claudeArgs(seed.systemPrompt, model, conversation, labels.length > 0), {
     cwd: scope.cwd,
     env: {
-      ...process.env,
+      ...sessionEnvironment(),
       GRILLINGSTONE_PROJECT_DIR: scope.cwd,
+      // The Permission Guard denies it by name too, as a second safeguard to its being outside every Project folder.
+      GRILLINGSTONE_SECRETS_DIR: SECRETS_DIR,
       GRILLINGSTONE_GUARD_MODE: scope.guardMode,
       GRILLINGSTONE_SUBMIT_SCRIPT: SUBMIT_SCRIPT,
       GRILLINGSTONE_SERVER_URL: SERVER_URL,

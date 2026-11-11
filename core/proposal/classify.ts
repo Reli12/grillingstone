@@ -1,7 +1,7 @@
 // Classifying a Proposal's changes (ADR-0005): whether a change is a Conflict is derived from what the
 // human did to its target — never declared by Claude.
 import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
-import type { Change, ProposedChange } from '#core/proposal/proposalTypes.ts'
+import type { Change, ProposalKind, ProposedChange } from '#core/proposal/proposalTypes.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import { newId } from '#core/shared/ids.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -44,6 +44,39 @@ function conflictReason(draft: Draft, proposed: ProposedChange, target: Target):
     case 'replaceSection':
     case 'replaceEntry':
       return replaceConflict(proposed.kind, target)
+  }
+}
+
+const CHANGED_SINCE_PUBLISH = 'You changed this since the last Publish'
+
+/**
+ * For a Proposal brought from Drift: a Conflict when the human also changed (or Discarded) the target since the
+ * Published Snapshot; anything they left as Published is a Clean Change.
+ */
+function driftConflictReason(draft: Draft, proposed: ProposedChange, { section, entry }: Target): string | undefined {
+  const snapshot = draft.publishedSnapshot?.draft
+  const published = snapshot?.sections.find((candidate) => candidate.id === section?.id)
+  switch (proposed.kind) {
+    case 'retitle':
+      return snapshot && draft.title.trim() !== snapshot.title.trim()
+        ? 'You retitled this Draft since the last Publish'
+        : undefined
+    case 'restore':
+      return 'You discarded this'
+    case 'addSection':
+      return undefined
+    case 'addEntry':
+      return section?.discarded ? 'You discarded this Section' : undefined
+    case 'replaceSection':
+      if (section?.discarded) return 'You discarded this'
+      if (!published || !section) return CHANGED_SINCE_PUBLISH
+      return section.body !== published.body ? CHANGED_SINCE_PUBLISH : undefined
+    case 'replaceEntry': {
+      if (entry?.discarded || section?.discarded) return 'You discarded this'
+      const before = published?.entries.find((candidate) => candidate.id === entry?.id)
+      if (!before || !entry) return CHANGED_SINCE_PUBLISH
+      return entryText(before) !== entryText(entry) ? CHANGED_SINCE_PUBLISH : undefined
+    }
   }
 }
 
@@ -106,9 +139,16 @@ const stripDerived = (proposed: ProposedChange): ProposedChange => {
   return Object.fromEntries(defined) as unknown as ProposedChange
 }
 
-function classifyOne(draft: Draft, proposed: ProposedChange, id: string, status: Change['status']): Change {
+function classifyOne(
+  draft: Draft,
+  proposed: ProposedChange,
+  id: string,
+  status: Change['status'],
+  kind: ProposalKind,
+): Change {
   const target = findTarget(draft, proposed)
-  const reason = conflictReason(draft, proposed, target)
+  const reason =
+    kind === 'drift' ? driftConflictReason(draft, proposed, target) : conflictReason(draft, proposed, target)
   const { label, before, after } = describe(draft, proposed, target)
   const change: Change = { ...stripDerived(proposed), id, label, after, conflict: reason !== undefined, status }
   if (before !== undefined) change.before = before
@@ -116,15 +156,15 @@ function classifyOne(draft: Draft, proposed: ProposedChange, id: string, status:
   return change
 }
 
-export function classify(draft: Draft, proposed: ProposedChange[]): Change[] {
-  return proposed.map((change) => classifyOne(draft, change, newId('c'), 'pending'))
+export function classify(draft: Draft, proposed: ProposedChange[], kind: ProposalKind = 'iteration'): Change[] {
+  return proposed.map((change) => classifyOne(draft, change, newId('c'), 'pending', kind))
 }
 
 /** Re-derives Conflicts for pending changes after the human edited the Draft mid-triage. */
 export function reclassify(draft: Draft): Draft {
   if (!draft.proposal) return draft
   const changes = draft.proposal.changes.map((change) =>
-    change.status === 'pending' ? classifyOne(draft, change, change.id, change.status) : change,
+    change.status === 'pending' ? classifyOne(draft, change, change.id, change.status, draft.proposal!.kind) : change,
   )
   return { ...draft, proposal: { ...draft.proposal, changes } }
 }
@@ -141,7 +181,7 @@ export function openProposal(
       sessionId: opts.sessionId,
       kind: opts.kind,
       createdAt: opts.now,
-      changes: classify(draft, proposed),
+      changes: classify(draft, proposed, opts.kind),
       ...(opts.upgradeTo ? { upgradeTo: opts.upgradeTo } : {}),
     },
   }

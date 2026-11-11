@@ -1,14 +1,14 @@
-// Step 7: Templates: duplicating, building, grilling and sharing them.
+// Step 9: Templates: duplicating, building, grilling and sharing them.
 import { Link } from 'react-router'
 
 import { NumberedStep } from '@/components/composite/numberedStep/numberedStep'
 import { STEPS } from '@/constants/GuideConstants'
 import { routesPaths } from '@/routes/routes'
 
-/** Step 7: Templates: duplicating, building, grilling and sharing them. */
+/** Step 9: Templates: duplicating, building, grilling and sharing them. */
 export function StepTemplates() {
   return (
-    <NumberedStep n={7} id="templates" title={STEPS[6].title}>
+    <NumberedStep n={9} id="templates" title={STEPS[8].title}>
       <p>
         A <strong>Template</strong> decides which Sections a Draft must have and holds the writing method Claude
         follows, and each Template belongs to one Tracker. Each Section names the field it goes into — only fields its

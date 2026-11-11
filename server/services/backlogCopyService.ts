@@ -76,8 +76,13 @@ export class BacklogCopyService {
       return { ...result, touched: result.copy !== current }
     })
     if (outcome.touched) this.hub.broadcast({ type: 'backlogCopies', projectId })
-    // The changed flag shows in the Draft list, so it is refreshed too.
-    if (outcome.changed) this.hub.broadcast({ type: 'drafts', projectId })
+    if (outcome.changed) {
+      // A changed Copy is new work for every Draft built on it: each moves to Needs you (ADR-0019).
+      const referencing = (await listDrafts(projectId)).filter((draft) => !draft.archived && references(draft, copyId))
+      for (const draft of referencing) await this.drafts.moveToLane(projectId, draft.id, 'needs')
+      // The changed flag shows in the Draft list, so it is refreshed too.
+      this.hub.broadcast({ type: 'drafts', projectId })
+    }
     return outcome.copy
   }
 

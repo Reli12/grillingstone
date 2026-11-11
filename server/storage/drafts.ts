@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import type { BacklogCopy } from '#core/backlog/backlogCopy.ts'
 import { changedBacklogCopies } from '#core/backlog/backlogReference.ts'
 import type { DraftSummary } from '#core/contract/apiTypes.ts'
+import { laneOf } from '#core/draft/draftLane.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import { draftMarkdown } from '#core/publish/draftMarkdown.ts'
 
@@ -32,17 +33,21 @@ export async function createDraft(draft: Draft): Promise<Draft> {
   return draft
 }
 
-/** Read-modify-write under a per-Draft lock. Returning null (or the same Draft) from `fn` means "no change". */
+/**
+ * Read-modify-write under a per-Draft lock. Returning null (or the same Draft) from `fn` means "no change".
+ * `touch: false` keeps `updatedAt`, for changes to where a Draft sits rather than to what it says.
+ */
 export function updateDraft(
   projectId: string,
   draftId: string,
   fn: (draft: Draft) => Draft | null | Promise<Draft | null>,
+  { touch = true }: { touch?: boolean } = {},
 ): Promise<Draft> {
   return lock.run(`${projectId}/${draftId}`, async () => {
     const current = await getDraft(projectId, draftId)
     const next = await fn(current)
     if (!next || next === current) return current
-    const saved = { ...next, updatedAt: new Date().toISOString() }
+    const saved = touch ? { ...next, updatedAt: new Date().toISOString() } : next
     await write(saved)
     return saved
   })
@@ -65,15 +70,21 @@ export async function listDrafts(projectId: string): Promise<Draft[]> {
 }
 
 /** A Draft for lists; `copies` are the Project's Backlog Copies, for the changed-Copy flag. */
-export const summarize = (draft: Draft, copies: BacklogCopy[] = []): DraftSummary => ({
-  id: draft.id,
-  projectId: draft.projectId,
-  title: draft.title,
-  requirement: draft.requirement,
-  workItemType: draft.workItemType,
-  version: draft.version,
-  templateName: draft.template.name,
-  pendingChanges: draft.proposal?.changes.filter((change) => change.status === 'pending').length ?? 0,
-  changedBacklogCopies: changedBacklogCopies(draft, copies).map((copy) => copy.workItemId),
-  updatedAt: draft.updatedAt,
-})
+export function summarize(draft: Draft, copies: BacklogCopy[] = []): DraftSummary {
+  const changed = changedBacklogCopies(draft, copies).map((copy) => copy.workItemId)
+  return {
+    id: draft.id,
+    projectId: draft.projectId,
+    title: draft.title,
+    requirement: draft.requirement,
+    workItemType: draft.workItemType,
+    version: draft.version,
+    templateName: draft.template.name,
+    pendingChanges: draft.proposal?.changes.filter((change) => change.status === 'pending').length ?? 0,
+    changedBacklogCopies: changed,
+    lane: laneOf(draft, changed.length > 0),
+    archived: draft.archived ?? false,
+    updatedAt: draft.updatedAt,
+    ...(draft.linkedWorkItem ? { linkedWorkItem: { id: draft.linkedWorkItem.id, url: draft.linkedWorkItem.url } } : {}),
+  }
+}

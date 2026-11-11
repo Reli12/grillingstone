@@ -1,4 +1,4 @@
-// Tests for ProjectPage: the empty state, renaming the Project, the load error, and the Drafts and Glossary tabs.
+// Tests for ProjectPage: the empty state, renaming the Project, the load error, and the Drafts board and Glossary tabs.
 import { Route, Routes } from 'react-router'
 
 import { screen } from '@testing-library/react'
@@ -22,6 +22,29 @@ const renderPage = (route = '/p/customer-portal') =>
       <Route path={routesPaths.projectGlossary(':projectId')} element={<ProjectPage />} />
     </Routes>,
     { route },
+  )
+
+/** The Project holds one Draft, updated just now so the board's last-week default shows it. */
+const withADraft = () =>
+  server.use(
+    http.get(`*${endpoints.drafts('customer-portal')}`, () =>
+      HttpResponse.json([
+        {
+          id: 'd1',
+          projectId: 'customer-portal',
+          title: 'Archive devices',
+          requirement: 'Managers archive devices.',
+          workItemType: 'PBI',
+          version: 1,
+          templateName: 'Default PBI Template',
+          pendingChanges: 0,
+          changedBacklogCopies: [],
+          lane: 'review',
+          archived: false,
+          updatedAt: new Date().toISOString(),
+        },
+      ]),
+    ),
   )
 
 describe('ProjectPage', () => {
@@ -78,14 +101,16 @@ describe('ProjectPage', () => {
     expect(await screen.findByText('No such Project')).toBeInTheDocument()
   })
 
-  it('shows the Drafts tab with a read-only Glossary preview at the Project URL', async () => {
+  it('shows the Drafts board with a link to the Glossary at the Project URL', async () => {
+    withADraft()
     renderPage()
     expect(await screen.findByRole('tab', { name: 'Drafts' })).toHaveAttribute('aria-selected', 'true')
-    expect(await screen.findByRole('link', { name: 'Device' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'In review' })).toHaveTextContent('Archive devices')
     expect(screen.queryByRole('button', { name: /Add term/ })).not.toBeInTheDocument()
   })
 
-  it('opens the whole Glossary from the preview, and the Glossary tab at its own URL', async () => {
+  it('opens the whole Glossary from the board, and the Glossary tab at its own URL', async () => {
+    withADraft()
     const { user } = renderPage()
     await user.click(await screen.findByRole('link', { name: /Open Glossary/ }))
     expect(await screen.findByRole('tab', { name: 'Glossary' })).toHaveAttribute('aria-selected', 'true')
@@ -94,6 +119,7 @@ describe('ProjectPage', () => {
   })
 
   it('switches back to the Drafts tab', async () => {
+    withADraft()
     const { user } = renderPage('/p/customer-portal/glossary')
     await user.click(await screen.findByRole('tab', { name: 'Drafts' }))
     expect(await screen.findByRole('link', { name: /Open Glossary/ })).toBeInTheDocument()

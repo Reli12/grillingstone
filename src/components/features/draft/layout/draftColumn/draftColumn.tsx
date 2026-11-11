@@ -1,6 +1,7 @@
 // From v1 on: the chat (or Glossary) on the left, the live Draft on the right.
 import { BacklogChangedBanner } from '@/components/features/draft/layout/backlogChangedBanner/backlogChangedBanner'
 import { DraftToolbar } from '@/components/features/draft/layout/draftToolbar/draftToolbar'
+import { DriftBanner } from '@/components/features/draft/layout/driftBanner/driftBanner'
 import { UpgradeBanner } from '@/components/features/draft/layout/upgradeBanner/upgradeBanner'
 import { ProposalBar } from '@/components/features/draft/proposal/proposalBar/proposalBar'
 import { DraftSheet } from '@/components/features/draft/sheet/draftSheet/draftSheet'
@@ -37,11 +38,13 @@ export function DraftColumn({
             onReferences={() => ui.setRefsOpen(true)}
             onDelete={() => ui.setDeleteOpen(true)}
             onCopy={() => ui.setCopyOpen(true)}
+            onPublish={() => ui.setPublishOpen(true)}
           />
           {upgradeTo && (
             <UpgradeBanner latest={upgradeTo} draft={draft} onUpgrade={() => ui.setIntent({ kind: 'upgrade' })} />
           )}
           <BacklogChangedBanner draft={draft} />
+          <DriftBanner draft={draft} />
           {draft.proposal && <ProposalBar proposal={draft.proposal} busy={busy} onAcceptClean={onAcceptClean} />}
           <div className="pt-6">
             <DraftSheet />

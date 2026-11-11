@@ -77,11 +77,15 @@ A file inside a Code Folder that no session may read, search or list. Always exc
 _Avoid_: hidden file, blocked file, secret file (it need not hold a secret)
 
 **Backlog Copy**:
-A Project's copy of one Azure DevOps work item's content, as the human pasted it, identified by that item's ID. It does not follow changes made in Azure DevOps; the human pastes it again. Re-pasting marks every Draft that references it as having a changed Backlog Copy, and the next session on each such Draft is given the new content in full together with what changed since the content it replaced. This is not Drift, which concerns only a Draft's own Linked Work Item. The item may live in any Azure DevOps project of the organization, not only the Project's Backlog.
+A Project's copy of one Azure DevOps work item's content, kept on the human's machine and identified by that item's ID. The human either pastes it, or, with a Connection, gives the item's ID or link and the tool fetches its content (fetching an item that is already a Backlog Copy Refreshes it). It does not follow changes made in Azure DevOps; the human pastes it again or Refreshes it. Re-pasting or Refreshing marks every Draft that references it as having a changed Backlog Copy, and the next session on each such Draft is given the new content in full together with what changed since the content it replaced. This is not Drift, which concerns only a Draft's own Linked Work Item. The item may live in any Azure DevOps project of the organization, not only the Project's Backlog.
 _Avoid_: snapshot (that is the Published Snapshot), cached item, imported item (that is Import), feature doc
 
+**Refresh**:
+Replacing a Backlog Copy's content with what its Azure DevOps work item holds now, fetched through the Connection. To every Draft it is the same as the human re-pasting the item; a Refresh that finds nothing changed changes nothing. Only the human Refreshes; the tool tells the human when the work item has changed since the Backlog Copy, but never Refreshes on its own.
+_Avoid_: sync, pull, reload, update (that is Publish)
+
 **Parent**:
-The one Backlog Reference the human marks as the work item this Draft belongs under in Azure DevOps (a Task under a PBI or Bug, a PBI or Bug under a Feature, a Feature under an Epic). Sessions are told about it. Publish places the Linked Work Item under it only if the item has no parent yet. It never replaces or removes a parent, which stays manual in Azure DevOps.
+The one Backlog Reference the human marks as the work item this Draft belongs under in Azure DevOps (a Task under a PBI or Bug, a PBI or Bug under a Feature, a Feature under an Epic). Sessions are told about it. When Publishing, the human may instead give the parent's ID or link, without making it a Backlog Copy; that choice applies to that Publish only and is not kept on the Draft. Publish places the Linked Work Item under the parent only if the item has no parent yet. It never replaces or removes a parent, which stays manual in Azure DevOps. A Feature, PBI or Task can be Published only if its work item ends up with a parent, whether its Parent or one it already has in Azure DevOps; an Epic never has one, and a Bug may go without. A newly created work item takes its parent's area, and one without a parent goes to the Backlog's root.
 _Avoid_: parent link, epic link (when meaning the Draft's own setting)
 
 **Discarded**:
@@ -101,19 +105,27 @@ The tool's own record of one Grilling Session's conversation, kept with the Draf
 _Avoid_: chat log, history, session file
 
 **Publish**:
-Creating (or updating) the Azure DevOps work item from a Draft. The tool itself does it; Claude never takes part. Planned for v2. Only non-Discarded content is published, in the human's order.
+Creating (or updating) the Azure DevOps work item from a Draft. The tool itself does it; Claude never takes part. It happens only when the human asks for it, after being shown exactly what will be written and confirming it; moving a Draft to a Lane or accepting a Proposal never Publishes. Only non-Discarded content is published, in the human's order. A Draft without a Linked Work Item creates a new item, unless the human names an existing one (by ID or link) to update instead, which makes it the Draft's Linked Work Item.
 _Avoid_: export, push, sync
 
+**Connection**:
+The tool's access to the one Azure DevOps organization, set up once in Settings with the human's own Personal Access Token. Every Publish, Drift Check, Import and Refresh goes through it and acts in Azure DevOps as that human. The token never reaches Claude or any session. It is optional: without it, or while its token is rejected, an Azure DevOps Project still works by copying Drafts out and pasting Backlog Copies in.
+_Avoid_: integration, login, account, link
+
 **Backlog**:
-The Azure DevOps project a Project Publishes into, within the one Azure DevOps organization the tool is connected to. A Project has at most one Backlog, and several Projects may share one. Its process must be Scrum or inherit from Scrum, since the Work Item Types are named after Scrum's.
+The Azure DevOps project a Project Publishes into, within the one Azure DevOps organization the tool is connected to. A Project has at most one Backlog, and several Projects may share one. Its process must be Scrum or inherit from Scrum, since the Work Item Types are named after Scrum's. The human names it, and the tool accepts it only once it finds that Azure DevOps project with all of Scrum's Work Item Types; without one, a Project can still Refresh Backlog Copies but cannot Publish or Import. It is fixed once any of the Project's Drafts has a Linked Work Item.
 _Avoid_: ADO project, board, (Azure DevOps) project — "Project" always means this tool's Project
 
+**Default Tags**:
+The tags a human sets on a Project that Publish offers for each work item it creates in the Backlog; the human may change them for that one item without changing the Project's. Changing them never touches work items already created, and an update never changes an item's tags. Publish adds no other tags, and leaves a new item unassigned.
+_Avoid_: labels, project tags, auto tags
+
 **Linked Work Item**:
-The one Azure DevOps work item a Draft is tied to, of the same Work Item Type. Set when the Draft is first Published, when it is Imported, or when the human links an item that already exists. Once linked, Publishing always updates that item. Unlinking never touches Azure DevOps. Within a Project, only one active Draft may be linked to a given work item.
+The one Azure DevOps work item a Draft is tied to, of the same Work Item Type and always in the Project's Backlog. Set when the Draft is first Published, whether that creates a new item or updates an existing one the human names, or when it is Imported. There is no linking without Publishing. Once linked, Publishing always updates that item. Unlinking never touches Azure DevOps. Within a Project, only one active Draft may be linked to a given work item.
 _Avoid_: ADO id, remote item, synced item
 
 **Import**:
-Creating a Draft from an existing Azure DevOps work item. The Draft is born linked to that item. An Import Session moves the item's content into the chosen Template's Sections without rewording or adding anything. Sections the item lacks stay empty with that reason, Locked Sections included. The item's full original content is kept as the Draft's requirement. Changes made in Azure DevOps afterwards arrive only as Drift.
+Creating a Draft from an existing Azure DevOps work item in the Project's Backlog, named by the human by its ID or link. The Draft takes the item's Work Item Type and is born linked to that item. The item is always read live through the Connection, even when the Import is started from a Backlog Copy of it. An Import Session moves the item's content into the chosen Template's Sections without rewording or adding anything. Sections the item lacks stay empty with that reason, Locked Sections included. The item's full original content is kept as the Draft's requirement. Changes made in Azure DevOps afterwards arrive only as Drift.
 _Avoid_: sync, pull, clone
 
 **Import Session**:
@@ -121,20 +133,24 @@ The short, single-turn session that writes an Imported Draft's v1. It never gril
 _Avoid_: import grilling, conversion
 
 **Published Snapshot**:
-What Azure DevOps held for a Draft's Linked Work Item at the last Publish or link, together with that item's revision at the time. It is the baseline a Drift Check compares against.
+What Azure DevOps held for a Draft's Linked Work Item at the last Publish, together with that item's revision at the time. It is the baseline a Drift Check compares against.
 _Avoid_: last sync, cache, remote copy
 
 **Drift**:
-A field of the Linked Work Item that someone changed in Azure DevOps since the Published Snapshot. Only fields the Template publishes count. Drift blocks the next Publish until the human decides for each field whether to overwrite it or bring the change into the Draft as a Proposal.
+A field of the Linked Work Item that someone changed in Azure DevOps since the Published Snapshot. Only fields the Template publishes count. Drift arrives in the Draft as a Proposal like any other, triaged change by change: accepting a change takes the Azure DevOps version into the Draft, declining it keeps the Draft's version, which the next Publish writes over the work item. Drift blocks the next Publish until its Proposal is fully triaged.
 _Avoid_: out of sync, diff, remote changes
 
 **Drift Check**:
-Comparing a Linked Work Item with its Published Snapshot and the current Draft. It runs before every Publish that updates an item, and whenever the human asks.
+Comparing a Linked Work Item with its Published Snapshot and the current Draft. It runs before every Publish that updates an item, and whenever the human asks. Separately, the tool notices when a Linked Work Item has any new revision since its Published Snapshot and shows the Draft as possibly having Drift; only a Drift Check says whether it does, and possible Drift never moves the Draft's Lane.
 _Avoid_: sync, refresh, compare
 
 **Archived**:
 The state of a whole Draft that is no longer worked on. It is read-only: it has no sessions, edits or Publish. It stays visible and can still be the target of a Reference, and the human can restore it. A Draft is Archived by the human, or with the human's confirmation when another Draft takes over its Linked Work Item. It keeps that work item only as history.
 _Avoid_: deleted, closed, inactive (and never "Discarded", which is for Sections and Entries)
+
+**Lane**:
+Where a Draft sits on its Project's board: Grilling, Needs you, In review or Ready to publish. The human moves a Draft between Lanes. A new Draft starts in Grilling. The one automatic move is to Needs you, when new work for the human arrives: a session's Proposal with Changes to triage, or a re-paste or Refresh of a Backlog Copy the Draft references. A Draft the human moved out of Needs you stays where they put it until more work arrives. Moving a Draft is not an update to it, and an Archived Draft keeps its Lane for when it is restored (ADR-0019).
+_Avoid_: status, column, stage, state
 
 ### Changing a Draft after v1
 
@@ -143,11 +159,11 @@ The set of changes a Grilling Session suggests to an existing Draft. Never appli
 _Avoid_: suggestion, patch, update
 
 **Clean Change**:
-A change in a Proposal that touches only content Claude wrote and the human never edited, moved or discarded. Can be accepted in bulk.
+A change in a Proposal that touches only content Claude wrote and the human never edited, moved or discarded. In a Proposal brought from Drift: a change to content the human has not touched since the Published Snapshot. Can be accepted in bulk.
 _Avoid_: safe change, auto change
 
 **Conflict**:
-A change in a Proposal that touches content the human edited, moved or discarded — including any attempt to bring back something Discarded. Always decided one at a time.
+A change in a Proposal that touches content the human edited, moved or discarded — including any attempt to bring back something Discarded. In a Proposal brought from Drift: a change to content the human has also changed since the Published Snapshot. Always decided one at a time.
 _Avoid_: collision, merge conflict
 
 **Iteration**:

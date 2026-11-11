@@ -109,6 +109,8 @@ export type ServerEvent =
   | { type: 'glossary'; projectId: string }
   | { type: 'drafts'; projectId: string }
   | { type: 'backlogCopies'; projectId: string }
+  | { type: 'project'; projectId: string }
+  | { type: 'connection' }
   | { type: 'templates' }
   | { type: 'templateSession'; session: TemplateSessionSummary }
   | { type: 'templateMessage'; sessionId: string; message: ChatMessage }

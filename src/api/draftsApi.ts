@@ -1,6 +1,7 @@
 // Draft API: reading and changing a Draft, its Proposal and references, and driving its Grilling
 // Sessions (start, continue, answer, write now, stop).
 import type { PastedCopy } from '#core/backlog/backlogCopy.ts'
+import type { DraftLane } from '#core/draft/draftLane.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { CopyPayload } from '#core/publish/copyFields.ts'
@@ -64,6 +65,10 @@ export const draftsApi = {
     api.patch<Draft>(endpoints.draftReferences(projectId, draftId), { references }),
   setBacklogReferences: (projectId: string, draftId: string, backlogReferences: string[]) =>
     api.patch<Draft>(endpoints.draftBacklogReferences(projectId, draftId), { backlogReferences }),
+  moveToLane: (projectId: string, draftId: string, lane: DraftLane) =>
+    api.patch<Draft>(endpoints.draftLane(projectId, draftId), { lane }),
+  setArchived: (projectId: string, draftId: string, archived: boolean) =>
+    api.patch<Draft>(endpoints.draftArchived(projectId, draftId), { archived }),
   decide: (projectId: string, draftId: string, changeId: string, accept: boolean) =>
     api.post<Draft>(endpoints.decide(projectId, draftId), { changeId, accept }),
   acceptAllClean: (projectId: string, draftId: string) => api.post<Draft>(endpoints.acceptClean(projectId, draftId)),

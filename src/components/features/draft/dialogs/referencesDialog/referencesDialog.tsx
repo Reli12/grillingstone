@@ -1,15 +1,19 @@
 // The References dialog: which other Drafts of the Project later sessions may read as context, and — in an Azure
-// DevOps Project — which Backlog Copies the Draft derives from (ADR-0015). The two are kept apart: Draft References
-// come from this tool and are always given in full, Backlog References come from Azure DevOps and are listed.
+// DevOps Project — which Backlog Copies the Draft derives from (ADR-0015), one of them its Parent. Tabs per kind, a
+// filterable table, and staged changes: ticking only marks a row; Save writes them all, Discard drops them.
+import { useState } from 'react'
 import { Link } from 'react-router'
 
-import { backlogReferencesOf } from '#core/backlog/backlogReference.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 
-import { useBacklogCopies } from '@/api/hooks/backlogCopies/backlogCopyHooks'
-import { useSetBacklogReferences, useSetReferences } from '@/api/hooks/drafts/draftHooks'
-import { useDrafts, useProject } from '@/api/hooks/projects/projectHooks'
+import { useProject } from '@/api/hooks/projects/projectHooks'
 import { Dialog } from '@/components/composite/dialog/dialog'
+import { ReferencesNav } from '@/components/features/draft/references/referencesNav/referencesNav'
+import { ReferencesSaveBar } from '@/components/features/draft/references/referencesSaveBar/referencesSaveBar'
+import { ReferencesTable } from '@/components/features/draft/references/referencesTable/referencesTable'
+import { ReferencesToolbar } from '@/components/features/draft/references/referencesToolbar/referencesToolbar'
+import { type ReferenceFilters, type ReferenceTab, useReferenceFilters } from '@/hooks/draft/useReferenceFilters'
+import { type ReferenceSelection, useReferenceSelection } from '@/hooks/draft/useReferenceSelection'
 import { routesPaths } from '@/routes/routes'
 
 interface ReferencesDialogProps {
@@ -18,74 +22,45 @@ interface ReferencesDialogProps {
   draft: Draft
 }
 
-const rowClass =
-  'flex cursor-pointer items-center gap-2.5 rounded-md border border-line px-3 py-2 text-sm hover:border-ink-faint'
-
-const toggled = (ids: string[], id: string) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id])
-
-function DraftReferences({ draft }: Readonly<{ draft: Draft }>) {
-  const { data: drafts } = useDrafts(draft.projectId)
-  const setReferences = useSetReferences(draft.projectId, draft.id)
-  // Only Drafts with a written version have anything to read.
-  const others = drafts?.filter((other) => other.id !== draft.id && other.version > 0) ?? []
-  return (
-    <>
-      <p className="mb-3 text-sm text-ink-soft">
-        Later sessions may read these Drafts as context. No hierarchy — each Draft stands on its own.
-      </p>
-      {others.length === 0 && <p className="text-sm text-ink-faint">No other written Drafts in this Project yet.</p>}
-      <div className="space-y-1.5">
-        {others.map((other) => (
-          <label key={other.id} className={rowClass}>
-            <input
-              type="checkbox"
-              className="accent-claude"
-              checked={draft.references.includes(other.id)}
-              onChange={() => setReferences.mutate(toggled(draft.references, other.id))}
-            />
-            <span className="text-ink-faint">{other.workItemType}</span>
-            {other.title}
-          </label>
-        ))}
-      </div>
-    </>
-  )
+/** What the table says when it has no rows: nothing of that kind yet, or nothing matching the filters. */
+function emptyText(selection: ReferenceSelection, tab: ReferenceTab, filters: ReferenceFilters): string {
+  const { total, hiddenArchived } = filters
+  if (hiddenArchived)
+    return `No Active Drafts match. ${hiddenArchived} Archived ${hiddenArchived === 1 ? 'one is' : 'ones are'} hidden — choose Archived or All to see ${hiddenArchived === 1 ? 'it' : 'them'}.`
+  if (total > 0) return 'Nothing matches the filters.'
+  if (tab === 'draft') return 'No other written Drafts in this Project yet.'
+  if (tab === 'backlog') return 'No Backlog Copies in this Project yet.'
+  return selection.items.length ? 'Nothing in use yet. Tick rows in the other tabs.' : 'Nothing to reference yet.'
 }
 
-function BacklogReferences({ draft }: Readonly<{ draft: Draft }>) {
-  const { data: summaries } = useBacklogCopies(draft.projectId)
-  const setBacklogReferences = useSetBacklogReferences(draft.projectId, draft.id)
-  const current = backlogReferencesOf(draft).map((reference) => reference.copyId)
+/** Mounted only while the dialog is open, so it starts from the Draft as saved each time. */
+function ReferencesBody({ draft, withBacklog }: Readonly<{ draft: Draft; withBacklog: boolean }>) {
+  const selection = useReferenceSelection(draft, withBacklog)
+  const [tab, setTab] = useState<ReferenceTab>('draft')
+  const filters = useReferenceFilters(selection, tab)
   return (
-    <section className="mt-6 border-t border-line-soft pt-4">
-      <h3 className="text-sm font-semibold">Backlog References</h3>
-      <p className="mb-3 text-sm text-ink-soft">
-        Azure DevOps work items this Draft derives from, as you pasted them. Later sessions get them listed and read one
-        when it matters. A change applies from the next session.
-      </p>
-      {summaries?.length === 0 && (
-        <p className="text-sm text-ink-faint">
-          No Backlog Copies in this Project yet —{' '}
-          <Link to={routesPaths.projectBacklog(draft.projectId)} className="text-claude hover:underline">
-            paste one
-          </Link>
-          .
-        </p>
-      )}
-      <div className="space-y-1.5">
-        {summaries?.map(({ copy }) => (
-          <label key={copy.id} className={rowClass}>
-            <input
-              type="checkbox"
-              className="accent-claude"
-              checked={current.includes(copy.id)}
-              onChange={() => setBacklogReferences.mutate(toggled(current, copy.id))}
-            />
-            <span className="text-ink-faint">{copy.workItemType}</span>#{copy.workItemId} {copy.title}
-          </label>
-        ))}
+    <div className="flex h-[min(64vh,640px)] flex-col gap-4 md:flex-row">
+      <ReferencesNav selection={selection} tab={tab} onTab={setTab} withBacklog={withBacklog} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+        <ReferencesToolbar filters={filters} tab={tab} />
+        <ReferencesTable
+          selection={selection}
+          rows={filters.rows}
+          tab={tab}
+          withBacklog={withBacklog}
+          empty={emptyText(selection, tab, filters)}
+        />
+        {tab === 'backlog' && filters.total === 0 && (
+          <p className="text-[13px] text-ink-faint">
+            <Link to={routesPaths.projectBacklog(draft.projectId)} className="text-claude hover:underline">
+              Paste or fetch one
+            </Link>{' '}
+            in the Project’s Backlog tab.
+          </p>
+        )}
+        <ReferencesSaveBar selection={selection} />
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -93,9 +68,8 @@ function BacklogReferences({ draft }: Readonly<{ draft: Draft }>) {
 export function ReferencesDialog({ open, onClose, draft }: Readonly<ReferencesDialogProps>) {
   const { data: project } = useProject(draft.projectId)
   return (
-    <Dialog open={open} onClose={onClose} title="References">
-      <DraftReferences draft={draft} />
-      {project?.tracker === 'azure-devops' && <BacklogReferences draft={draft} />}
+    <Dialog open={open} onClose={onClose} title="References" className="w-[min(1100px,calc(100vw-32px))]">
+      {project && <ReferencesBody draft={draft} withBacklog={project.tracker === 'azure-devops'} />}
     </Dialog>
   )
 }

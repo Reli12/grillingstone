@@ -1,11 +1,21 @@
-// Draft routes: list, create (which starts the first Grilling Session), read, delete, human edits and Proposal triage.
+// Draft routes: list, create (which starts the first Grilling Session), read, delete, human edits, Proposal triage,
+// and where the Draft sits on the Project board (its Lane, Archived).
 import { copyFields } from '#core/publish/copyFields.ts'
 import { parseMessageImages } from '#core/session/images.ts'
 
 import { IMAGE_MAX_BODY, parse } from '../http/body.ts'
 import { HttpError } from '../http/errors.ts'
 import type { Router } from '../http/router.ts'
-import { backlogReferencesBody, decideBody, humanOpBody, newDraftBody, referencesBody } from '../http/schemas.ts'
+import {
+  archivedBody,
+  backlogReferencesBody,
+  decideBody,
+  humanOpBody,
+  laneBody,
+  newDraftBody,
+  parentBody,
+  referencesBody,
+} from '../http/schemas.ts'
 import { listBacklogCopies } from '../storage/backlogCopies.ts'
 import { getDraft, listDrafts, summarize } from '../storage/drafts.ts'
 import type { AppDeps } from './deps.ts'
@@ -51,6 +61,15 @@ export function draftRoutes(router: Router, { drafts, supervisor }: AppDeps) {
   )
   router.patch(`${DRAFT}/backlog-references`, ({ params, body }) =>
     drafts.setBacklogReferences(params.projectId, params.draftId, parse(backlogReferencesBody, body).backlogReferences),
+  )
+  router.patch(`${DRAFT}/parent`, ({ params, body }) =>
+    drafts.setParent(params.projectId, params.draftId, parse(parentBody, body).copyId),
+  )
+  router.patch(`${DRAFT}/lane`, ({ params, body }) =>
+    drafts.moveToLane(params.projectId, params.draftId, parse(laneBody, body).lane),
+  )
+  router.patch(`${DRAFT}/archived`, ({ params, body }) =>
+    drafts.setArchived(params.projectId, params.draftId, parse(archivedBody, body).archived),
   )
   router.post(`${DRAFT}/ops`, ({ params, body }) =>
     drafts.edit(params.projectId, params.draftId, parse(humanOpBody, body)),

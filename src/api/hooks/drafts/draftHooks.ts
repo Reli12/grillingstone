@@ -1,7 +1,9 @@
-// React Query hooks for a Draft: its data, Transcripts and rendered fields, every Draft mutation,
-// and the calls that drive a Grilling Session.
+// React Query hooks for a Draft: its data, Transcripts and rendered fields, every Draft mutation, where it sits on
+// the Project board, and the calls that drive a Grilling Session.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import type { DraftSummary } from '#core/contract/apiTypes.ts'
+import type { DraftLane } from '#core/draft/draftLane.ts'
 import type { Draft } from '#core/draft/draftTypes.ts'
 import type { HumanOp } from '#core/draft/humanOps.ts'
 import type { SessionSummary } from '#core/session/sessionTypes.ts'
@@ -109,3 +111,44 @@ export const useSay = () =>
   })
 export const useWriteNow = () => useMutation({ mutationFn: (sessionId: string) => draftsApi.writeNow(sessionId) })
 export const useStopSession = () => useMutation({ mutationFn: (sessionId: string) => draftsApi.stop(sessionId) })
+
+/**
+ * A change to where Drafts sit on the Project board, shown in the Draft list at once and rolled back if the server
+ * refuses it, so a dropped card never jumps back while the request is in flight.
+ */
+function useBoardMutation<V extends { draftId: string }>(
+  projectId: string,
+  fn: (v: V) => Promise<Draft>,
+  patch: (v: V) => Partial<DraftSummary>,
+) {
+  const qc = useQueryClient()
+  const key = queryKeys.drafts(projectId)
+  return useMutation({
+    mutationFn: fn,
+    onMutate: async (variables: V) => {
+      await qc.cancelQueries({ queryKey: key, exact: true })
+      const previous = qc.getQueryData<DraftSummary[]>(key)
+      qc.setQueryData<DraftSummary[]>(key, (old) =>
+        old?.map((draft) => (draft.id === variables.draftId ? { ...draft, ...patch(variables) } : draft)),
+      )
+      return { previous }
+    },
+    onError: (_error, _variables, context) => qc.setQueryData(key, context?.previous),
+    onSettled: () => qc.invalidateQueries({ queryKey: key, exact: true }),
+  })
+}
+
+export const useMoveToLane = (projectId: string) =>
+  useBoardMutation(
+    projectId,
+    ({ draftId, lane }: { draftId: string; lane: DraftLane }) => draftsApi.moveToLane(projectId, draftId, lane),
+    ({ lane }) => ({ lane }),
+  )
+
+export const useSetArchived = (projectId: string) =>
+  useBoardMutation(
+    projectId,
+    ({ draftId, archived }: { draftId: string; archived: boolean }) =>
+      draftsApi.setArchived(projectId, draftId, archived),
+    ({ archived }) => ({ archived }),
+  )

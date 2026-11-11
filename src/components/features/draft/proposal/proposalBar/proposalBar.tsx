@@ -37,6 +37,19 @@ export function ProposalBar({ proposal, busy, onAcceptClean }: Readonly<Proposal
           Accept all clean ({clean})
         </Button>
       </div>
+      {proposal.kind === 'drift' && (
+        <p className="mt-1 text-[13px] text-ink-soft">
+          Changes made in Azure DevOps. Accepting takes their version; declining keeps yours, which your next Publish
+          writes back over the work item.
+        </p>
+      )}
+      {proposal.notes?.length ? (
+        <ul aria-label="Not placed" className="mt-1.5 list-disc space-y-0.5 pl-5 text-[13px] text-mark-ink">
+          {proposal.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   )
 }

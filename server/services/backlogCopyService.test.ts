@@ -94,6 +94,18 @@ describe('BacklogCopyService', () => {
     expect(summaries.map((summary) => summary.changedBacklogCopies)).toEqual([[1234], [1234]])
   })
 
+  it('moves the Drafts referencing a changed Copy to Needs you, except Archived ones (ADR-0019)', async () => {
+    await copies.create(projectId, feature)
+    const open = await drafts.create(projectId, pbiFrom(['ado-1234']))
+    const archived = await drafts.create(projectId, pbiFrom(['ado-1234']))
+    await drafts.moveToLane(projectId, open.id, 'ready')
+    await drafts.setArchived(projectId, archived.id, true)
+
+    await copies.repaste(projectId, 'ado-1234', { content: 'BR1 — changed.', acceptanceCriteria: '' })
+    expect((await getDraft(projectId, open.id)).lane).toBe('needs')
+    expect((await getDraft(projectId, archived.id)).lane).toBe('grilling')
+  })
+
   it('deletes a Copy and removes the references to it from every Draft', async () => {
     await copies.create(projectId, feature)
     await copies.create(projectId, { ...feature, workItem: '1422', workItemType: 'Bug', title: 'Search bug' })

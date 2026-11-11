@@ -6,6 +6,7 @@ import { ALLOWED_ORIGINS } from './config.ts'
 import { readBody } from './http/body.ts'
 import { HttpError, knownError } from './http/errors.ts'
 import { RawReply, Router } from './http/router.ts'
+import { adoRoutes } from './routes/adoRoutes.ts'
 import { backlogCopyRoutes } from './routes/backlogCopyRoutes.ts'
 import { codeFolderRoutes } from './routes/codeFolderRoutes.ts'
 import type { AppDeps } from './routes/deps.ts'
@@ -18,6 +19,8 @@ import { templateRoutes } from './routes/templateRoutes.ts'
 export function buildRouter(deps: AppDeps) {
   const router = new Router()
   settingsRoutes(router)
+  // Before the Draft routes, so POST .../drafts/import is never read as a Draft id.
+  adoRoutes(router, deps)
   projectRoutes(router, deps)
   draftRoutes(router, deps)
   backlogCopyRoutes(router, deps)

@@ -7,9 +7,14 @@ import type { AppDeps } from './deps.ts'
 
 const COPIES = '/api/projects/:projectId/backlog-copies'
 
-export function backlogCopyRoutes(router: Router, { backlogCopies }: AppDeps) {
+export function backlogCopyRoutes(router: Router, { backlogCopies, imports }: AppDeps) {
   router.get(COPIES, ({ params }) => backlogCopies.list(params.projectId))
-  router.post(COPIES, ({ params, body }) => backlogCopies.create(params.projectId, parse(pastedCopyBody, body)))
+  router.post(COPIES, async ({ params, body }) => {
+    const copy = await backlogCopies.create(params.projectId, parse(pastedCopyBody, body))
+    // With a Connection, the item's revision now is the baseline of "changed in Azure DevOps since your copy".
+    await imports.noteRevision(params.projectId, copy.id)
+    return copy
+  })
   router.put(`${COPIES}/:copyId`, ({ params, body }) =>
     backlogCopies.repaste(params.projectId, params.copyId, parse(repasteBody, body)),
   )

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { CODE_TOOLS_SERVER, SESSION_TOOLS } from '#core/session/permissionGuard.ts'
 
-import { claudeArgs, jsonLines } from './claudeProcess.ts'
+import { claudeArgs, jsonLines, sessionEnvironment } from './claudeProcess.ts'
 
 describe('claudeArgs', () => {
   it('runs headless over stream-json with only the session tools and the guard hook', () => {
@@ -24,6 +24,13 @@ describe('claudeArgs', () => {
     expect(claudeArgs('RULES', '', { persist: true })).not.toContain('--resume')
     const resumed = claudeArgs('RULES', '', { persist: true, resume: 'claude-123' })
     expect(resumed[resumed.indexOf('--resume') + 1]).toBe('claude-123')
+  })
+})
+
+describe('sessionEnvironment', () => {
+  it('never passes the Connection’s token or organization to a session', () => {
+    const env = sessionEnvironment({ PATH: '/bin', GRILLINGSTONE_ADO_PAT: 'secret', GRILLINGSTONE_ADO_ORG: 'org' })
+    expect(env).toEqual({ PATH: '/bin' })
   })
 })
 

@@ -18,6 +18,8 @@ export interface GuardContext {
   mode?: 'grilling' | 'template'
   /** The session was started with "Read Code Folders": the code tools are allowed (ADR-0016). */
   codeFolders?: boolean
+  /** Folders no session may ever read, even if they were inside the Project folder: the Connection's secrets. */
+  deniedDirs?: string[]
 }
 
 /** The MCP server that provides the code tools, as named in the session's MCP configuration. */
@@ -61,9 +63,17 @@ function inside(dir: string, filePath: string) {
 /** Absolute, normalised and symlink-resolved; relative paths resolve against the Project folder. */
 const resolve = (ctx: GuardContext, filePath: string) => ctx.realpath(path.resolve(ctx.projectDir, filePath))
 
+/** A path inside one of the folders no session may touch, whatever else allows it. */
+const denied = (ctx: GuardContext, real: string) =>
+  (ctx.deniedDirs ?? []).some((dir) => inside(ctx.realpath(path.resolve(dir)), real))
+
+const SECRETS_DENIED = 'That path holds the tool’s secrets; no session may read it.'
+
 function readable(ctx: GuardContext, filePath: string | undefined, what: string): Decision {
   if (filePath === undefined) return ALLOW // defaults to the working directory, which is the Project folder
-  return inside(ctx.projectDir, resolve(ctx, filePath))
+  const real = resolve(ctx, filePath)
+  if (denied(ctx, real)) return deny(SECRETS_DENIED)
+  return inside(ctx.projectDir, real)
     ? ALLOW
     : deny(`${what} "${filePath}" is outside the Project folder; sessions may only read inside ${ctx.projectDir}.`)
 }
@@ -81,6 +91,7 @@ function writable(ctx: GuardContext, filePath: string | undefined): Decision {
   const why = `Sessions may edit only the Glossary (CONTEXT.md), markdown decision records under plan/ and the submission file ${submitPayloadFile(ctx.sessionId)}. Drafts change only through the submit command.`
   if (!filePath) return deny(`No file_path given. ${why}`)
   const real = resolve(ctx, filePath)
+  if (denied(ctx, real)) return deny(SECRETS_DENIED)
   if (real === path.join(ctx.projectDir, 'CONTEXT.md')) return ALLOW
   const planDir = path.join(ctx.projectDir, 'plan')
   if (inside(planDir, real) && real.endsWith('.md') && real !== planDir) return ALLOW

@@ -288,6 +288,8 @@ describe('DraftPage from v1', () => {
       templateName: '',
       pendingChanges: 0,
       changedBacklogCopies: [],
+      lane: 'review' as const,
+      archived: false,
       updatedAt: '',
     }
     const api = draftBackend(draft, { otherDrafts: [other] })
@@ -295,6 +297,7 @@ describe('DraftPage from v1', () => {
 
     await user.click(await screen.findByRole('button', { name: /References/ }))
     await user.click(await screen.findByRole('checkbox', { name: /Billing export/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await vi.waitFor(() => expect(api.requests.at(-1)?.body).toEqual({ references: ['other'] }))
     expect(await screen.findByRole('button', { name: 'References (1)' })).toBeInTheDocument()
   })

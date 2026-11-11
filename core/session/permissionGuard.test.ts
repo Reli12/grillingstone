@@ -171,4 +171,16 @@ describe('Permission Guard — code tools (ADR-0016)', () => {
   it('never lets a Template Session use the code tools', () => {
     expect(decide(tools[2], { folder: 'app', path: 'a.ts' }, { ...withCode, mode: 'template' }).allow).toBe(false)
   })
+
+  it('denies the secrets folder by name even where it would otherwise be readable or writable', () => {
+    const secrets = `${project}/secrets`
+    const guarded = { ...ctx, deniedDirs: [secrets] }
+    for (const [tool, input] of [
+      ['Read', { file_path: `${secrets}/connection.json` }],
+      ['Grep', { pattern: 'token', path: secrets }],
+      ['Glob', { pattern: '*', path: secrets }],
+    ] as const)
+      expect(decide(tool, input, guarded)).toMatchObject({ allow: false, reason: expect.stringContaining('secrets') })
+    expect(decide('Read', { file_path: `${project}/CONTEXT.md` }, guarded).allow).toBe(true)
+  })
 })

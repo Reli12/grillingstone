@@ -9,7 +9,7 @@ import { acceptSubmission, type SubmissionOutcome } from '#core/session/acceptSu
 import { submitPayloadFile } from '#core/session/cardProtocol.ts'
 import { buildSeed, type SeededBacklogReference, type SeedInput } from '#core/session/grillingSeed.ts'
 import type { ImageUpload } from '#core/session/images.ts'
-import type { SessionKind } from '#core/session/sessionKind.ts'
+import { type SessionKind, writesV1 } from '#core/session/sessionKind.ts'
 import type { SessionSummary, Transcript } from '#core/session/sessionTypes.ts'
 import { newId } from '#core/shared/ids.ts'
 import { plural } from '#core/shared/plural.ts'
@@ -63,11 +63,13 @@ type Reference = SeedInput['references'][number]
 
 /** The first session writes v1; every later one proposes changes to an existing, untriaged Draft. */
 function checkKindFitsDraft(kind: SessionKind, draft: Draft) {
-  if (kind === 'first' && draft.version !== 0)
+  if (writesV1(kind) && draft.version !== 0)
     throw new SessionError('v1 already exists — start a Focused Session or a new Iteration instead.')
-  if (kind !== 'first' && draft.version === 0)
+  if (kind === 'import' && !draft.linkedWorkItem)
+    throw new SessionError('Only an Imported Draft has an Import Session.')
+  if (!writesV1(kind) && draft.version === 0)
     throw new SessionError('There is no Draft yet — the first session writes v1.')
-  if (kind !== 'first' && draft.proposal)
+  if (!writesV1(kind) && draft.proposal)
     throw new SessionError('Triage the open Proposal before starting another session.')
 }
 
@@ -114,6 +116,8 @@ async function loadReferences(projectId: string, draft: Draft): Promise<Referenc
  * readable file. A Copy deleted meanwhile is left out, as a deleted Reference is.
  */
 async function loadBacklogReferences(args: StartArgs, draft: Draft): Promise<SeededBacklogReference[]> {
+  // An Import Session reads only its work item.
+  if (args.kind === 'import') return []
   const loaded = await Promise.all(
     backlogReferencesOf(draft).map(async ({ copyId, seenRevision }) => {
       const copy = await findBacklogCopy(args.projectId, copyId)
@@ -165,7 +169,8 @@ async function sessionCode(
   deps: GrillingDeps,
 ): Promise<SessionCode | undefined> {
   const service = deps.codeFolders
-  if (args.readCodeFolders === false || !linked.length || !service) return undefined
+  // Only a Grilling Session reads Code Folders; an Import Session never does.
+  if (args.kind === 'import' || args.readCodeFolders === false || !linked.length || !service) return undefined
   const states = await Promise.all(linked.map((folder) => service.stateOf(folder)))
   const present = states.filter((state) => !state.missing)
   return {
@@ -252,6 +257,8 @@ function grillingIntro(input: IntroInput) {
 }
 
 function baseIntro({ args, draft, focus, upgradeTo, glossaryMarkdown, referenceCount, backlog }: IntroInput) {
+  if (args.kind === 'import')
+    return `Import Session started: Claude moves the content of Azure DevOps #${draft.linkedWorkItem?.id ?? '?'} into the Sections of the ${draft.template.name}, word for word. It asks nothing and adds nothing.`
   const terms = plural(parseGlossary(glossaryMarkdown).length, 'term')
   const extras = [referenceCount ? plural(referenceCount, 'Reference') : '', backlogPart(backlog)].filter(Boolean)
   const context = andList([`the Glossary (${terms})`, ...extras])
@@ -284,7 +291,7 @@ function grillingScope(
     emitSession: (transcript) =>
       deps.hub.broadcast({ type: 'session', projectId, session: summaryOf(transcript as Transcript) }),
     submit,
-    submitLabel: kind === 'first' ? 'Submitted the Draft for validation' : 'Submitted a Proposal for validation',
+    submitLabel: writesV1(kind) ? 'Submitted the Draft for validation' : 'Submitted a Proposal for validation',
     onGlossaryEdit: () => deps.glossary.changedBySession(projectId),
   }
 }
@@ -322,7 +329,8 @@ function newTranscript(args: StartArgs, focus: Focus, code: SessionCode | undefi
     // A Continuation numbers its Images on from the session it continues.
     ...(continues?.lastImageNumber ? { lastImageNumber: continues.lastImageNumber } : {}),
     ...(code ? { codeFolders: code.snapshots } : {}),
-    writeConfirmed: false,
+    // Starting an Import is the human's confirmation: it writes without a Ready Check.
+    writeConfirmed: args.kind === 'import',
     startedAt: now(),
     messages: [],
   }

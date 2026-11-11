@@ -6,7 +6,8 @@ import { validate } from '#core/draft/draftValidator.ts'
 import { checkProposal } from '#core/proposal/checkProposal.ts'
 import { openProposal } from '#core/proposal/classify.ts'
 import type { ProposedChange } from '#core/proposal/proposalTypes.ts'
-import type { SessionKind } from '#core/session/sessionKind.ts'
+import { draftSnapshot } from '#core/publish/publishedSnapshot.ts'
+import { type SessionKind, writesV1 } from '#core/session/sessionKind.ts'
 import { plural } from '#core/shared/plural.ts'
 import type { Reason } from '#core/shared/validation.ts'
 import type { Template } from '#core/template/templateTypes.ts'
@@ -24,18 +25,29 @@ export interface Submission {
 
 export type SubmissionOutcome = { ok: true; draft: Draft; message: string } | { ok: false; reasons: Reason[] }
 
-export function acceptSubmission(draft: Draft, submission: Submission): SubmissionOutcome {
-  if (submission.kind === 'first') {
-    if (draft.version !== 0) return { ok: false, reasons: [{ code: 'v1-exists', message: 'v1 already exists.' }] }
-    const result = validate(draft.template, submission.payload as DraftContent)
-    if (!result.ok) return { ok: false, reasons: result.reasons }
-    const next = writeV1(draft, submission.payload as DraftContent, submission.meta)
-    return {
-      ok: true,
-      draft: next,
-      message: `Draft v1 written and validated against the ${draft.template.name} (${next.sections.length} Sections).`,
-    }
+/**
+ * v1, from the first session or an Import Session. An Imported Draft's Published Snapshot then takes v1 as the
+ * Draft it was linked with, so Drift later tells the human's own changes from the item's.
+ */
+function acceptV1(draft: Draft, submission: Submission): SubmissionOutcome {
+  if (draft.version !== 0) return { ok: false, reasons: [{ code: 'v1-exists', message: 'v1 already exists.' }] }
+  const imported = submission.kind === 'import'
+  const result = validate(draft.template, submission.payload as DraftContent, { imported })
+  if (!result.ok) return { ok: false, reasons: result.reasons }
+  const linked = draft.linkedWorkItem
+  const note = imported && linked ? `Imported from Azure DevOps #${linked.id}` : undefined
+  const written = writeV1(draft, submission.payload as DraftContent, submission.meta, note)
+  const snapshot = imported && draft.publishedSnapshot
+  const next = snapshot ? { ...written, publishedSnapshot: { ...snapshot, draft: draftSnapshot(written) } } : written
+  return {
+    ok: true,
+    draft: next,
+    message: `Draft v1 written and validated against the ${draft.template.name} (${next.sections.length} Sections).`,
   }
+}
+
+export function acceptSubmission(draft: Draft, submission: Submission): SubmissionOutcome {
+  if (writesV1(submission.kind)) return acceptV1(draft, submission)
   if (draft.proposal)
     return { ok: false, reasons: [{ code: 'proposal-open', message: 'The Draft already has an open Proposal.' }] }
   const changes = (submission.payload as { changes?: unknown } | null)?.changes

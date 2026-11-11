@@ -1,6 +1,8 @@
-// The Settings page: the theme, the Default Tracker, the Iteration Log author and the Claude model.
+// The Settings page: the theme, the Default Tracker, the Iteration Log author, the Claude model and the Azure DevOps
+// Connection.
 import { useSettings } from '@/api/hooks/projects/projectHooks'
 import { PageLoading } from '@/components/atoms/pageLoading/pageLoading'
+import { ConnectionCard } from '@/components/features/settings/connectionCard/connectionCard'
 import { DefaultTrackerChoice } from '@/components/features/settings/defaultTrackerChoice/defaultTrackerChoice'
 import { SettingsForm } from '@/components/features/settings/settingsForm/settingsForm'
 import { ThemeChoice } from '@/components/features/settings/themeChoice/themeChoice'
@@ -19,6 +21,7 @@ export default function SettingsPage() {
           <ThemeChoice settings={settings} />
           <DefaultTrackerChoice settings={settings} />
           <SettingsForm settings={settings} />
+          <ConnectionCard />
         </div>
       </div>
     </div>

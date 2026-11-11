@@ -1,11 +1,11 @@
 // The Project page's tabs, each at its own URL: the Drafts, the Backlog Copies (Azure DevOps Projects only), the
-// whole Glossary to maintain, or the Code Folders its sessions may read.
+// whole Glossary to maintain, the Code Folders its sessions may read, or the Project's Settings.
 import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
 import { routesPaths } from '@/routes/routes'
 
-export type ProjectTab = 'drafts' | 'backlog' | 'glossary' | 'code'
+export type ProjectTab = 'drafts' | 'backlog' | 'glossary' | 'code' | 'settings'
 
 interface ProjectTabsProps {
   projectId: string
@@ -28,6 +28,7 @@ export function ProjectTabs({ projectId, selected, showBacklog }: Readonly<Proje
       : []),
     ['glossary', 'Glossary', routesPaths.projectGlossary(projectId)],
     ['code', 'Code Folders', routesPaths.projectCode(projectId)],
+    ['settings', 'Settings', routesPaths.projectSettings(projectId)],
   ]
   return (
     <nav role="tablist" aria-label="Project" className="flex gap-1">

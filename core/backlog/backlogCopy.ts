@@ -21,6 +21,8 @@ export interface BacklogCopy {
   /** 1 on create, +1 per re-paste that changed something. */
   revision: number
   pastedAt: string
+  /** The Azure DevOps revision of the item its content was taken at, when known (Refresh, or a check at paste). */
+  adoRev?: number
 }
 
 /** What the human pastes: the ID or link, the type, a title and the text. */

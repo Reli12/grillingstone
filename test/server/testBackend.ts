@@ -11,7 +11,8 @@ import type { ServerEvent } from '#core/session/sessionTypes.ts'
 import { createApp } from '../../server/app.ts'
 import { DATA_DIR, SERVER_PORT, SERVER_URL } from '../../server/config.ts'
 import { Hub } from '../../server/hub.ts'
-import { createServices } from '../../server/services/createServices.ts'
+import { type AdoOverrides, createServices } from '../../server/services/createServices.ts'
+import { MemorySecretStore } from './fakeAzureDevOps.ts'
 
 export interface Reply<T = any> {
   status: number
@@ -25,12 +26,16 @@ export async function resetTestData() {
   await fs.rm(DATA_DIR, { recursive: true, force: true })
 }
 
-export async function startBackend() {
+/** `ado` replaces Azure DevOps and the token's store; by default there is no Connection at all. */
+export async function startBackend(ado: AdoOverrides = {}) {
   await resetTestData()
   const hub = new Hub()
   const events: ServerEvent[] = []
   vi.spyOn(hub, 'broadcast').mockImplementation((e) => void events.push(e))
-  const deps = createServices(hub)
+  const deps = createServices(hub, {
+    store: ado.store ?? new MemorySecretStore(),
+    ...(ado.fetch ? { fetch: ado.fetch } : {}),
+  })
   const { supervisor } = deps
   const server = http.createServer(createApp(deps))
   await new Promise<void>((resolve) => server.listen(SERVER_PORT, '127.0.0.1', resolve))
@@ -61,5 +66,5 @@ export async function startBackend() {
     await supervisor.stopAll()
     await new Promise((resolve) => server.close(resolve))
   }
-  return { call, raw, events, supervisor, close }
+  return { call, raw, events, supervisor, close, deps }
 }

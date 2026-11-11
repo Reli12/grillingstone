@@ -16,6 +16,7 @@ export function useDraftPageUi() {
   const [copyOpen, setCopyOpen] = useState(false)
   const [refsOpen, setRefsOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
   const [mobileView, setMobileView] = useState<MobileView>('draft')
   /** The ended session the next message continues, instead of starting a new one. */
   const [continueFrom, setContinueFrom] = useState<Transcript | null>(null)
@@ -39,6 +40,8 @@ export function useDraftPageUi() {
     setRefsOpen,
     deleteOpen,
     setDeleteOpen,
+    publishOpen,
+    setPublishOpen,
     mobileView,
     setMobileView,
     continueFrom,

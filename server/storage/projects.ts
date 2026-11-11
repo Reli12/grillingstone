@@ -114,6 +114,20 @@ export async function saveCodeFolders(projectId: string, codeFolders: CodeFolder
   return project
 }
 
+/** Sets (or, with null, clears) the Project's Backlog; the rules about it are the Backlog service's. */
+export async function saveBacklog(projectId: string, backlog: string | null): Promise<Project> {
+  const { backlog: _previous, ...current } = await getProject(projectId)
+  const project: Project = backlog ? { ...current, backlog } : current
+  await writeJson(projectFile(projectId), project)
+  return project
+}
+
+export async function saveDefaultTags(projectId: string, defaultTags: string[]): Promise<Project> {
+  const project: Project = { ...(await getProject(projectId)), defaultTags }
+  await writeJson(projectFile(projectId), project)
+  return project
+}
+
 /** Deletes a Project's folder: its Drafts, Transcripts, Images and Glossary all go with it. */
 export async function deleteProject(projectId: string) {
   await getProject(projectId)

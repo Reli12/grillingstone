@@ -15,10 +15,10 @@ const OWNERSHIP_EXAMPLES = [
   { edited: false, moved: true, text: 'Acceptance Criteria — moved by you' },
 ]
 
-/** Step 4: Editing the Draft by hand, Locked Sections and the ownership margin. */
+/** Step 6: Editing the Draft by hand, Locked Sections and the ownership margin. */
 export function StepDraft() {
   return (
-    <NumberedStep n={4} id="draft" title={STEPS[3].title}>
+    <NumberedStep n={6} id="draft" title={STEPS[5].title}>
       <p>
         From v1 on, the conversation sits on the left and the live Draft on the right. The Draft is yours to edit:{' '}
         <strong>click any text</strong> to change it, <strong>drag</strong> Sections and Entries into a new order,{' '}
