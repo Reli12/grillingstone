@@ -33,12 +33,18 @@ export interface Change extends ProposedChange {
   status: ChangeStatus
 }
 
+/** Who brought a Proposal: a session of some kind, or a Drift Check (changes made in Azure DevOps). */
+export type ProposalKind = SessionKind | 'drift'
+
 export interface Proposal {
   id: string
+  /** The session that wrote it; for Drift, the Drift Check's own id. */
   sessionId: string
-  kind: SessionKind
+  kind: ProposalKind
   createdAt: string
   changes: Change[]
   /** Set by a template-upgrade session: the Template version the Draft moves to. */
   upgradeTo?: Template
+  /** Drift only: what Azure DevOps changed that no change here could carry (a removed Entry, an unknown heading). */
+  notes?: string[]
 }

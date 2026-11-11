@@ -1,5 +1,7 @@
 // The Draft: one work item being written, its Sections and Entries, and the Iteration Log.
 // The human-edit markers (humanEdited / humanMoved / discarded) decide what becomes a Conflict (ADR-0005).
+import type { DriftSeen, LinkedWorkItem, PublishedSnapshot } from '#core/ado/adoTypes.ts'
+import type { DraftLane } from '#core/draft/draftLane.ts'
 import type { Proposal } from '#core/proposal/proposalTypes.ts'
 import type { SectionTarget } from '#core/shared/trackerFields.ts'
 import type { WorkItemType } from '#core/shared/workItemType.ts'
@@ -35,6 +37,8 @@ export interface Section {
 export interface BacklogReference {
   copyId: string
   seenRevision: number
+  /** The Draft's Parent: the work item Publish places the Linked Work Item under. At most one per Draft. */
+  parent?: boolean
 }
 
 export interface IterationLogLine {
@@ -60,6 +64,16 @@ export interface Draft {
   sections: Section[]
   iterationLog: IterationLogLine[]
   proposal: Proposal | null
+  /** Its Lane on the Project board (ADR-0019). Absent on Drafts saved before Lanes: derived, see laneOf. */
+  lane?: DraftLane
+  /** Archived: no longer worked on, off the board until restored. Absent: not Archived. */
+  archived?: boolean
+  /** The Azure DevOps work item this Draft Publishes to; absent until it is Published, Imported or linked. */
+  linkedWorkItem?: LinkedWorkItem
+  /** What Azure DevOps held at the last Publish or link: the baseline of Drift. */
+  publishedSnapshot?: PublishedSnapshot
+  /** The Azure DevOps state whose Drift was last brought in as a Proposal; cleared by the next Publish. */
+  driftSeen?: DriftSeen
   createdAt: string
   updatedAt: string
 }

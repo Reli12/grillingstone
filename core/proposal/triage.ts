@@ -5,12 +5,14 @@ import type { Draft } from '#core/draft/draftTypes.ts'
 import { applyChange } from '#core/proposal/applyChange.ts'
 import { reclassify } from '#core/proposal/classify.ts'
 import type { Change } from '#core/proposal/proposalTypes.ts'
-import type { SessionKind } from '#core/session/sessionKind.ts'
+import type { ProposalKind } from '#core/proposal/proposalTypes.ts'
 import { plural } from '#core/shared/plural.ts'
 import type { Template } from '#core/template/templateTypes.ts'
 
-const SESSION_NAMES: Record<SessionKind, string> = {
+const SESSION_NAMES: Record<ProposalKind, string> = {
   first: 'the first session',
+  import: 'an Import Session',
+  drift: 'Azure DevOps (Drift)',
   focused: 'a Focused Session',
   iteration: 'an Iteration session',
   upgrade: 'a Template upgrade',

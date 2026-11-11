@@ -67,10 +67,18 @@ function wrongShape(def: TemplateSection, section: ContentSection): Reason[] {
   return []
 }
 
-/** An empty Section is allowed only when it is not Locked and says "N/A — reason". */
-function emptySection(def: TemplateSection, section: ContentSection): Reason[] {
+/**
+ * How strictly content is checked. An Import moves an existing work item's content without adding any, so a Section
+ * the item lacks — Locked ones included — may stay "N/A — reason", and Entries keep whatever form the item had.
+ */
+export interface ValidateOptions {
+  imported?: boolean
+}
+
+/** An empty Section is allowed only when it is not Locked (or Imported) and says "N/A — reason". */
+function emptySection(def: TemplateSection, section: ContentSection, options: ValidateOptions): Reason[] {
   const at = { sectionKey: def.key }
-  if (def.locked)
+  if (def.locked && !options.imported)
     return [
       {
         code: 'empty-locked-section',
@@ -89,11 +97,13 @@ function emptySection(def: TemplateSection, section: ContentSection): Reason[] {
   return []
 }
 
-function checkEntry(def: TemplateSection, entry: ContentEntry, index: number): Reason[] {
+function checkEntry(def: TemplateSection, entry: ContentEntry, index: number, options: ValidateOptions): Reason[] {
   const at = { sectionKey: def.key }
   const trimmedTitle = entry.title?.trim()
   const titleSuffix = trimmedTitle ? ` "${trimmedTitle}"` : ''
   const name = `"${def.heading}" Entry ${index + 1}${titleSuffix}`
+  if (options.imported && !trimmedTitle) return [{ code: 'malformed-entry', ...at, message: `${name} needs a title.` }]
+  if (options.imported) return []
   if (!trimmedTitle || !entry.body?.trim())
     return [{ code: 'malformed-entry', ...at, message: `${name} needs both a title and a body.` }]
   if (def.entryFormat === 'gherkin' && !GHERKIN.test(entry.body))
@@ -101,15 +111,15 @@ function checkEntry(def: TemplateSection, entry: ContentEntry, index: number): R
   return []
 }
 
-function checkSection(def: TemplateSection, section: ContentSection): Reason[] {
+function checkSection(def: TemplateSection, section: ContentSection, options: ValidateOptions): Reason[] {
   const shapeReasons = wrongShape(def, section)
   if (shapeReasons.length) return shapeReasons
-  if (!hasContent(def, section)) return emptySection(def, section)
-  return (section.entries ?? []).flatMap((entry, index) => checkEntry(def, entry, index))
+  if (!hasContent(def, section)) return emptySection(def, section, options)
+  return (section.entries ?? []).flatMap((entry, index) => checkEntry(def, entry, index, options))
 }
 
 /** Walks the submitted Sections once: unknown and duplicate keys, then each known Section's own checks. */
-function checkSubmittedSections(template: Template, content: DraftContent) {
+function checkSubmittedSections(template: Template, content: DraftContent, options: ValidateOptions) {
   const defs = new Map(template.sections.map((def) => [def.key, def]))
   const reasons: Reason[] = []
   const seen = new Set<string>()
@@ -135,7 +145,7 @@ function checkSubmittedSections(template: Template, content: DraftContent) {
     }
     seen.add(section.key)
     order.push(section.key)
-    reasons.push(...checkSection(def, section))
+    reasons.push(...checkSection(def, section, options))
   }
   return { reasons, seen, order }
 }
@@ -157,13 +167,13 @@ function sectionOrder(template: Template, seen: Set<string>, order: string[]): R
   return [{ code: 'section-order', message: `Sections must follow the Template order: ${headings}.` }]
 }
 
-export function validate(template: Template, content: DraftContent): Validation {
+export function validate(template: Template, content: DraftContent, options: ValidateOptions = {}): Validation {
   if (!isContent(content))
     return { ok: false, reasons: [{ code: 'malformed-content', message: MALFORMED_CONTENT_MESSAGE }] }
   const reasons: Reason[] = []
   if (!content.title?.trim()) reasons.push({ code: 'missing-title', message: 'The Draft needs a Title.' })
 
-  const submitted = checkSubmittedSections(template, content)
+  const submitted = checkSubmittedSections(template, content, options)
   reasons.push(...submitted.reasons)
   reasons.push(...missingSections(template, submitted.seen))
   reasons.push(...sectionOrder(template, submitted.seen, submitted.order))

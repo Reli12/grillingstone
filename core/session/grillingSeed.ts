@@ -8,6 +8,7 @@ import type { CodeFolderSnapshot } from '#core/codeFolder/codeFolderTypes.ts'
 import type { Draft, Entry, Section } from '#core/draft/draftTypes.ts'
 import { type Seed, submitOutcomeRules, type SubmitProtocol, submitSteps } from '#core/session/cardProtocol.ts'
 import { grillingRules } from '#core/session/grillingRules.ts'
+import { buildImportSeed } from '#core/session/importSeed.ts'
 import type { SessionKind } from '#core/session/sessionKind.ts'
 import { TRACKER_LABELS } from '#core/shared/tracker.ts'
 import { type Template, type TemplateSection, templateTracker } from '#core/template/templateTypes.ts'
@@ -242,6 +243,8 @@ function task(input: SeedInput): string {
       return `${focusLine(draft, input.focus)} Grill only about this part.${note}\nYour Proposal may also suggest knock-on changes elsewhere (e.g. Acceptance Criteria or Dependencies affected by a Scope change) — as separate changes the human can reject.\nStart with your first question.`
     case 'iteration':
       return `This is a full new Iteration on the whole Draft (v${draft.version}).${note}\nRe-grill whatever the new information affects, then propose changes.\nStart with your first question.`
+    case 'import':
+      return 'Import the work item without asking anything.'
     case 'upgrade': {
       const target = input.upgradeTo
       if (!target) return 'Template upgrade requested, but no target Template was given. Tell the human.'
@@ -260,6 +263,7 @@ The newer method and Section list are in your instructions. Propose rewrites onl
 }
 
 export function buildSeed(input: SeedInput): Seed {
+  if (input.kind === 'import') return buildImportSeed(input)
   const { draft } = input
   const first = input.kind === 'first'
   const template = input.kind === 'upgrade' && input.upgradeTo ? input.upgradeTo : draft.template

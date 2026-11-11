@@ -71,7 +71,7 @@ export function sectionFromContent(
 }
 
 /** The first session writes v1 directly (ADR-0005). Content must already be validated. */
-export function writeV1(draft: Draft, content: DraftContent, meta: IterationMeta): Draft {
+export function writeV1(draft: Draft, content: DraftContent, meta: IterationMeta, note = 'First Draft written'): Draft {
   if (draft.version !== 0) throw new Error('v1 already exists — later sessions return a Proposal')
   return {
     ...draft,
@@ -80,7 +80,7 @@ export function writeV1(draft: Draft, content: DraftContent, meta: IterationMeta
     sections: content.sections.map((section) =>
       sectionFromContent(draft.template, section.key, section.body, section.entries),
     ),
-    iterationLog: [{ version: 1, date: meta.date, author: meta.author, note: 'First Draft written' }],
+    iterationLog: [{ version: 1, date: meta.date, author: meta.author, note }],
     updatedAt: meta.date,
   }
 }

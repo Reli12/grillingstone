@@ -23,6 +23,24 @@ const submission = (patch: Partial<Submission>): Submission => ({
 })
 
 describe('acceptSubmission', () => {
+  it('writes an Imported v1 with Locked Sections left N/A, and takes it as the Draft the item was linked with', () => {
+    const linked = {
+      ...fresh(),
+      linkedWorkItem: { id: 42, url: 'u', workItemType: 'PBI' as const },
+      publishedSnapshot: { rev: 3, at: meta.date, title: 'T', fields: {}, draft: { title: '', sections: [] } },
+    }
+    const content = validPbiContent()
+    content.sections = content.sections.map((section) =>
+      section.key === 'acceptanceCriteria' ? { key: section.key, body: 'N/A — not in #42' } : section,
+    )
+    expect(acceptSubmission(fresh(), submission({ payload: content })).ok).toBe(false)
+    const outcome = acceptSubmission(linked, submission({ kind: 'import', payload: content }))
+    if (!outcome.ok) throw new Error(outcome.reasons.map((reason) => reason.message).join())
+    expect(outcome.draft.iterationLog[0].note).toBe('Imported from Azure DevOps #42')
+    expect(outcome.draft.publishedSnapshot?.rev).toBe(3)
+    expect(outcome.draft.publishedSnapshot?.draft.sections).toHaveLength(outcome.draft.sections.length)
+  })
+
   it('writes v1 from valid content, and refuses content that breaks the Template', () => {
     const ok = acceptSubmission(fresh(), submission({}))
     expect(ok).toMatchObject({ ok: true, draft: { version: 1 }, message: expect.stringContaining('Draft v1 written') })
